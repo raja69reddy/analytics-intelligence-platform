@@ -161,6 +161,17 @@ A production-grade analytics platform built with Python, PostgreSQL, and Streaml
 - Added channel contribution table with CSV download
 - All tests passing with pytest
 
+✅ **Day 19 — AI Anomaly Detection**
+- Created ai/ folder structure with 4 submodules
+- Built AnomalyDetector class using scikit-learn IsolationForest
+- Trained and saved traffic anomaly detection model
+- Created run_detection.py pipeline script
+- Added anomaly visualization to traffic dashboard page
+- Anomaly dates marked with red dots on sessions chart
+- Added severity badges: 🔴 High 🟡 Medium 🟢 Low
+- Added anomaly alerts to dashboard sidebar
+- All tests passing with pytest
+
 ## Project Architecture
 
 ```
