@@ -3,6 +3,14 @@
 All callers should use get_engine() rather than creating their own engines.
 The module-level engine is initialised once and reused across all calls in
 the same process, keeping connection-pool overhead to a minimum.
+
+Public API:
+  get_engine()         — shared SQLAlchemy Engine
+  get_connection()     — context manager yielding a raw Connection
+  run_sql_file(path)   — execute a .sql file in one transaction
+  query_df(sql)        — run a SELECT and return a DataFrame
+  query_sql_file(path) — run a .sql file and return a DataFrame
+  test_connection()    — smoke-test the DB credentials
 """
 import os
 from contextlib import contextmanager

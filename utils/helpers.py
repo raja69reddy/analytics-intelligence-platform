@@ -1,4 +1,10 @@
-"""Shared helpers used across ingestion scripts."""
+"""Shared utility helpers used across ingestion and mock-data scripts.
+
+Functions cover three areas:
+  - Date utilities  : date_to_id, get_date_id, populate_dim_dates
+  - URL parsing     : parse_url, parse_url_parts, clean_url
+  - UA parsing      : clean_user_agent
+"""
 import os
 import re
 from datetime import date, timedelta
