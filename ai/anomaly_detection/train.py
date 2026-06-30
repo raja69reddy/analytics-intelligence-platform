@@ -140,13 +140,13 @@ def evaluate_model(model: IsolationForest, df: pd.DataFrame) -> None:
     anomaly_count = int((preds == -1).sum())
     normal_count  = int((preds == 1).sum())
 
-    print("\n── Model Evaluation Summary ─────────────────────────────────")
+    print("\n-- Model Evaluation Summary ---------------------------------")
     print(f"  Rows evaluated   : {len(X):,}")
     print(f"  Anomalies found  : {anomaly_count:,} ({anomaly_count / len(X) * 100:.1f}%)")
     print(f"  Normal rows      : {normal_count:,}")
     print(f"  Contamination    : {model.contamination:.0%}")
     print(f"  Score range      : [{scores.min():.4f}, {scores.max():.4f}]")
-    print("─────────────────────────────────────────────────────────────\n")
+    print("-------------------------------------------------------------\n")
 
 
 # ── CLI entry point ───────────────────────────────────────────────────────────
