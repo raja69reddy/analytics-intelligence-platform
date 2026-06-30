@@ -8,94 +8,10 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 |-----|------|--------|
 | Day 1 | Project scaffold, folder structure, README skeleton | ✅ Done |
 | Day 2 | utils/db.py - SQLAlchemy connection helper + .env setup | ✅ Done |
-| Day 3 | sql/schema.sql - all 8 table definitions applied to DB | ✅ Done |
+| Day 3 | sql/schema.sql - all table definitions | ✅ Done |
 | Day 4 | Build dim_dates table + populate_dates.py | ⏳ Upcoming |
 | Day 5 | Virtual env + requirements verified | ⏳ Upcoming |
-| Day 6 | Create mock data generator for GA4 sessions | ⏳ Upcoming |
-| Day 7 | Week 1 review + push to GitHub | ⏳ Upcoming |
-| Day 8 | Build ingest_ga4.py pipeline | ⏳ Upcoming |
-| Day 9 | Add --mode full / --mode incremental to GA4 script | ⏳ Upcoming |
-| Day 10 | Generate mock server log file + write log parser | ⏳ Upcoming |
-| Day 11 | Build ingest_logs.py pipeline | ⏳ Upcoming |
-| Day 12 | Write SQL view: sessions_by_channel | ⏳ Upcoming |
-| Day 13 | Write SQL view: top_pages from server logs | ⏳ Upcoming |
-| Day 14 | Week 2 review + push to GitHub | ⏳ Upcoming |
-| Day 15 | Generate mock clickstream events | ⏳ Upcoming |
-| Day 16 | Build ingest_clickstream.py pipeline | ⏳ Upcoming |
-| Day 17 | Generate mock scraped pages data | ⏳ Upcoming |
-| Day 18 | Build ingest_scrape.py pipeline | ⏳ Upcoming |
-| Day 19 | Build run_all.py orchestration script | ⏳ Upcoming |
-| Day 20 | Write SQL views: fct_sessions and fct_events | ⏳ Upcoming |
-| Day 21 | End-to-end test: run_all.py from scratch | ⏳ Upcoming |
-| Day 22 | Write conversion_rate.sql | ⏳ Upcoming |
-| Day 23 | Write funnel_dropoff.sql | ⏳ Upcoming |
-| Day 24 | Write seo_content.sql | ⏳ Upcoming |
-| Day 25 | Write user_behavior.sql | ⏳ Upcoming |
-| Day 26 | Build dim_dates table with populate_dates.py | ⏳ Upcoming |
-| Day 27 | Start EDA notebook - load data from DB | ⏳ Upcoming |
-| Day 28 | EDA: plot traffic by day and channel distribution | ⏳ Upcoming |
-| Day 29 | EDA: funnel visualization in notebook | ⏳ Upcoming |
-| Day 30 | Phase 1 review - push all to GitHub | ⏳ Upcoming |
-| Day 31 | Create Streamlit app skeleton with sidebar | ⏳ Upcoming |
-| Day 32 | Build global sidebar filters | ⏳ Upcoming |
-| Day 33 | Wire filters to DB queries | ⏳ Upcoming |
-| Day 34 | Add KPI metric cards | ⏳ Upcoming |
-| Day 35 | Add traffic over time line chart | ⏳ Upcoming |
-| Day 36 | Add channel breakdown bar and pie chart | ⏳ Upcoming |
-| Day 37 | Week 5 review + fix responsiveness | ⏳ Upcoming |
-| Day 38 | Build page 2: top pages table | ⏳ Upcoming |
-| Day 39 | Add funnel chart | ⏳ Upcoming |
-| Day 40 | Add scroll depth histogram | ⏳ Upcoming |
-| Day 41 | Add engagement events breakdown | ⏳ Upcoming |
-| Day 42 | Connect page 2 to global sidebar filters | ⏳ Upcoming |
-| Day 43 | Add new vs returning users donut chart | ⏳ Upcoming |
-| Day 44 | Review all charts - add titles and tooltips | ⏳ Upcoming |
-| Day 45 | Build page 3: conversion rate over time | ⏳ Upcoming |
-| Day 46 | Add goal completions by source/medium chart | ⏳ Upcoming |
-| Day 47 | Add drop-off analysis waterfall chart | ⏳ Upcoming |
-| Day 48 | Build page 4: SEO top landing pages | ⏳ Upcoming |
-| Day 49 | Add scatter plot: word count vs session duration | ⏳ Upcoming |
-| Day 50 | Add content performance table | ⏳ Upcoming |
-| Day 51 | Review all 4 pages end-to-end | ⏳ Upcoming |
-| Day 52 | Add data freshness indicator in sidebar | ⏳ Upcoming |
-| Day 53 | Add data validation checks in ingestion scripts | ⏳ Upcoming |
-| Day 54 | Add PostgreSQL indexes for performance | ⏳ Upcoming |
-| Day 55 | Profile slow queries with EXPLAIN ANALYZE | ⏳ Upcoming |
-| Day 56 | Add st.cache_data to all DB query functions | ⏳ Upcoming |
-| Day 57 | Write unit tests with pytest | ⏳ Upcoming |
-| Day 58 | Stress test with 100k mock rows | ⏳ Upcoming |
-| Day 59 | Fix test failures + error handling | ⏳ Upcoming |
-| Day 60 | Phase 2 review - screenshot every dashboard page | ⏳ Upcoming |
-| Day 61 | Deploy to Streamlit Community Cloud | ⏳ Upcoming |
-| Day 62 | Set up GitHub Actions CI | ⏳ Upcoming |
-| Day 63 | Add Docker + docker-compose.yml | ⏳ Upcoming |
-| Day 64 | Seed cloud DB with mock data | ⏳ Upcoming |
-| Day 65 | Add .env.example + remove hardcoded secrets | ⏳ Upcoming |
-| Day 66 | Write CONTRIBUTING.md | ⏳ Upcoming |
-| Day 67 | Review live deploy + fix bugs | ⏳ Upcoming |
-| Day 68 | Write full README with architecture diagram | ⏳ Upcoming |
-| Day 69 | Add DB schema diagram to README | ⏳ Upcoming |
-| Day 70 | Add dashboard screenshots to README | ⏳ Upcoming |
-| Day 71 | Document each SQL view with comment blocks | ⏳ Upcoming |
-| Day 72 | Write Key Findings section in README | ⏳ Upcoming |
-| Day 73 | Write Tech Stack section with version numbers | ⏳ Upcoming |
-| Day 74 | Proof-read README + get peer feedback | ⏳ Upcoming |
-| Day 75 | Run flake8 + black formatter on codebase | ⏳ Upcoming |
-| Day 76 | Refactor repeated SQL into reusable views | ⏳ Upcoming |
-| Day 77 | Add type hints to all Python functions | ⏳ Upcoming |
-| Day 78 | Replace hardcoded values with constants | ⏳ Upcoming |
-| Day 79 | Add logging to all pipeline scripts | ⏳ Upcoming |
-| Day 80 | Final pytest run - all tests must pass | ⏳ Upcoming |
-| Day 81 | Tag v1.0.0 release on GitHub | ⏳ Upcoming |
-| Day 82 | Write LinkedIn post announcing the project | ⏳ Upcoming |
-| Day 83 | Create 2-minute screen-recording walkthrough | ⏳ Upcoming |
-| Day 84 | Pin repo on GitHub profile + update bio | ⏳ Upcoming |
-| Day 85 | Add project to resume with impact statements | ⏳ Upcoming |
-| Day 86 | Prepare 5-minute verbal walkthrough for interviews | ⏳ Upcoming |
-| Day 87 | Post project in 2 data analyst communities | ⏳ Upcoming |
-| Day 88 | Respond to feedback + note improvement ideas | ⏳ Upcoming |
-| Day 89 | Document 3 things you would do differently | ⏳ Upcoming |
-| Day 90 | Final push - project complete and portfolio ready | ⏳ Upcoming |
+| Day 6 | Mock data generators | ⏳ Upcoming |
 
 ## Stack
 
