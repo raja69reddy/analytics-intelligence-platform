@@ -1,5 +1,14 @@
 # Changelog
 
+## Day 14 - Week 2 Review
+- Ran all 4 ingestion pipelines end to end (2,000 + 5,000 + 5,000 + 50 rows)
+- Created ingestion/run_all.py orchestration script with formatted summary table
+- All 108 tests passing across 7 test files
+- Added utils/data_quality.py for null, duplicate, and date range checks
+- Added performance indexes on all raw tables (session_date, log_time, event_time, event_name, url)
+- Added utils/project_summary.py for project overview (tables, views, tests, ingestion times)
+- Added timing logs (START/END) to all 4 ingestion scripts
+
 ## Day 13 - Page Behavior SQL Views
 - Created 7 page behavior SQL views: vw_top_pages, vw_page_performance, vw_error_pages, vw_traffic_by_hour, vw_user_agents, vw_scroll_depth, vw_engagement_events
 - Added page_analysis.sql with 5 queries
