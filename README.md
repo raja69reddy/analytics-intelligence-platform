@@ -1,6 +1,15 @@
-# Web Analytics Dashboard
+# Analytics Intelligence Platform
 
-A solo-use, full-stack web analytics project built with PostgreSQL + Python + Streamlit.
+A production-grade analytics platform built with Python, PostgreSQL, and Streamlit — enhanced with AI-powered insights, natural language querying, and automated report generation.
+
+## 🤖 AI Features (In Progress)
+| Feature | Description | Status |
+|---------|-------------|--------|
+| Anomaly Detection | Auto-detect traffic spikes and drops using ML | 🔄 In Progress |
+| Natural Language Query | Ask questions in plain English, get SQL results | 🔄 In Progress |
+| AI Report Generation | Auto-generate insights summaries using LLM | 🔄 In Progress |
+| Predictive Analytics | Forecast traffic and conversions 30 days ahead | 📅 Planned |
+| Smart Alerts | AI-powered alerts for KPI threshold breaches | 📅 Planned |
 
 ## 📋 Progress Log
 
@@ -180,6 +189,7 @@ Clickstream   ──►  raw_clickstream     ──►  fct_events          ─�
 | Data manipulation | Pandas, SQLAlchemy, psycopg2 |
 | Dashboard | Streamlit |
 | Visualizations | Plotly |
+| AI/ML | scikit-learn, Prophet, OpenAI API |
 
 ## Project Structure
 
