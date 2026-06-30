@@ -117,11 +117,13 @@ col_left, col_right = st.columns(2)
 with col_left:
     st.subheader("Sessions by Channel")
     if not df_channels.empty:
+        # Sort ascending so that the longest bar appears at the top in a horizontal chart
+        df_ch_sorted = df_channels.sort_values("total_sessions", ascending=True)
         fig_ch = bar_chart(
-            df_channels, x="total_sessions", y="channel_grouping",
-            title="Channel Breakdown",
+            df_ch_sorted, x="total_sessions", y="channel_grouping",
+            title="Sessions by Channel (Descending)",
             orientation="h",
-            labels={"channel_grouping": "", "total_sessions": "Sessions"},
+            labels={"channel_grouping": "Channel", "total_sessions": "Sessions"},
         )
         st.plotly_chart(fig_ch, use_container_width=True)
 
