@@ -1,12 +1,4 @@
--- channel_breakdown.sql
--- Returns traffic and conversion metrics aggregated by channel grouping.
--- Useful for the channel breakdown bar chart on the Traffic dashboard page.
--- Parameters (optional — remove WHERE clause to get all-time totals):
---   :start_date  DATE  e.g. '2024-01-01'
---   :end_date    DATE  e.g. '2024-03-31'
---
--- Example usage in Python:
---   query_sql_file('sql/queries/channel_breakdown.sql', {'start_date': '2024-01-01', 'end_date': '2024-03-31'})
+-- channel_breakdown.sql: traffic and conversion metrics by channel for a given date range (:start_date, :end_date).
 
 SELECT
     s.channel_grouping,
