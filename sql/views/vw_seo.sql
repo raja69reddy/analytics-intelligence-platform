@@ -1,4 +1,21 @@
--- vw_seo: organic search performance per landing page with scraped metadata and scroll engagement.
+-- ============================================================
+-- vw_seo
+-- Purpose : SEO and content performance for organic search traffic,
+--           enriched with the latest scraped page metadata.
+-- Sources : fct_sessions JOIN dim_dates JOIN dim_pages
+--           LEFT JOIN LATERAL raw_scrape_pages (most recent scrape)
+--           LEFT JOIN fct_events (scroll events)
+-- Filter  : channel_grouping = 'Organic Search' only
+-- Key metrics:
+--   organic_sessions      — sessions arriving via organic search
+--   organic_pageviews     — pageviews from organic sessions
+--   avg_time_on_page_s    — mean session duration for organic visitors
+--   organic_bounce_rate_pct— bounce rate for organic traffic
+--   organic_conversions   — conversions from organic sessions
+--   avg_scroll_depth_pct  — scroll engagement of organic visitors
+--   word_count            — content length from latest scrape
+-- Usage : SELECT * FROM vw_seo ORDER BY organic_sessions DESC
+-- ============================================================
 CREATE OR REPLACE VIEW vw_seo AS
 SELECT
     d.full_date,
