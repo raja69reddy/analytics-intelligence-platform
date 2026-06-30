@@ -27,6 +27,25 @@ from utils.query_runner import run_view
 st.set_page_config(page_title="Traffic & Sessions", page_icon="📈", layout="wide")
 st.title("📈 Traffic & Sessions Overview")
 
+# ── Cached data loaders (TTL = 5 minutes) ─────────────────────────────────────
+@st.cache_data(ttl=300)
+def _load_traffic():       return run_view("vw_traffic")
+
+@st.cache_data(ttl=300)
+def _load_daily():         return run_view("vw_daily_traffic")
+
+@st.cache_data(ttl=300)
+def _load_channels():      return run_view("vw_channel_performance")
+
+@st.cache_data(ttl=300)
+def _load_devices():       return run_view("vw_device_breakdown")
+
+@st.cache_data(ttl=300)
+def _load_newret():        return run_view("vw_new_vs_returning")
+
+@st.cache_data(ttl=300)
+def _load_geo():           return run_view("vw_geo_performance")
+
 # ── Sidebar filters ───────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Filters")
@@ -34,17 +53,22 @@ with st.sidebar:
     channels    = get_channel_filter()
     page_search = get_page_filter()
     devices     = get_device_filter()
+    st.divider()
+    if st.button("Clear data cache"):
+        st.cache_data.clear()
+        st.success("Cache cleared — reloading…")
+    st.caption("Cache TTL: 5 min")
     active = sum([bool(channels), bool(page_search), bool(devices)])
     if active:
         st.success(f"Filters applied: {active}")
 
 # ── Load data ─────────────────────────────────────────────────────────────────
-df_traffic  = run_view("vw_traffic")
-df_daily    = run_view("vw_daily_traffic")
-df_channels = run_view("vw_channel_performance")
-df_devices  = run_view("vw_device_breakdown")
-df_newret   = run_view("vw_new_vs_returning")
-df_geo      = run_view("vw_geo_performance")
+df_traffic  = _load_traffic()
+df_daily    = _load_daily()
+df_channels = _load_channels()
+df_devices  = _load_devices()
+df_newret   = _load_newret()
+df_geo      = _load_geo()
 
 # Debug: verify each view returned rows
 with st.expander("Debug: data shapes", expanded=False):
@@ -66,8 +90,7 @@ period_days = (end_date - start_date).days + 1
 prev_start  = start_date - timedelta(days=period_days)
 prev_end    = start_date - timedelta(days=1)
 
-df_all  = run_view("vw_traffic")
-df_prev = apply_filters(df_all, prev_start, prev_end, channels)
+df_prev = apply_filters(_load_traffic(), prev_start, prev_end, channels)
 
 def _delta(curr: float, prev: float) -> str | None:
     if prev == 0:
