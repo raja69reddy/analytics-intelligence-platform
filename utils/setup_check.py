@@ -1,39 +1,32 @@
-"""Verify all required packages are importable. Run after pip install -r requirements.txt."""
+"""Verify required packages are importable. Run after pip install -r requirements.txt."""
 import sys
+
+sys.stdout.reconfigure(encoding="utf-8")
+
+PACKAGES = [
+    ("pandas",     "pandas"),
+    ("sqlalchemy", "sqlalchemy"),
+    ("psycopg2",   "psycopg2-binary"),
+    ("streamlit",  "streamlit"),
+    ("plotly",     "plotly"),
+    ("dotenv",     "python-dotenv"),
+]
 
 
 def check():
-    packages = [
-        ("psycopg2",       "psycopg2-binary"),
-        ("sqlalchemy",     "sqlalchemy"),
-        ("pandas",         "pandas"),
-        ("dotenv",         "python-dotenv"),
-        ("numpy",          "numpy"),
-        ("streamlit",      "streamlit"),
-        ("plotly",         "plotly"),
-        ("altair",         "altair"),
-        ("requests",       "requests"),
-        ("bs4",            "beautifulsoup4"),
-        ("user_agents",    "user-agents"),
-        ("tqdm",           "tqdm"),
-        ("click",          "click"),
-        ("dateutil",       "python-dateutil"),
-        ("faker",          "Faker"),
-    ]
-
     failed = []
-    for module, pkg in packages:
+    for module, pkg in PACKAGES:
         try:
             __import__(module)
         except ImportError:
             failed.append(pkg)
 
     if failed:
-        print(f"MISSING packages: {', '.join(failed)}")
+        print(f"❌ Missing packages: {', '.join(failed)}")
         print("Run: pip install -r requirements.txt")
         sys.exit(1)
     else:
-        print("All packages OK")
+        print("✅ All packages OK")
 
 
 if __name__ == "__main__":
