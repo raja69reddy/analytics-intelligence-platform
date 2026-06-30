@@ -249,3 +249,43 @@ else:
     st.info("No session duration data available.")
 
 st.divider()
+
+# ── Top pages by engagement score ─────────────────────────────────────────────
+st.subheader("Top Pages by Engagement Score")
+if not df_behavior.empty:
+    import pandas as pd
+    df_eng = df_behavior.copy()
+    # score = (scroll_depth * 0.4) + (events_count * 0.3) + (time_on_page * 0.3)
+    # Normalise each component to 0-1 range before weighting
+    max_scroll  = df_eng["avg_scroll_depth_pct"].max() or 1
+    max_events  = df_eng["total_events"].max() or 1
+    max_resp    = df_eng["avg_response_ms"].max() or 1
+    df_eng["score"] = (
+        (df_eng["avg_scroll_depth_pct"].fillna(0) / max_scroll) * 0.4
+        + (df_eng["total_events"] / max_events) * 0.3
+        + (1 - df_eng["avg_response_ms"] / max_resp) * 0.3  # faster = better
+    ).round(4)
+    df_top10 = df_eng.nlargest(10, "score")[["page", "score"]].reset_index(drop=True)
+    df_top10_sorted = df_top10.sort_values("score", ascending=True)
+    fig_eng = go.Figure(go.Bar(
+        x=df_top10_sorted["score"],
+        y=df_top10_sorted["page"],
+        orientation="h",
+        marker=dict(
+            color=df_top10_sorted["score"],
+            colorscale="Viridis",
+            showscale=True,
+            colorbar=dict(title="Score"),
+        ),
+    ))
+    fig_eng.update_layout(
+        title="Top 10 Pages by Engagement Score",
+        xaxis_title="Engagement Score",
+        yaxis_title="Page",
+        template="plotly_white",
+    )
+    st.plotly_chart(fig_eng, use_container_width=True)
+else:
+    st.info("No behavior data available.")
+
+st.divider()
