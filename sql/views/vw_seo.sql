@@ -1,3 +1,4 @@
+-- vw_seo: organic search performance per landing page with scraped metadata and scroll engagement.
 CREATE OR REPLACE VIEW vw_seo AS
 SELECT
     d.full_date,
