@@ -23,8 +23,15 @@ CSV_CHANNELS = [
     ("Paid Search",    "bing",       "cpc"),
 ]
 
+CSV_DEVICES = ["desktop", "mobile", "tablet"]
+CSV_COUNTRIES = ["US", "UK", "India", "Canada", "Australia"]
+CSV_LANDING_PAGES = [
+    "/home", "/about", "/products", "/blog",
+    "/pricing", "/contact", "/blog/post-1", "/blog/post-2",
+]
 
-def generate_csv(n: int = 1000, days: int = 90) -> pd.DataFrame:
+
+def generate_csv(n: int = 2000, days: int = 90) -> pd.DataFrame:
     """Generate n simplified GA4 rows with aggregated daily metrics."""
     end = date.today()
     start = end - timedelta(days=days - 1)
@@ -45,6 +52,9 @@ def generate_csv(n: int = 1000, days: int = 90) -> pd.DataFrame:
             "pageviews":            sessions * random.randint(1, 8),
             "bounce_rate":          round(random.uniform(0.2, 0.8), 4),
             "avg_session_duration": round(random.uniform(30, 600), 2),
+            "device_category":      random.choice(CSV_DEVICES),
+            "country":              random.choice(CSV_COUNTRIES),
+            "landing_page":         random.choice(CSV_LANDING_PAGES),
         })
     return pd.DataFrame(rows).sort_values("session_date").reset_index(drop=True)
 
@@ -133,7 +143,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["csv", "full", "incremental"], default="csv")
     parser.add_argument("--days", type=int, default=90)
-    parser.add_argument("--rows", type=int, default=1000)
+    parser.add_argument("--rows", type=int, default=2000)
     parser.add_argument("--sessions-per-day", type=int, default=200)
     args = parser.parse_args()
 
