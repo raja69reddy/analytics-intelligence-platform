@@ -1,4 +1,4 @@
-"""Generate mock scraped page metadata → raw_scrape_pages."""
+"""Generate mock scraped page metadata — CSV export or direct DB load."""
 import argparse
 import os
 import random
@@ -10,6 +10,42 @@ from faker import Faker
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from utils.db import get_engine
+
+CSV_OUT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "raw", "scrape_pages.csv"))
+
+BASE_PAGES = [
+    ("https://example.com/",          "Home"),
+    ("https://example.com/about",     "About Us"),
+    ("https://example.com/contact",   "Contact"),
+    ("https://example.com/pricing",   "Pricing"),
+    ("https://example.com/products",  "Products"),
+    ("https://example.com/faq",       "FAQ"),
+    ("https://example.com/careers",   "Careers"),
+    ("https://example.com/blog",      "Blog"),
+    ("https://example.com/terms",     "Terms of Service"),
+    ("https://example.com/privacy",   "Privacy Policy"),
+]
+
+
+def generate_csv(n: int = 50) -> pd.DataFrame:
+    """Generate n simplified scraped-page rows for CSV export."""
+    now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    rows = []
+    for i in range(n):
+        if i < len(BASE_PAGES):
+            url, title = BASE_PAGES[i]
+        else:
+            slug = fake.slug()
+            url = f"https://example.com/blog/{slug}"
+            title = " ".join(fake.words(nb=5)).title()
+        rows.append({
+            "url":              url,
+            "title":            title,
+            "meta_description": fake.sentence(nb_words=20)[:160],
+            "word_count":       random.randint(300, 3000),
+            "scraped_at":       now,
+        })
+    return pd.DataFrame(rows)
 
 fake = Faker()
 
@@ -60,10 +96,18 @@ def load(df: pd.DataFrame, mode: str = "full") -> None:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["full", "incremental"], default="full")
+    parser.add_argument("--mode", choices=["csv", "full", "incremental"], default="csv")
+    parser.add_argument("--rows", type=int, default=50)
     args = parser.parse_args()
-    df = generate()
-    load(df, mode=args.mode)
+
+    if args.mode == "csv":
+        df = generate_csv(n=args.rows)
+        os.makedirs(os.path.dirname(CSV_OUT), exist_ok=True)
+        df.to_csv(CSV_OUT, index=False)
+        print(f"Generated {len(df)} rows saved to data/raw/scrape_pages.csv")
+    else:
+        df = generate()
+        load(df, mode=args.mode)
 
 
 if __name__ == "__main__":
