@@ -21,17 +21,29 @@ st.set_page_config(
 )
 st.title("🎯 Conversion Tracking")
 
+# ── Cached data loaders ────────────────────────────────────────────────────────
+@st.cache_data(ttl=300)
+def _load_conversions():
+    return run_view("vw_conversions")
+
+@st.cache_data(ttl=300)
+def _load_funnel():
+    return run_view("vw_funnel")
+
 # ── Sidebar filters ───────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Filters")
     start_date, end_date = get_date_filter()
     channels = get_channel_filter()
+    if st.button("Clear cache"):
+        st.cache_data.clear()
+        st.rerun()
     if channels:
         st.success(f"Channel filter: {len(channels)} selected")
 
 # ── Load data ─────────────────────────────────────────────────────────────────
-df_conv  = run_view("vw_conversions")
-df_funnel = run_view("vw_funnel")
+df_conv  = _load_conversions()
+df_funnel = _load_funnel()
 
 # Apply date and channel filters to vw_conversions
 from dashboard.components.filters import apply_filters  # noqa: E402
