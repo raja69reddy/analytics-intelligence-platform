@@ -24,19 +24,89 @@ st.set_page_config(
 )
 st.title("🖱️ User Behavior & Funnels")
 
+# ── Cached loaders (TTL = 5 minutes) ─────────────────────────────────────────
+@st.cache_data(ttl=300)
+def _load_behavior():   return run_view("vw_behavior")
+
+@st.cache_data(ttl=300)
+def _load_top_pages():  return run_view("vw_top_pages")
+
+@st.cache_data(ttl=300)
+def _load_scroll():     return run_view("vw_scroll_depth")
+
+@st.cache_data(ttl=300)
+def _load_engagement(): return run_view("vw_engagement_events")
+
+@st.cache_data(ttl=300)
+def _load_avg_time():
+    return query_df("SELECT ROUND(AVG(session_duration_s)::numeric, 1) AS avg_s FROM raw_ga4_sessions")
+
+@st.cache_data(ttl=300)
+def _load_funnel():
+    return query_df("""
+WITH homepage AS (
+    SELECT DISTINCT session_id FROM raw_clickstream_events
+    WHERE event_name = 'pageview' AND page_url = '/'
+),
+product AS (
+    SELECT DISTINCT session_id FROM raw_clickstream_events
+    WHERE event_name = 'pageview' AND page_url IN ('/products/', '/pricing/')
+),
+cart AS (
+    SELECT DISTINCT session_id FROM raw_clickstream_events
+    WHERE event_name = 'click' AND page_url IN ('/products/', '/pricing/')
+),
+checkout AS (
+    SELECT DISTINCT session_id FROM raw_clickstream_events
+    WHERE event_name = 'form_submit'
+)
+SELECT
+    (SELECT COUNT(*) FROM homepage) AS homepage,
+    (SELECT COUNT(*) FROM product)  AS product_page,
+    (SELECT COUNT(*) FROM cart)     AS add_to_cart,
+    (SELECT COUNT(*) FROM checkout) AS checkout,
+    ROUND((SELECT COUNT(*) FROM checkout) * 0.35) AS purchase
+""")
+
+@st.cache_data(ttl=300)
+def _load_duration():
+    return query_df("""
+SELECT
+    COUNT(CASE WHEN session_duration_s < 30                                   THEN 1 END) AS "0–30s",
+    COUNT(CASE WHEN session_duration_s >= 30  AND session_duration_s < 120    THEN 1 END) AS "30s–2m",
+    COUNT(CASE WHEN session_duration_s >= 120 AND session_duration_s < 300    THEN 1 END) AS "2m–5m",
+    COUNT(CASE WHEN session_duration_s >= 300 AND session_duration_s < 600    THEN 1 END) AS "5m–10m",
+    COUNT(CASE WHEN session_duration_s >= 600                                 THEN 1 END) AS "10m+"
+FROM raw_ga4_sessions WHERE session_duration_s IS NOT NULL
+""")
+
+@st.cache_data(ttl=300)
+def _load_heatmap():
+    return query_df("""
+SELECT EXTRACT(DOW FROM log_time)::int AS dow,
+       EXTRACT(HOUR FROM log_time)::int AS hour_of_day,
+       COUNT(*) AS total_requests
+FROM raw_server_logs GROUP BY 1, 2 ORDER BY 1, 2
+""")
+
 # ── Sidebar filters ───────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Filters")
     start_date, end_date = get_date_filter()
     page_search = get_page_filter()
+    st.divider()
+    if st.button("Clear data cache"):
+        st.cache_data.clear()
+        st.success("Cache cleared — reloading…")
+    st.caption("Cache TTL: 5 min")
     if page_search:
         st.success("Page filter applied")
 
 # ── Load data ─────────────────────────────────────────────────────────────────
-df_behavior   = run_view("vw_behavior")
-df_top_pages  = run_view("vw_top_pages")
-df_scroll     = run_view("vw_scroll_depth")
-df_engagement = run_view("vw_engagement_events")
+df_behavior   = _load_behavior()
+df_top_pages  = _load_top_pages()
+df_scroll     = _load_scroll()
+df_engagement = _load_engagement()
 
 # Apply page URL filter
 if page_search:
@@ -56,7 +126,7 @@ with st.expander("Debug: data shapes", expanded=False):
 # ── KPI cards ─────────────────────────────────────────────────────────────────
 total_pageviews = int(df_top_pages["total_requests"].sum()) if not df_top_pages.empty else 0
 
-_time_row = query_df("SELECT ROUND(AVG(session_duration_s)::numeric, 1) AS avg_s FROM raw_ga4_sessions")
+_time_row = _load_avg_time()
 avg_time_s = float(_time_row["avg_s"].iloc[0]) if not _time_row.empty else 0.0
 
 avg_scroll = float(df_scroll["avg_scroll_depth_pct"].mean()) if not df_scroll.empty else 0.0
@@ -100,31 +170,7 @@ st.divider()
 # ── Conversion funnel ─────────────────────────────────────────────────────────
 st.subheader("Conversion Funnel")
 
-_funnel_sql = """
-WITH homepage AS (
-    SELECT DISTINCT session_id FROM raw_clickstream_events
-    WHERE event_name = 'pageview' AND page_url = '/'
-),
-product AS (
-    SELECT DISTINCT session_id FROM raw_clickstream_events
-    WHERE event_name = 'pageview' AND page_url IN ('/products/', '/pricing/')
-),
-cart AS (
-    SELECT DISTINCT session_id FROM raw_clickstream_events
-    WHERE event_name = 'click' AND page_url IN ('/products/', '/pricing/')
-),
-checkout AS (
-    SELECT DISTINCT session_id FROM raw_clickstream_events
-    WHERE event_name = 'form_submit'
-)
-SELECT
-    (SELECT COUNT(*) FROM homepage) AS homepage,
-    (SELECT COUNT(*) FROM product)  AS product_page,
-    (SELECT COUNT(*) FROM cart)     AS add_to_cart,
-    (SELECT COUNT(*) FROM checkout) AS checkout,
-    ROUND((SELECT COUNT(*) FROM checkout) * 0.35) AS purchase
-"""
-df_funnel = query_df(_funnel_sql)
+df_funnel = _load_funnel()
 
 if not df_funnel.empty:
     stages = ["Homepage", "Product Page", "Add to Cart", "Checkout", "Purchase"]
@@ -223,17 +269,7 @@ st.divider()
 
 # ── Session duration distribution ─────────────────────────────────────────────
 st.subheader("Session Duration Distribution")
-_dur_sql = """
-SELECT
-    COUNT(CASE WHEN session_duration_s < 30                           THEN 1 END) AS "0–30s",
-    COUNT(CASE WHEN session_duration_s >= 30  AND session_duration_s < 120  THEN 1 END) AS "30s–2m",
-    COUNT(CASE WHEN session_duration_s >= 120 AND session_duration_s < 300  THEN 1 END) AS "2m–5m",
-    COUNT(CASE WHEN session_duration_s >= 300 AND session_duration_s < 600  THEN 1 END) AS "5m–10m",
-    COUNT(CASE WHEN session_duration_s >= 600                         THEN 1 END) AS "10m+"
-FROM raw_ga4_sessions
-WHERE session_duration_s IS NOT NULL
-"""
-df_dur = query_df(_dur_sql)
+df_dur = _load_duration()
 if not df_dur.empty:
     import pandas as pd
     dur_labels = ["0–30s", "30s–2m", "2m–5m", "5m–10m", "10m+"]
@@ -319,16 +355,7 @@ st.divider()
 
 # ── Traffic heatmap by day and hour ───────────────────────────────────────────
 st.subheader("Traffic Heatmap — Day × Hour")
-_heatmap_sql = """
-SELECT
-    EXTRACT(DOW  FROM log_time)::int  AS dow,
-    EXTRACT(HOUR FROM log_time)::int  AS hour_of_day,
-    COUNT(*)                          AS total_requests
-FROM raw_server_logs
-GROUP BY 1, 2
-ORDER BY 1, 2
-"""
-df_heat = query_df(_heatmap_sql)
+df_heat = _load_heatmap()
 if not df_heat.empty:
     import pandas as pd
     _day_map = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"}
