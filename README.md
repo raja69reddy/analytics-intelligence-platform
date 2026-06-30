@@ -59,6 +59,14 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 - Loaded 1,000 rows into raw_ga4_sessions table
 - All unit tests passing with pytest
 
+✅ **Day 9 — Server Logs Pipeline + GA4 Improvements**
+- Improved GA4 incremental mode with --since date flag
+- Created ingestion/server_logs.py with full and incremental modes
+- Added error handling and logging to server_logs.py
+- Created verify_server_logs.py for data quality checks
+- Loaded 2,000 rows into raw_server_logs table
+- All unit tests passing with pytest
+
 ## Project Architecture
 
 ```
