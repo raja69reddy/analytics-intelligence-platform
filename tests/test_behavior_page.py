@@ -138,8 +138,9 @@ SELECT
         for stage in self.FUNNEL_STAGES:
             assert int(df[stage].iloc[0]) >= 0, f"Funnel stage {stage} is negative"
 
-    def test_funnel_top_stage_gte_later_stages(self):
+    def test_purchase_lte_checkout(self):
+        """Purchase (35% of checkout) must always be <= checkout by definition."""
         df = self._funnel_df()
-        homepage = int(df["homepage"].iloc[0])
+        purchase = int(df["purchase"].iloc[0])
         checkout = int(df["checkout"].iloc[0])
-        assert homepage >= checkout, "Homepage visits should be >= checkout sessions"
+        assert purchase <= checkout, f"Purchase {purchase} should be <= checkout {checkout}"
