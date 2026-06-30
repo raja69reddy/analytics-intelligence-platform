@@ -114,6 +114,19 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 - Added utils/project_summary.py for project overview
 - All systems verified and working correctly
 
+✅ **Day 16 — Traffic & Sessions Dashboard Page**
+- Full traffic page with 6 PostgreSQL views (vw_traffic, vw_daily_traffic,
+  vw_channel_performance, vw_device_breakdown, vw_new_vs_returning, vw_geo_performance)
+- 5 KPI cards with % change vs previous period
+- Sessions over time line chart with 7-day rolling average (dashed overlay)
+- Channel bar chart (sorted descending) + donut pie side by side
+- New vs returning stacked bar chart over time
+- Device breakdown: sessions pie + bounce rate bar in two columns
+- Geographic performance: country table + horizontal bar chart
+- Raw data table with CSV download and last updated timestamp
+- @st.cache_data(ttl=300) on all 6 view loaders + sidebar cache clear button
+- st.spinner while loading + try/except with friendly DB error message
+
 ✅ **Day 15 — Enhanced Mock Data + Dashboard Started**
 - Updated clickstream generator to 10,000 rows
 - Updated scrape generator to 100 rows with new columns
