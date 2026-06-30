@@ -161,6 +161,17 @@ A production-grade analytics platform built with Python, PostgreSQL, and Streaml
 - Added channel contribution table with CSV download
 - All tests passing with pytest
 
+✅ **Day 20 — Natural Language Query (NLQ) AI Feature**
+- Created ai/nlq/nlq_engine.py — OpenAI powered SQL generator
+- Created ai/nlq/prompts.py — database schema system prompts
+- Created ai/nlq/safety.py — SQL injection prevention
+- Created ai/nlq/cache.py — query result caching
+- Created run_nlq.py CLI interface
+- Tested with 5 example business questions successfully
+- Added NLQ interface to dashboard sidebar
+- Created dashboard/pages/5_nlq.py Ask Your Data page
+- All unit tests passing with pytest
+
 ✅ **Day 19 — AI Anomaly Detection**
 - Created ai/ folder structure with 4 submodules
 - Built AnomalyDetector class using scikit-learn IsolationForest
