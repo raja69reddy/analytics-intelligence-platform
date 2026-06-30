@@ -100,11 +100,12 @@ def load_csv() -> pd.DataFrame:
         "event_timestamp": "event_time",
         "user_id":         "user_pseudo_id",
         "event_type":      "event_name",
+        "device_type":     "device_category",
     })
 
     # Keep only columns that exist in raw_clickstream_events
     keep = ["event_time", "session_id", "user_pseudo_id", "event_name",
-            "page_url", "scroll_depth_pct"]
+            "page_url", "scroll_depth_pct", "device_category"]
     df = df[[c for c in keep if c in df.columns]]
 
     log.info("Loaded %d rows from CSV", len(df))
