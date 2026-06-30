@@ -37,6 +37,14 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 - Added CHANGELOG.md
 - Added detailed comments to schema.sql
 
+✅ **Day 6 — Mock Data Generators**
+- Created mock_data/gen_ga4.py — 1,000 rows of GA4 session data
+- Created mock_data/gen_server_logs.py — 2,000 rows of server logs
+- Created mock_data/gen_scrape.py — 50 rows of scraped pages
+- Created mock_data/gen_clickstream.py — 5,000 rows of clickstream events
+- All CSVs saved to data/raw/ folder
+- Verified all files generated successfully
+
 ## Stack
 
 | Layer | Tool |
