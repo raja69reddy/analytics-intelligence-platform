@@ -1,5 +1,13 @@
 # Changelog
 
+## Day 13 - Page Behavior SQL Views
+- Created 7 page behavior SQL views: vw_top_pages, vw_page_performance, vw_error_pages, vw_traffic_by_hour, vw_user_agents, vw_scroll_depth, vw_engagement_events
+- Added page_analysis.sql with 5 queries
+- Added weekly_report.sql with weekly summary, WoW growth, top pages, channels, and error rate
+- Updated query_runner.py with run_view, get_view_columns, save_results_to_csv helpers
+- All views tested and verified returning correct data
+- All 108 unit tests passing
+
 ## Day 12 - SQL Views for Sessions by Channel
 - Updated vw_traffic.sql with sessions by channel view (JOIN with dim_dates fallback)
 - Created vw_daily_traffic.sql with 7-day rolling average
