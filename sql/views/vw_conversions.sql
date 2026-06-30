@@ -1,16 +1,4 @@
--- ============================================================
--- vw_conversions
--- Purpose : Conversion and revenue metrics broken down by traffic source,
---           campaign, and device. Drives the Conversions dashboard page.
--- Sources : fct_sessions JOIN dim_dates
--- Key metrics:
---   sessions              — total sessions for this segment
---   conversions           — count of sessions with at least one conversion
---   revenue               — total revenue across all sessions
---   conversion_rate_pct   — converting sessions / total sessions * 100
---   revenue_per_conversion— average order value (revenue / conversions)
--- Usage : SELECT * FROM vw_conversions WHERE channel_grouping = 'Paid Search'
--- ============================================================
+-- vw_conversions: conversion rate and revenue by source, medium, and channel.
 CREATE OR REPLACE VIEW vw_conversions AS
 SELECT
     d.full_date,
