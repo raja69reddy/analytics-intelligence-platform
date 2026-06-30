@@ -184,3 +184,39 @@ else:
     st.info("No scroll depth data available.")
 
 st.divider()
+
+# ── Engagement events breakdown ───────────────────────────────────────────────
+st.subheader("Engagement Events Breakdown")
+if not df_engagement.empty:
+    import pandas as pd
+    ev_totals = {
+        "Click":       int(df_engagement["click_events"].sum()),
+        "Scroll":      int(df_engagement["scroll_events"].sum()),
+        "Pageview":    int(df_engagement["pageview_events"].sum()),
+        "Form Submit": int(df_engagement["form_submit_events"].sum()),
+    }
+    grand = sum(ev_totals.values()) or 1
+    df_ev = pd.DataFrame({
+        "Event Type": list(ev_totals.keys()),
+        "Count":      list(ev_totals.values()),
+        "Pct":        [f"{v / grand * 100:.1f}%" for v in ev_totals.values()],
+        "Color":      ["#636EFA", "#EF553B", "#00CC96", "#AB63FA"],
+    })
+    fig_ev = go.Figure(go.Bar(
+        x=df_ev["Event Type"],
+        y=df_ev["Count"],
+        marker_color=df_ev["Color"].tolist(),
+        text=df_ev["Pct"],
+        textposition="outside",
+    ))
+    fig_ev.update_layout(
+        title="Events by Type (all pages)",
+        xaxis_title="Event Type",
+        yaxis_title="Count",
+        template="plotly_white",
+    )
+    st.plotly_chart(fig_ev, use_container_width=True)
+else:
+    st.info("No engagement event data available.")
+
+st.divider()
