@@ -103,11 +103,18 @@ with st.sidebar:
         st.success("Page filter applied")
 
 # ── Load data ─────────────────────────────────────────────────────────────────
-with st.spinner("Loading behavior data from PostgreSQL…"):
-    df_behavior   = _load_behavior()
-    df_top_pages  = _load_top_pages()
-    df_scroll     = _load_scroll()
-    df_engagement = _load_engagement()
+try:
+    with st.spinner("Loading behavior data from PostgreSQL…"):
+        df_behavior   = _load_behavior()
+        df_top_pages  = _load_top_pages()
+        df_scroll     = _load_scroll()
+        df_engagement = _load_engagement()
+except Exception as exc:
+    st.error(
+        f"Could not load behavior data from the database. "
+        f"Check your PostgreSQL connection and try again.\n\n**Error:** {exc}"
+    )
+    st.stop()
 
 # Apply page URL filter
 if page_search:
