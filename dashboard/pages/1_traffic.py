@@ -1,6 +1,7 @@
 """Traffic & Sessions Overview — loads from vw_traffic and related views."""
 import os
 import sys
+from datetime import timedelta
 
 import streamlit as st
 
@@ -57,19 +58,42 @@ with st.expander("Debug: data shapes", expanded=False):
 df_traffic = apply_filters(df_traffic, start_date, end_date, channels)
 df_daily   = apply_filters(df_daily,   start_date, end_date)
 
-# ── KPI cards ────────────────────────────────────────────────────────────────
-total_sessions  = int(df_traffic["total_sessions"].sum())
-total_users     = int(df_traffic["total_users"].sum())
-total_pageviews = int(df_traffic["total_pageviews"].sum())
-avg_bounce      = float(df_traffic["avg_bounce_rate"].mean()) if len(df_traffic) else 0.0
-avg_duration    = float(df_traffic["avg_session_duration"].mean()) if len(df_traffic) else 0.0
+# ── KPI cards with % change vs previous period ────────────────────────────────
+period_days = (end_date - start_date).days + 1
+prev_start  = start_date - timedelta(days=period_days)
+prev_end    = start_date - timedelta(days=1)
+
+df_all  = run_view("vw_traffic")
+df_prev = apply_filters(df_all, prev_start, prev_end, channels)
+
+def _delta(curr: float, prev: float) -> str | None:
+    if prev == 0:
+        return None
+    return f"{((curr - prev) / prev * 100):+.1f}%"
+
+curr_sessions  = int(df_traffic["total_sessions"].sum())
+curr_users     = int(df_traffic["total_users"].sum())
+curr_pageviews = int(df_traffic["total_pageviews"].sum())
+curr_bounce    = float(df_traffic["avg_bounce_rate"].mean()) if len(df_traffic) else 0.0
+curr_duration  = float(df_traffic["avg_session_duration"].mean()) if len(df_traffic) else 0.0
+
+prev_sessions  = int(df_prev["total_sessions"].sum())
+prev_users     = int(df_prev["total_users"].sum())
+prev_pageviews = int(df_prev["total_pageviews"].sum())
+prev_bounce    = float(df_prev["avg_bounce_rate"].mean()) if len(df_prev) else 0.0
+prev_duration  = float(df_prev["avg_session_duration"].mean()) if len(df_prev) else 0.0
 
 display_kpi_row([
-    {"title": "Total Sessions",   "value": format_number(total_sessions)},
-    {"title": "Total Users",      "value": format_number(total_users)},
-    {"title": "Total Pageviews",  "value": format_number(total_pageviews)},
-    {"title": "Avg Bounce Rate",  "value": format_percentage(avg_bounce)},
-    {"title": "Avg Session Duration", "value": format_duration(avg_duration)},
+    {"title": "Total Sessions",       "value": format_number(curr_sessions),
+     "delta": _delta(curr_sessions, prev_sessions)},
+    {"title": "Total Users",          "value": format_number(curr_users),
+     "delta": _delta(curr_users, prev_users)},
+    {"title": "Total Pageviews",      "value": format_number(curr_pageviews),
+     "delta": _delta(curr_pageviews, prev_pageviews)},
+    {"title": "Avg Bounce Rate",      "value": format_percentage(curr_bounce),
+     "delta": _delta(curr_bounce, prev_bounce), "delta_color": "inverse"},
+    {"title": "Avg Session Duration", "value": format_duration(curr_duration),
+     "delta": _delta(curr_duration, prev_duration)},
 ])
 
 st.divider()
