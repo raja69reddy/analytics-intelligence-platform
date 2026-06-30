@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 8 - GA4 Ingestion Pipeline
+- Built ingestion/ga4.py with full and incremental modes
+- Added error handling and logging
+- Added verify_ga4.py verification script
+- All data loaded into raw_ga4_sessions table
+- Unit tests passing
+
 ## Day 7 - Week 1 Review
 - Verified all 15 packages with setup_check.py
 - Confirmed dim_dates has 1,096 rows (2023-01-01 to 2025-12-31)
