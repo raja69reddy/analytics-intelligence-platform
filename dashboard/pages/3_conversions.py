@@ -147,3 +147,32 @@ else:
     st.info("No source/medium data available.")
 
 st.divider()
+
+# ── Revenue by channel ─────────────────────────────────────────────────────────
+st.subheader("Revenue by Channel")
+if not df_conv.empty:
+    df_rev = (
+        df_conv.groupby("channel_grouping")["revenue"]
+        .sum()
+        .reset_index()
+        .sort_values("revenue", ascending=True)
+    )
+    fig_rev = go.Figure(go.Bar(
+        x=df_rev["revenue"],
+        y=df_rev["channel_grouping"],
+        orientation="h",
+        text=[f"${v:,.0f}" for v in df_rev["revenue"]],
+        textposition="outside",
+        marker_color="#636EFA",
+    ))
+    fig_rev.update_layout(
+        title="Total Revenue by Channel",
+        xaxis_title="Revenue ($)",
+        yaxis_title="Channel",
+        template="plotly_white",
+    )
+    st.plotly_chart(fig_rev, use_container_width=True)
+else:
+    st.info("No revenue data available.")
+
+st.divider()
