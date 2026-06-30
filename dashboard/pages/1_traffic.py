@@ -1,7 +1,8 @@
 """Traffic & Sessions Overview — loads from vw_traffic and related views."""
+import io
 import os
 import sys
-from datetime import timedelta
+from datetime import date, timedelta
 
 import streamlit as st
 
@@ -207,3 +208,25 @@ if not df_geo.empty:
         st.plotly_chart(fig_geo, use_container_width=True)
 else:
     st.info("No geographic data available.")
+
+st.divider()
+
+# ── Raw data table + CSV download ─────────────────────────────────────────────
+st.subheader("Raw Traffic Data")
+st.caption(f"Last updated: {date.today().strftime('%Y-%m-%d')} · {len(df_traffic):,} rows after filters")
+
+if not df_traffic.empty:
+    st.dataframe(
+        df_traffic.sort_values("session_date", ascending=False),
+        use_container_width=True,
+        height=400,
+    )
+    csv_bytes = df_traffic.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="Download filtered data as CSV",
+        data=csv_bytes,
+        file_name="traffic_data.csv",
+        mime="text/csv",
+    )
+else:
+    st.info("No traffic data available for the selected filters.")
