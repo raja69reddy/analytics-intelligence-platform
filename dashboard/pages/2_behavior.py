@@ -52,4 +52,21 @@ with st.expander("Debug: data shapes", expanded=False):
         "vw_engagement_events": df_engagement.shape,
     })
 
-st.info("Dashboard sections loading below…")
+# ── KPI cards ─────────────────────────────────────────────────────────────────
+total_pageviews = int(df_top_pages["total_requests"].sum()) if not df_top_pages.empty else 0
+
+_time_row = query_df("SELECT ROUND(AVG(session_duration_s)::numeric, 1) AS avg_s FROM raw_ga4_sessions")
+avg_time_s = float(_time_row["avg_s"].iloc[0]) if not _time_row.empty else 0.0
+
+avg_scroll = float(df_scroll["avg_scroll_depth_pct"].mean()) if not df_scroll.empty else 0.0
+
+total_events = int(df_engagement["total_events"].sum()) if not df_engagement.empty else 0
+
+display_kpi_row([
+    {"title": "Total Page Views",    "value": format_number(total_pageviews)},
+    {"title": "Avg Time on Page",    "value": format_duration(avg_time_s)},
+    {"title": "Avg Scroll Depth",    "value": format_percentage(avg_scroll)},
+    {"title": "Total Events Tracked","value": format_number(total_events)},
+])
+
+st.divider()
