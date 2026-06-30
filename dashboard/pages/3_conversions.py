@@ -119,3 +119,31 @@ else:
     st.info("No conversion data available for the selected filters.")
 
 st.divider()
+
+# ── Goal completions by source / medium ───────────────────────────────────────
+st.subheader("Goal Completions by Source / Medium")
+if not df_conv.empty:
+    df_src = (
+        df_conv.groupby(["source", "medium", "channel_grouping"])["goal_completions"]
+        .sum()
+        .reset_index()
+        .sort_values("goal_completions", ascending=False)
+        .head(15)
+    )
+    df_src["source_medium"] = df_src["source"] + " / " + df_src["medium"]
+
+    import plotly.express as px
+    fig_src = px.bar(
+        df_src, x="source_medium", y="goal_completions",
+        color="channel_grouping",
+        title="Goal Completions by Source / Medium (Top 15)",
+        labels={"source_medium": "Source / Medium", "goal_completions": "Completions",
+                "channel_grouping": "Channel"},
+        template="plotly_white",
+    )
+    fig_src.update_xaxes(tickangle=30)
+    st.plotly_chart(fig_src, use_container_width=True)
+else:
+    st.info("No source/medium data available.")
+
+st.divider()
