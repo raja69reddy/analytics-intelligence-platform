@@ -172,11 +172,13 @@ class TestModelPersistence:
     def test_loaded_model_predicts(self, traffic_df):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "test_model.pkl"
-            model = train_traffic_model()
-            save_model(model, path)
-            loaded = load_model(path)
+            # Train directly on the fixture so feature counts match
             features = prepare_features(traffic_df, "traffic")
             X = traffic_df[features].fillna(0).values
+            model = IsolationForest(contamination=0.05, random_state=42)
+            model.fit(X)
+            save_model(model, path)
+            loaded = load_model(path)
             preds = loaded.predict(X)
             assert set(preds).issubset({-1, 1})
 
