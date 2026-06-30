@@ -6,11 +6,17 @@ Run:
 """
 import os
 import sys
-from datetime import date, timedelta
 
 import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from dashboard.components.filters import (  # noqa: E402
+    get_channel_filter,
+    get_date_filter,
+    get_device_filter,
+    get_page_filter,
+)
 
 st.set_page_config(
     page_title="Web Analytics Dashboard",
@@ -26,45 +32,24 @@ with st.sidebar:
     st.divider()
 
     st.subheader("Navigation")
-    st.page_link("pages/1_traffic.py",   label="Traffic & Sessions",  icon="📈")
-    st.page_link("pages/2_behavior.py",  label="User Behavior",       icon="🖱️")
-    st.page_link("pages/3_conversions.py", label="Conversions",       icon="🎯")
-    st.page_link("pages/4_seo.py",       label="SEO & Content",       icon="🔍")
+    st.page_link("pages/1_traffic.py",     label="Traffic & Sessions",  icon="📈")
+    st.page_link("pages/2_behavior.py",    label="User Behavior",       icon="🖱️")
+    st.page_link("pages/3_conversions.py", label="Conversions",         icon="🎯")
+    st.page_link("pages/4_seo.py",         label="SEO & Content",       icon="🔍")
     st.divider()
 
     st.subheader("Global Filters")
-    today = date.today()
-    default_start = today - timedelta(days=29)
-    date_range = st.date_input(
-        "Date range",
-        value=(default_start, today),
-        min_value=date(2020, 1, 1),
-        max_value=today,
-        key="global_date_range",
-    )
-
-    channels = st.multiselect(
-        "Channel",
-        options=["Direct", "Email", "Organic Search", "Paid Search", "Referral", "Social"],
-        default=[],
-        placeholder="All channels",
-        key="global_channels",
-    )
-
-    page_search = st.text_input(
-        "Page URL contains",
-        value="",
-        placeholder="/blog/",
-        key="global_page_search",
-    )
+    start_date, end_date = get_date_filter()
+    channels   = get_channel_filter()
+    page_search = get_page_filter()
+    devices    = get_device_filter()
 
     st.divider()
-    active = sum([
-        bool(date_range),
-        bool(channels),
-        bool(page_search.strip()),
-    ])
-    st.caption(f"Filters active: {active}")
+    active = sum([bool(channels), bool(page_search), bool(devices)])
+    if active:
+        st.success(f"Filters applied: {active}")
+    else:
+        st.caption("No filters active — showing all data")
 
 # ── Main page ────────────────────────────────────────────────────────────────
 st.title("Welcome to Web Analytics Dashboard")
