@@ -17,9 +17,25 @@ CSV_OUT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data",
 
 CSV_EVENT_TYPES    = ["click", "scroll", "pageview", "form_submit"]
 CSV_EVENT_WEIGHTS  = [0.25, 0.35, 0.30, 0.10]
+CSV_DEVICES        = ["desktop", "mobile", "tablet"]
+CSV_DEVICE_WEIGHTS = [0.55, 0.35, 0.10]
+CSV_BROWSERS       = ["Chrome", "Firefox", "Safari", "Edge"]
+CSV_BROWSER_WEIGHTS = [0.52, 0.13, 0.25, 0.10]
+CSV_REFERRERS      = [
+    None, None, None,
+    "https://google.com",
+    "https://twitter.com",
+    "https://linkedin.com",
+    "https://facebook.com",
+    "https://github.com",
+]
+CSV_PAGES = [
+    "/", "/blog/", "/pricing/", "/about/", "/contact/",
+    "/blog/post-1/", "/blog/post-2/", "/products/",
+]
 
 
-def generate_csv(n: int = 5000, days: int = 90) -> pd.DataFrame:
+def generate_csv(n: int = 10000, days: int = 90) -> pd.DataFrame:
     """Generate n simplified clickstream event rows for CSV export."""
     end = datetime.now(tz=timezone.utc)
     start = end - timedelta(days=days)
@@ -28,12 +44,16 @@ def generate_csv(n: int = 5000, days: int = 90) -> pd.DataFrame:
         ts = start + timedelta(seconds=random.randint(0, days * 86400))
         event_type = random.choices(CSV_EVENT_TYPES, weights=CSV_EVENT_WEIGHTS, k=1)[0]
         rows.append({
-            "event_timestamp": ts.strftime("%Y-%m-%d %H:%M:%S"),
-            "session_id":      str(uuid.uuid4()),
-            "user_id":         str(uuid.uuid4()),
-            "event_type":      event_type,
-            "page_url":        random.choice(PAGES),
-            "scroll_depth":    round(random.uniform(0.0, 1.0), 4) if event_type == "scroll" else None,
+            "event_timestamp":  ts.strftime("%Y-%m-%d %H:%M:%S"),
+            "session_id":       str(uuid.uuid4()),
+            "user_id":          str(uuid.uuid4()),
+            "event_type":       event_type,
+            "page_url":         random.choice(CSV_PAGES),
+            "scroll_depth":     round(random.uniform(0.0, 1.0), 4) if event_type == "scroll" else None,
+            "session_duration": random.randint(30, 1800),
+            "device_type":      random.choices(CSV_DEVICES, weights=CSV_DEVICE_WEIGHTS, k=1)[0],
+            "browser":          random.choices(CSV_BROWSERS, weights=CSV_BROWSER_WEIGHTS, k=1)[0],
+            "referrer_url":     random.choice(CSV_REFERRERS),
         })
     return pd.DataFrame(rows).sort_values("event_timestamp").reset_index(drop=True)
 
@@ -126,7 +146,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["csv", "full", "incremental"], default="csv")
     parser.add_argument("--days", type=int, default=90)
-    parser.add_argument("--rows", type=int, default=5000)
+    parser.add_argument("--rows", type=int, default=10000)
     parser.add_argument("--sessions-per-day", type=int, default=200)
     args = parser.parse_args()
 
