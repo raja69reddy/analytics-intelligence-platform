@@ -1,5 +1,11 @@
 # Changelog
 
+## Day 6 - Mock Data Generators
+- gen_ga4.py: 1,000 rows of GA4 session data
+- gen_server_logs.py: 2,000 rows of server logs
+- gen_scrape.py: 50 rows of scraped pages
+- gen_clickstream.py: 5,000 rows of clickstream events
+
 ## Day 5 - Environment Verified + SQL Views + Queries
 - Verified all Python packages with setup_check.py
 - Added docstrings to utils/helpers.py and utils/db.py
