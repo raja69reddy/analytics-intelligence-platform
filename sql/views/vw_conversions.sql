@@ -1,3 +1,4 @@
+-- vw_conversions: conversion rate, revenue, and goal completions by source, medium, and channel.
 CREATE OR REPLACE VIEW vw_conversions AS
 SELECT
     d.full_date,
