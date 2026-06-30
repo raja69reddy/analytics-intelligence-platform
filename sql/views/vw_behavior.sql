@@ -1,18 +1,4 @@
--- ============================================================
--- vw_behavior
--- Purpose : Per-page user engagement metrics joined with scroll-depth
---           data aggregated from fct_events.
--- Sources : fct_sessions JOIN dim_dates JOIN dim_pages
---           LEFT JOIN fct_events (scroll events only)
--- Key metrics:
---   sessions              — distinct session count per page per day
---   pageviews             — total pageviews for this page
---   avg_time_on_page_s    — mean session duration as proxy for time on page
---   exits                 — sessions that bounced on this page
---   exit_rate_pct         — exits / sessions * 100
---   avg_scroll_depth_pct  — mean scroll percentage from scroll events (0-100)
--- Usage : SELECT * FROM vw_behavior ORDER BY pageviews DESC LIMIT 20
--- ============================================================
+-- vw_behavior: per-page engagement metrics including time on page, exit rate, and scroll depth.
 CREATE OR REPLACE VIEW vw_behavior AS
 SELECT
     d.full_date,
