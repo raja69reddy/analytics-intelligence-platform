@@ -98,7 +98,7 @@ display_kpi_row([
 
 st.divider()
 
-# ── Charts placeholder (full charts coming Day 35) ────────────────────────────
+# ── Sessions over time with 7-day rolling average ─────────────────────────────
 st.subheader("Sessions Over Time")
 if not df_daily.empty:
     fig = line_chart(
@@ -107,6 +107,7 @@ if not df_daily.empty:
         title="Daily Sessions with 7-Day Rolling Average",
         labels={"value": "Sessions", "session_date": "Date", "variable": "Metric"},
     )
+    fig.update_traces(selector={"name": "sessions_7day_avg"}, line={"dash": "dot", "width": 2})
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("No daily traffic data available for the selected date range.")
