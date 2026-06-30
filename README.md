@@ -75,6 +75,14 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 - Updated GA4 mock data with device and country columns
 - All unit tests passing with pytest
 
+✅ **Day 11 — Clickstream + Scrape Ingestion Pipelines**
+- Created ingestion/clickstream.py with full and incremental modes
+- Created ingestion/scraper.py with upsert support
+- Added verify_clickstream.py and verify_scraper.py
+- Loaded 5,000 clickstream events into raw_clickstream_events
+- Loaded 50 scraped pages into raw_scrape_pages
+- All 4 ingestion pipelines complete and tested
+
 ## Project Architecture
 
 ```
