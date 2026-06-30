@@ -1,101 +1,117 @@
-"""Traffic & Sessions Overview."""
+"""Traffic & Sessions Overview — loads from vw_traffic and related views."""
 import os
 import sys
 
-import plotly.express as px
 import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from dashboard.components.filters import channel_clause, date_clause, render_filters
-from utils.db import query_df
 
-st.set_page_config(page_title="Traffic & Sessions", layout="wide")
-st.title("Traffic & Sessions")
+from dashboard.components.charts import bar_chart, line_chart, pie_chart
+from dashboard.components.filters import (
+    apply_filters,
+    get_channel_filter,
+    get_date_filter,
+    get_device_filter,
+    get_page_filter,
+)
+from dashboard.components.metrics import (
+    display_kpi_row,
+    format_duration,
+    format_number,
+    format_percentage,
+)
+from utils.query_runner import run_view
 
-f = render_filters()
+st.set_page_config(page_title="Traffic & Sessions", page_icon="📈", layout="wide")
+st.title("📈 Traffic & Sessions Overview")
 
-# ── KPI summary row ──────────────────────────────────────────────────────────
+# ── Sidebar filters ───────────────────────────────────────────────────────────
+with st.sidebar:
+    st.header("Filters")
+    start_date, end_date = get_date_filter()
+    channels    = get_channel_filter()
+    page_search = get_page_filter()
+    devices     = get_device_filter()
+    active = sum([bool(channels), bool(page_search), bool(devices)])
+    if active:
+        st.success(f"Filters applied: {active}")
 
-kpi_sql = f"""
-SELECT
-    COUNT(*)                              AS sessions,
-    SUM(CASE WHEN is_new_user THEN 1 END) AS new_users,
-    SUM(pageviews)                        AS pageviews,
-    ROUND(100.0 * SUM(CASE WHEN bounced THEN 1 END) / NULLIF(COUNT(*),0), 2) AS bounce_rate,
-    ROUND(AVG(session_duration_s), 1)     AS avg_duration_s
-FROM fct_sessions s
-JOIN dim_dates d ON s.date_id = d.date_id
-WHERE {date_clause()} AND {channel_clause()}
-"""
-kpi = query_df(kpi_sql, f)
+# ── Load data ─────────────────────────────────────────────────────────────────
+df_traffic    = run_view("vw_traffic")
+df_daily      = run_view("vw_daily_traffic")
+df_channels   = run_view("vw_channel_performance")
+df_devices    = run_view("vw_device_breakdown")
+df_newret     = run_view("vw_new_vs_returning")
 
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Sessions",        f"{int(kpi['sessions'][0] or 0):,}")
-c2.metric("New Users",       f"{int(kpi['new_users'][0] or 0):,}")
-c3.metric("Pageviews",       f"{int(kpi['pageviews'][0] or 0):,}")
-c4.metric("Bounce Rate",     f"{kpi['bounce_rate'][0] or 0:.1f}%")
-c5.metric("Avg Duration",    f"{int(kpi['avg_duration_s'][0] or 0)}s")
+# Apply date filter to daily and traffic views
+df_traffic = apply_filters(df_traffic, start_date, end_date, channels)
+df_daily   = apply_filters(df_daily,   start_date, end_date)
+
+# ── KPI cards ────────────────────────────────────────────────────────────────
+total_sessions  = int(df_traffic["total_sessions"].sum())
+total_users     = int(df_traffic["total_users"].sum())
+total_pageviews = int(df_traffic["total_pageviews"].sum())
+avg_bounce      = float(df_traffic["avg_bounce_rate"].mean()) if len(df_traffic) else 0.0
+avg_duration    = float(df_traffic["avg_session_duration"].mean()) if len(df_traffic) else 0.0
+
+display_kpi_row([
+    {"title": "Total Sessions",   "value": format_number(total_sessions)},
+    {"title": "Total Users",      "value": format_number(total_users)},
+    {"title": "Total Pageviews",  "value": format_number(total_pageviews)},
+    {"title": "Avg Bounce Rate",  "value": format_percentage(avg_bounce)},
+    {"title": "Avg Session Duration", "value": format_duration(avg_duration)},
+])
 
 st.divider()
 
-# ── Sessions over time ───────────────────────────────────────────────────────
-
-trend_sql = f"""
-SELECT d.full_date,
-       COUNT(*) AS sessions,
-       SUM(pageviews) AS pageviews
-FROM fct_sessions s
-JOIN dim_dates d ON s.date_id = d.date_id
-WHERE {date_clause()} AND {channel_clause()}
-GROUP BY 1 ORDER BY 1
-"""
-trend = query_df(trend_sql, f)
-
-fig = px.line(
-    trend, x="full_date", y=["sessions", "pageviews"],
-    labels={"value": "Count", "full_date": "Date", "variable": "Metric"},
-    title="Sessions & Pageviews Over Time",
-)
-st.plotly_chart(fig, use_container_width=True)
-
-# ── Channel split + new vs returning ────────────────────────────────────────
+# ── Charts placeholder (full charts coming Day 35) ────────────────────────────
+st.subheader("Sessions Over Time")
+if not df_daily.empty:
+    fig = line_chart(
+        df_daily, x="session_date",
+        y=["total_sessions", "sessions_7day_avg"],
+        title="Daily Sessions with 7-Day Rolling Average",
+        labels={"value": "Sessions", "session_date": "Date", "variable": "Metric"},
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("No daily traffic data available for the selected date range.")
 
 col_left, col_right = st.columns(2)
 
-ch_sql = f"""
-SELECT channel_grouping, COUNT(*) AS sessions
-FROM fct_sessions s
-JOIN dim_dates d ON s.date_id = d.date_id
-WHERE {date_clause()} AND {channel_clause()}
-GROUP BY 1 ORDER BY 2 DESC
-"""
-ch = query_df(ch_sql, f)
-fig_ch = px.bar(ch, x="sessions", y="channel_grouping", orientation="h",
-                title="Sessions by Channel", labels={"channel_grouping": ""})
-col_left.plotly_chart(fig_ch, use_container_width=True)
+with col_left:
+    st.subheader("Sessions by Channel")
+    if not df_channels.empty:
+        fig_ch = bar_chart(
+            df_channels, x="total_sessions", y="channel_grouping",
+            title="Channel Breakdown",
+            orientation="h",
+            labels={"channel_grouping": "", "total_sessions": "Sessions"},
+        )
+        st.plotly_chart(fig_ch, use_container_width=True)
 
-nr_sql = f"""
-SELECT
-    CASE WHEN is_new_user THEN 'New' ELSE 'Returning' END AS user_type,
-    COUNT(*) AS sessions
-FROM fct_sessions s
-JOIN dim_dates d ON s.date_id = d.date_id
-WHERE {date_clause()} AND {channel_clause()}
-GROUP BY 1
-"""
-nr = query_df(nr_sql, f)
-fig_nr = px.pie(nr, names="user_type", values="sessions", title="New vs Returning")
-col_right.plotly_chart(fig_nr, use_container_width=True)
+with col_right:
+    st.subheader("New vs Returning")
+    if not df_newret.empty:
+        summary = {
+            "User Type": ["New", "Returning"],
+            "Sessions": [
+                int(df_newret["new_user_sessions"].sum()),
+                int(df_newret["returning_user_sessions"].sum()),
+            ],
+        }
+        import pandas as pd
+        fig_nr = pie_chart(
+            pd.DataFrame(summary), names="User Type", values="Sessions",
+            title="New vs Returning Users",
+        )
+        st.plotly_chart(fig_nr, use_container_width=True)
 
-# ── Device breakdown ─────────────────────────────────────────────────────────
-
-dev_sql = f"""
-SELECT device_category, COUNT(*) AS sessions
-FROM fct_sessions s
-JOIN dim_dates d ON s.date_id = d.date_id
-WHERE {date_clause()} AND {channel_clause()}
-GROUP BY 1
-"""
-dev = query_df(dev_sql, f)
-fig_dev = px.bar(dev, x="device_category", y="sessions", title="Sessions by Device")
-st.plotly_chart(fig_dev, use_container_width=True)
+st.subheader("Sessions by Device")
+if not df_devices.empty:
+    fig_dev = bar_chart(
+        df_devices, x="device_category", y="total_sessions",
+        title="Device Category Breakdown",
+        labels={"device_category": "Device", "total_sessions": "Sessions"},
+    )
+    st.plotly_chart(fig_dev, use_container_width=True)
