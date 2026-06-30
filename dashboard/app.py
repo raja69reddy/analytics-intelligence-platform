@@ -1,5 +1,5 @@
 """
-Web Analytics Dashboard — main Streamlit entry point.
+Analytics Intelligence Platform — main Streamlit entry point.
 
 Run:
     streamlit run dashboard/app.py
@@ -11,7 +11,10 @@ import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from dashboard.components.filters import (  # noqa: E402
+from ai.anomaly_detection.detector import AnomalyDetector  # noqa: E402
+from ai.anomaly_detection.train import load_model           # noqa: E402
+from ai.anomaly_detection.utils import load_traffic_data    # noqa: E402
+from dashboard.components.filters import (                  # noqa: E402
     get_channel_filter,
     get_date_filter,
     get_device_filter,
@@ -19,7 +22,7 @@ from dashboard.components.filters import (  # noqa: E402
 )
 
 st.set_page_config(
-    page_title="Web Analytics Dashboard",
+    page_title="Analytics Intelligence Platform",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -27,8 +30,8 @@ st.set_page_config(
 
 # ── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.title("📊 Web Analytics")
-    st.caption("Full-stack analytics: PostgreSQL + Python + Streamlit")
+    st.title("📊 Analytics Intelligence")
+    st.caption("PostgreSQL + Python + Streamlit + AI/ML")
     st.divider()
 
     st.subheader("Navigation")
@@ -36,6 +39,58 @@ with st.sidebar:
     st.page_link("pages/2_behavior.py",    label="User Behavior",       icon="🖱️")
     st.page_link("pages/3_conversions.py", label="Conversions",         icon="🎯")
     st.page_link("pages/4_seo.py",         label="SEO & Content",       icon="🔍")
+    st.divider()
+
+    # ── AI Anomaly Alerts ─────────────────────────────────────────────────────
+    st.subheader("🤖 AI Anomaly Alerts")
+
+    @st.cache_data(ttl=300)
+    def _sidebar_anomaly_summary():
+        try:
+            model = load_model()
+        except FileNotFoundError:
+            return None
+        df = load_traffic_data()
+        if df.empty:
+            return None
+        detector = AnomalyDetector()
+        detector._traffic_model = model
+        return detector.get_anomaly_summary(df)
+
+    alert_summary = _sidebar_anomaly_summary()
+
+    if alert_summary is None:
+        st.caption("Model not trained yet.")
+    else:
+        total = alert_summary.total_anomalies
+        high  = alert_summary.severity_counts.get("high", 0)
+        med   = alert_summary.severity_counts.get("medium", 0)
+
+        st.metric("Anomalies Detected", total)
+
+        if alert_summary.anomaly_dates:
+            most_recent = alert_summary.anomaly_dates[-1]
+            # find severity of most recent
+            recent_df = None
+            if alert_summary.anomalies_df is not None and not alert_summary.anomalies_df.empty:
+                row = alert_summary.anomalies_df[
+                    alert_summary.anomalies_df["session_date"].astype(str) == most_recent
+                ]
+                recent_sev = row["severity"].values[0] if len(row) else "low"
+            else:
+                recent_sev = "low"
+            st.caption(f"Most recent: {most_recent} — {recent_sev.upper()}")
+
+        if high > 0:
+            st.error(f"🔴 {high} high-severity anomaly(s) detected!")
+        if med > 0:
+            st.warning(f"🟡 {med} medium-severity anomaly(s) — review recommended.")
+        if total == 0:
+            st.success("🟢 No anomalies detected — traffic looks healthy.")
+
+        if st.button("View All Anomalies", key="sidebar_anomalies"):
+            st.switch_page("pages/1_traffic.py")
+
     st.divider()
 
     st.subheader("Global Filters")
@@ -52,9 +107,9 @@ with st.sidebar:
         st.caption("No filters active — showing all data")
 
 # ── Main page ────────────────────────────────────────────────────────────────
-st.title("Welcome to Web Analytics Dashboard")
+st.title("Welcome to Analytics Intelligence Platform")
 st.markdown("""
-A full-stack analytics project powered by **PostgreSQL**, **Python**, and **Streamlit**.
+A production-grade analytics platform powered by **PostgreSQL**, **Python**, **Streamlit**, and **AI/ML**.
 
 Use the **sidebar** to filter by date range, channel, and page URL.
 Use the **navigation links** to explore each section.
