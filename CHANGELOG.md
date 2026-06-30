@@ -1,5 +1,15 @@
 # Changelog
 
+## Day 19 - AI Anomaly Detection
+- Created ai/ folder structure with anomaly_detection, nlq, report_generation, forecasting submodules
+- Built AnomalyDetector class using scikit-learn IsolationForest
+- Trained and saved traffic anomaly detection model (ai/models/traffic_anomaly_model.pkl)
+- Created run_detection.py pipeline script — detects anomalies and saves to data/processed/anomalies.csv
+- Added anomaly visualization to traffic dashboard page (red dots on sessions chart)
+- Added severity badges: High / Medium / Low to anomaly summary table
+- Added anomaly alerts section to dashboard sidebar (st.error/st.warning by severity)
+- All 170 tests passing with pytest
+
 ## Day 18 - Conversion Tracking Dashboard Page
 - Created sql/views/vw_conversions.sql with synthetic CVR by channel (Email 6.5% → Social 1.8%) and $52 avg revenue
 - Created sql/views/vw_funnel.sql with 5 monotone-decreasing stages from raw_ga4_sessions
