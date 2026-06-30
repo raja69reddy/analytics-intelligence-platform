@@ -150,3 +150,37 @@ else:
     st.info("No funnel data available.")
 
 st.divider()
+
+# ── Scroll depth histogram ────────────────────────────────────────────────────
+st.subheader("Scroll Depth Distribution")
+if not df_scroll.empty:
+    import pandas as pd
+    buckets = {
+        "0–25%":   int(df_scroll["bucket_0_25"].sum()),
+        "25–50%":  int(df_scroll["bucket_25_50"].sum()),
+        "50–75%":  int(df_scroll["bucket_50_75"].sum()),
+        "75–100%": int(df_scroll["bucket_75_100"].sum()),
+    }
+    df_buckets = pd.DataFrame({
+        "Bucket": list(buckets.keys()),
+        "Sessions": list(buckets.values()),
+        "Color": ["#d62728", "#ff7f0e", "#ffbb78", "#2ca02c"],
+    })
+    fig_scroll = go.Figure(go.Bar(
+        x=df_buckets["Bucket"],
+        y=df_buckets["Sessions"],
+        marker_color=df_buckets["Color"].tolist(),
+        text=df_buckets["Sessions"],
+        textposition="outside",
+    ))
+    fig_scroll.update_layout(
+        title="Scroll Depth Buckets (all pages)",
+        xaxis_title="Scroll Depth",
+        yaxis_title="Event Count",
+        template="plotly_white",
+    )
+    st.plotly_chart(fig_scroll, use_container_width=True)
+else:
+    st.info("No scroll depth data available.")
+
+st.divider()
