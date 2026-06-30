@@ -14,12 +14,38 @@ from utils.db import get_engine
 
 CSV_OUT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "raw", "server_logs.csv"))
 
-CSV_URLS = ["/home", "/about", "/products", "/contact", "/blog"]
+CSV_URLS = ["/home", "/about", "/products", "/contact", "/blog",
+            "/blog/post-1", "/blog/post-2", "/pricing", "/faq", "/login"]
 CSV_STATUS_WEIGHTS = [200] * 80 + [301] * 5 + [404] * 12 + [500] * 3
 
+CSV_USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+]
 
-def generate_csv(n: int = 2000, days: int = 90) -> pd.DataFrame:
-    """Generate n simplified server log rows for CSV export."""
+CSV_REFERRERS = [
+    "https://www.google.com/",
+    "https://www.bing.com/",
+    "https://www.facebook.com/",
+    "https://twitter.com/",
+    "https://www.reddit.com/",
+    None,
+]
+
+
+def _random_ip() -> str:
+    """Generate a realistic random public IPv4 address."""
+    return f"{random.randint(1, 254)}.{random.randint(0, 255)}.{random.randint(0, 255)}.{random.randint(1, 254)}"
+
+
+def generate_csv(n: int = 5000, days: int = 90) -> pd.DataFrame:
+    """Generate n realistic server log rows for CSV export."""
     end = datetime.now(tz=timezone.utc)
     start = end - timedelta(days=days)
     rows = []
@@ -27,13 +53,15 @@ def generate_csv(n: int = 2000, days: int = 90) -> pd.DataFrame:
         ts = start + timedelta(seconds=random.randint(0, days * 86400))
         status = random.choice(CSV_STATUS_WEIGHTS)
         rows.append({
-            "log_timestamp":  ts.strftime("%Y-%m-%d %H:%M:%S"),
-            "ip_address":     fake.ipv4_public(),
-            "request_method": random.choices(["GET", "POST"], weights=[85, 15])[0],
-            "url":            random.choice(CSV_URLS),
-            "status_code":    status,
-            "response_size":  random.randint(512, 80000) if status == 200 else random.randint(100, 2000),
-            "user_agent":     fake.user_agent(),
+            "log_timestamp":    ts.strftime("%Y-%m-%d %H:%M:%S"),
+            "ip_address":       _random_ip(),
+            "request_method":   random.choices(["GET", "POST"], weights=[85, 15])[0],
+            "url":              random.choice(CSV_URLS),
+            "status_code":      status,
+            "response_size":    random.randint(512, 80000) if status == 200 else random.randint(100, 2000),
+            "user_agent":       random.choice(CSV_USER_AGENTS),
+            "referrer":         random.choice(CSV_REFERRERS),
+            "response_time_ms": random.randint(50, 2000),
         })
     return pd.DataFrame(rows).sort_values("log_timestamp").reset_index(drop=True)
 
@@ -96,7 +124,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["csv", "full", "incremental"], default="csv")
     parser.add_argument("--days", type=int, default=90)
-    parser.add_argument("--rows", type=int, default=2000)
+    parser.add_argument("--rows", type=int, default=5000)
     parser.add_argument("--requests-per-hour", type=int, default=150)
     args = parser.parse_args()
 
