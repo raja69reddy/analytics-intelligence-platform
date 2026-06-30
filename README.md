@@ -114,6 +114,18 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 - Added utils/project_summary.py for project overview
 - All systems verified and working correctly
 
+✅ **Day 18 — Conversion Tracking Dashboard Page**
+- Created vw_conversions SQL view with synthetic CVR by channel (Email 6.5% → Social 1.8%)
+- Created vw_funnel SQL view with 5 monotone-decreasing stages from raw_ga4_sessions
+- Built dashboard/pages/3_conversions.py with 9 chart sections
+- CVR over time bar chart with rolling average and dashed target line
+- Funnel drop-off waterfall chart (green = continuing, red = drop-off)
+- go.Funnel visualization with biggest drop-off stage highlighted in red
+- Channel contribution table with CSV download
+- Day-of-week conversion trend bar chart with best day highlighted
+- @st.cache_data(ttl=300) + st.spinner + try/except error handling
+- 17 new tests in tests/test_conversions_page.py; all 141 tests passing
+
 ✅ **Day 17 — User Behavior & Funnels Page Complete**
 - Created dashboard/pages/2_behavior.py
 - Added 4 KPI cards: pageviews, time on page, scroll depth, events
