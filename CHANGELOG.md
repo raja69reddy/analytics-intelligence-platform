@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 11 - Clickstream + Scrape Pipelines
+- Built ingestion/clickstream.py with full and incremental modes
+- Built ingestion/scraper.py with upsert support
+- Added verify scripts for both pipelines
+- All 4 ingestion pipelines now complete
+- All unit tests passing
+
 ## Day 10 - Log Parser + Enhanced Mock Data
 - Updated gen_server_logs.py with 5,000 rows and more fields
 - Created utils/log_parser.py with 5 parsing functions
