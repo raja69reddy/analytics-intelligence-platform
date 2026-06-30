@@ -6,6 +6,7 @@ from urllib.parse import urlparse, parse_qs
 
 
 def date_to_id(d: date) -> int:
+    """Convert a date object to an integer key in YYYYMMDD format."""
     return int(d.strftime("%Y%m%d"))
 
 
@@ -52,6 +53,7 @@ def populate_dim_dates(start: date, end: date) -> None:
 
 
 def parse_url_parts(url: str) -> dict:
+    """Return url_path, url_domain, and page_section extracted from a URL."""
     parsed = urlparse(url)
     path = parsed.path or "/"
     section = path.strip("/").split("/")[0] if path.strip("/") else "home"

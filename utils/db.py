@@ -9,6 +9,7 @@ load_dotenv()
 
 
 def _build_url() -> str:
+    """Build a SQLAlchemy connection URL from environment variables."""
     return (
         f"postgresql+psycopg2://{os.environ['DB_USER']}:{os.environ['DB_PASSWORD']}"
         f"@{os.environ['DB_HOST']}:{os.environ.get('DB_PORT', '5432')}"
@@ -21,6 +22,7 @@ _engine = None
 
 
 def get_engine():
+    """Return the shared SQLAlchemy engine, creating it on first call."""
     global _engine
     if _engine is None:
         _engine = create_engine(
@@ -34,6 +36,7 @@ def get_engine():
 
 
 def get_session_factory():
+    """Return a SQLAlchemy sessionmaker bound to the shared engine."""
     return sessionmaker(bind=get_engine())
 
 
@@ -68,6 +71,7 @@ def query_sql_file(path: str, params: dict | None = None):
 
 
 def test_connection() -> None:
+    """Verify the database connection by running SELECT 1 and printing the result."""
     try:
         with get_engine().connect() as conn:
             conn.execute(text("SELECT 1"))
