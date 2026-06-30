@@ -10,6 +10,7 @@ Usage:
 import argparse
 import logging
 import sys
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -119,6 +120,8 @@ def _ensure_unique_constraint(engine) -> None:
 
 
 def ingest(mode: str = "full") -> int:
+    _start = time.perf_counter()
+    log.info("START scraper ingest mode=%s", mode)
     try:
         engine = get_engine()
         with engine.connect() as conn:
@@ -155,8 +158,10 @@ def ingest(mode: str = "full") -> int:
         raise
 
     count = len(df)
+    elapsed = time.perf_counter() - _start
     log.info("Inserted/Updated %d rows into %s", count, TABLE)
     print(f"Inserted/Updated {count} rows into {TABLE}")
+    log.info("END scraper ingest: %d rows in %.2fs", count, elapsed)
     return count
 
 

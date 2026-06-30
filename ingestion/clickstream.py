@@ -8,6 +8,7 @@ Usage:
 import argparse
 import logging
 import sys
+import time
 from datetime import date
 from pathlib import Path
 
@@ -117,6 +118,8 @@ def _existing_dates(engine) -> set:
 
 
 def ingest(mode: str, since: date | None = None) -> int:
+    _start = time.perf_counter()
+    log.info("START clickstream ingest mode=%s since=%s", mode, since)
     try:
         engine = get_engine()
         with engine.connect() as conn:
@@ -154,8 +157,10 @@ def ingest(mode: str, since: date | None = None) -> int:
         raise
 
     count = len(df)
+    elapsed = time.perf_counter() - _start
     log.info("Inserted %d rows into %s", count, TABLE)
     print(f"Inserted {count} rows into {TABLE}")
+    log.info("END clickstream ingest: %d rows in %.2fs", count, elapsed)
     return count
 
 

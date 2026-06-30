@@ -8,6 +8,7 @@ Usage:
 import argparse
 import logging
 import sys
+import time
 from datetime import date
 from pathlib import Path
 
@@ -110,6 +111,8 @@ def _existing_dates(engine) -> set:
 
 
 def ingest(mode: str, since: date | None = None) -> int:
+    _start = time.perf_counter()
+    log.info("START server_logs ingest mode=%s since=%s", mode, since)
     try:
         engine = get_engine()
         with engine.connect() as conn:
@@ -163,12 +166,14 @@ def ingest(mode: str, since: date | None = None) -> int:
         raise
 
     count = len(df)
+    elapsed = time.perf_counter() - _start
     if mode == "incremental" and since is not None:
         log.info("Incremental load: inserted %d rows since %s", count, since)
         print(f"Incremental load: inserted {count} rows since {since}")
     else:
         log.info("Inserted %d rows into %s", count, TABLE)
         print(f"Inserted {count} rows into {TABLE}")
+    log.info("END server_logs ingest: %d rows in %.2fs", count, elapsed)
     return count
 
 
