@@ -49,6 +49,16 @@ web-analytics/
 └── requirements.txt
 ```
 
+## 90-Day Challenge Progress
+
+| Day | Task | Status |
+|-----|------|--------|
+| Day 1 | Project scaffold, folder structure, README skeleton | ✅ Done |
+| Day 2 | utils/db.py - SQLAlchemy connection helper | ✅ Done |
+| Day 3 | sql/schema.sql - all table definitions | ⏳ Upcoming |
+| Day 4 | Build dim_dates table | ⏳ Upcoming |
+| Day 5 | Virtual env + requirements verified | ⏳ Upcoming |
+
 ## Setup
 
 ### 1. Prerequisites
