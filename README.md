@@ -45,6 +45,25 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 - All CSVs saved to data/raw/ folder
 - Verified all files generated successfully
 
+## Project Architecture
+
+```
+Data Sources          Raw Layer              Dimension / Fact         Dashboard
+─────────────         ────────────────       ──────────────────       ─────────────────────
+GA4 Export    ──►  raw_ga4_sessions    ──►  fct_sessions        ──►  Traffic & Sessions
+Server Logs   ──►  raw_server_logs     ──►  dim_pages           ──►  User Behavior
+Web Scraper   ──►  raw_scrape_pages    ──►  dim_dates           ──►  Conversions
+Clickstream   ──►  raw_clickstream     ──►  fct_events          ──►  SEO & Content
+                        │
+                        ▼
+                   SQL Views
+                   ─────────────
+                   vw_traffic
+                   vw_behavior
+                   vw_conversions
+                   vw_seo
+```
+
 ## Stack
 
 | Layer | Tool |
