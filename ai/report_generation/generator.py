@@ -91,9 +91,9 @@ class ReportGenerator:
         from ai.report_generation.prompts import EXECUTIVE_SUMMARY_PROMPT
 
         # ── load data ─────────────────────────────────────────────────────────
-        traffic_df    = query_df("SELECT * FROM vw_daily_traffic ORDER BY full_date DESC LIMIT 30")
-        channel_df    = query_df("SELECT * FROM vw_channel_performance ORDER BY sessions DESC")
-        behavior_df   = query_df("SELECT * FROM vw_top_pages ORDER BY pageviews DESC LIMIT 20")
+        traffic_df    = query_df("SELECT * FROM vw_daily_traffic ORDER BY session_date DESC LIMIT 30")
+        channel_df    = query_df("SELECT * FROM vw_channel_performance ORDER BY total_sessions DESC")
+        behavior_df   = query_df("SELECT * FROM vw_top_pages ORDER BY total_requests DESC LIMIT 20")
         scroll_df     = query_df("SELECT * FROM vw_scroll_depth")
         conversion_df = query_df(
             "SELECT channel_grouping, "
@@ -104,7 +104,7 @@ class ReportGenerator:
             "FROM raw_ga4_sessions "
             "GROUP BY channel_grouping ORDER BY revenue DESC"
         )
-        seo_df = query_df("SELECT * FROM vw_seo ORDER BY load_time_ms DESC LIMIT 20")
+        seo_df = query_df("SELECT * FROM vw_seo ORDER BY word_count DESC LIMIT 20")
 
         # Combine traffic and channel for the traffic section
         combined_traffic = pd.concat([

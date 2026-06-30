@@ -20,10 +20,10 @@ def format_as_markdown(report: dict) -> str:
         lines += ["## Executive Summary", "", report["executive_summary"], "", "---", ""]
 
     section_map = {
-        "traffic": "## 📈 Traffic & Sessions",
-        "behavior": "## 🖱️ User Behavior",
-        "conversions": "## 🎯 Conversions",
-        "seo": "## 🔍 SEO & Content",
+        "traffic": "## Traffic & Sessions",
+        "behavior": "## User Behavior",
+        "conversions": "## Conversions",
+        "seo": "## SEO & Content",
     }
     for key, heading in section_map.items():
         content = report.get(key)
