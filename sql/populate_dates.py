@@ -56,9 +56,24 @@ def populate(start: date = START, end: date = END) -> int:
     return inserted
 
 
+def verify() -> None:
+    """Print row count and date range currently in dim_dates."""
+    engine = get_engine()
+    with engine.connect() as conn:
+        count = conn.execute(text("SELECT COUNT(*) FROM dim_dates")).scalar()
+        first = conn.execute(text("SELECT MIN(full_date) FROM dim_dates")).scalar()
+        last  = conn.execute(text("SELECT MAX(full_date) FROM dim_dates")).scalar()
+    print(f"  Row count : {count:,}")
+    print(f"  First date: {first}")
+    print(f"  Last date : {last}")
+
+
 if __name__ == "__main__":
     print(f"Populating dim_dates from {START} to {END} ...")
     n = populate()
     total = (END - START).days + 1
     print(f"  Inserted {n} rows  ({total - n} already existed)")
+    print()
+    print("Verifying dim_dates ...")
+    verify()
     print("Done.")
