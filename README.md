@@ -114,6 +114,18 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 - Added utils/project_summary.py for project overview
 - All systems verified and working correctly
 
+✅ **Day 17 — User Behavior & Funnels Page Complete**
+- Created dashboard/pages/2_behavior.py
+- Added 4 KPI cards: pageviews, time on page, scroll depth, events
+- Added top pages table with search and slow page highlighting
+- Added conversion funnel visualization with drop-off percentages
+- Added scroll depth histogram with color coding
+- Added engagement events breakdown bar chart
+- Added session duration distribution histogram
+- Added engagement score calculation for top pages
+- Added traffic heatmap by day and hour
+- All tests passing with pytest
+
 ✅ **Day 16 — Traffic & Sessions Dashboard Page**
 - Full traffic page with 6 PostgreSQL views (vw_traffic, vw_daily_traffic,
   vw_channel_performance, vw_device_breakdown, vw_new_vs_returning, vw_geo_performance)
