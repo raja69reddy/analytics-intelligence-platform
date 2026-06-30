@@ -1,19 +1,4 @@
--- ============================================================
--- vw_traffic
--- Purpose : Aggregated traffic metrics per day, channel, source,
---           medium, country, and device category.
--- Sources : fct_sessions JOIN dim_dates
--- Key metrics:
---   sessions              — total session count
---   new_users             — sessions where is_new_user = true
---   pageviews             — total pages viewed across all sessions
---   bounces               — sessions with bounced = true
---   bounce_rate_pct       — bounces / sessions * 100, rounded to 2dp
---   avg_session_duration_s— mean session length in seconds
---   conversions           — total conversion events
---   revenue               — total revenue attributed to sessions
--- Usage : SELECT * FROM vw_traffic WHERE channel_grouping = 'Organic Search'
--- ============================================================
+-- vw_traffic: sessions, pageviews, bounce rate, and revenue by date and channel.
 CREATE OR REPLACE VIEW vw_traffic AS
 SELECT
     d.full_date,
