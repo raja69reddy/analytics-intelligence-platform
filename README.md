@@ -43,7 +43,14 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 - Created mock_data/gen_scrape.py — 50 rows of scraped pages
 - Created mock_data/gen_clickstream.py — 5,000 rows of clickstream events
 - All CSVs saved to data/raw/ folder
-- Verified all files generated successfully
+
+✅ **Day 7 — Week 1 Review**
+- Verified all packages and PostgreSQL connection
+- Refreshed all 4 mock data CSVs
+- Added Project Architecture ASCII diagram to README
+- Added type hints to utils/helpers.py
+- Created tests/test_helpers.py with 9 unit tests
+- All tests passing with pytest
 
 ✅ **Day 8 — GA4 Ingestion Pipeline**
 - Created ingestion/ga4.py with --mode full and --mode incremental
@@ -51,14 +58,6 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 - Created verify_ga4.py to verify data quality
 - Loaded 1,000 rows into raw_ga4_sessions table
 - All unit tests passing with pytest
-
-✅ **Day 7 — Week 1 Review**
-- Verified all 15 packages pass setup_check.py
-- Confirmed dim_dates: 1,096 rows (2023-01-01 → 2025-12-31)
-- Refreshed all 4 mock data CSVs (8,050 total rows)
-- Added Project Architecture ASCII diagram to README
-- Added full type hints to utils/helpers.py
-- Created tests/test_helpers.py with 9 unit tests — all passing
 
 ## Project Architecture
 
