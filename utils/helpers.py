@@ -8,6 +8,7 @@ Functions cover three areas:
 import os
 import re
 from datetime import date, timedelta
+from typing import Any
 from urllib.parse import urlparse, parse_qs
 
 
@@ -76,7 +77,7 @@ def populate_dim_dates(start: date, end: date) -> None:
             )
 
 
-def parse_url_parts(url: str) -> dict:
+def parse_url_parts(url: str) -> dict[str, str]:
     """Extract path, domain, and top-level section from a URL.
 
     Used by ingestion scripts to populate dim_pages with structured
@@ -95,7 +96,7 @@ def parse_url_parts(url: str) -> dict:
     return {"url_path": path, "url_domain": parsed.netloc, "page_section": section}
 
 
-def parse_url(url: str) -> dict:
+def parse_url(url: str) -> dict[str, Any]:
     """Parse a URL into its domain, path, and decoded query parameters.
 
     Args:
@@ -126,7 +127,7 @@ def get_date_id(d: date) -> int:
     return int(d.strftime("%Y%m%d"))
 
 
-def clean_user_agent(ua: str) -> dict:
+def clean_user_agent(ua: str) -> dict[str, str]:
     """Classify a raw user-agent string into browser and OS labels.
 
     Applies a priority-ordered substring match. Edge/OPR must be checked
