@@ -63,12 +63,18 @@ def load_csv() -> pd.DataFrame:
         log.warning("Dropped %d rows with unparseable timestamps", dropped)
     df = df.dropna(subset=["event_timestamp"])
 
-    # Validate event_type — log and drop invalid values
+    # Validate event_type — log invalid values and drop them
     invalid_mask = ~df["event_type"].isin(VALID_EVENT_TYPES)
     if invalid_mask.sum():
         invalid_vals = df.loc[invalid_mask, "event_type"].value_counts().to_dict()
-        log.warning("Dropping %d rows with invalid event_types: %s", invalid_mask.sum(), invalid_vals)
+        log.error(
+            "Found %d rows with invalid event_type values (dropping): %s  "
+            "— valid types are: %s",
+            invalid_mask.sum(), invalid_vals, sorted(VALID_EVENT_TYPES),
+        )
         df = df[~invalid_mask]
+    log.info("Event type counts after validation: %s",
+             df["event_type"].value_counts().to_dict())
 
     # Clean page_url using parse_url() — keep just the path
     df["page_url"] = df["page_url"].fillna("").apply(lambda u: parse_url(u)["path"] if u else None)
