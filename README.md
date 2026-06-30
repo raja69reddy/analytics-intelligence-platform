@@ -83,17 +83,13 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 - Loaded 50 scraped pages into raw_scrape_pages
 - All 4 ingestion pipelines complete and tested
 
-✅ **Day 12 — SQL Views for Sessions by Channel**
-- Updated vw_traffic.sql: sessions by date/channel/source/medium with dim_dates JOIN
-- Created vw_daily_traffic.sql: daily totals with 7-day rolling average
-- Created vw_channel_performance.sql: channel breakdown with share percentages
-- Created vw_new_vs_returning.sql: new vs returning user sessions by date
-- Created vw_device_breakdown.sql: sessions by device with bounce rate and share pct
-- Created vw_geo_performance.sql: top 10 countries by sessions
-- Created sql/queries/traffic_summary.sql: 4 reusable traffic analysis queries
-- Created utils/query_runner.py: run_query and run_query_string helpers with timing
-- Created tests/test_views.py: 24 view tests covering existence, columns, data quality
-- All 88 tests passing (pytest)
+✅ **Day 12 — Traffic SQL Views**
+- Created 6 SQL views: daily traffic, channel performance,
+  new vs returning, device breakdown, geo performance
+- Added traffic_summary.sql with 4 analysis queries
+- Built utils/query_runner.py for easy SQL execution
+- All views tested and returning correct data
+- All unit tests passing with pytest
 
 ✅ **Day 13 — Page Behavior SQL Views**
 - Created 7 SQL views: top pages, page performance,
@@ -114,17 +110,23 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 - Added utils/project_summary.py for project overview
 - All systems verified and working correctly
 
-✅ **Day 18 — Conversion Tracking Dashboard Page**
-- Created vw_conversions SQL view with synthetic CVR by channel (Email 6.5% → Social 1.8%)
-- Created vw_funnel SQL view with 5 monotone-decreasing stages from raw_ga4_sessions
-- Built dashboard/pages/3_conversions.py with 9 chart sections
-- CVR over time bar chart with rolling average and dashed target line
-- Funnel drop-off waterfall chart (green = continuing, red = drop-off)
-- go.Funnel visualization with biggest drop-off stage highlighted in red
-- Channel contribution table with CSV download
-- Day-of-week conversion trend bar chart with best day highlighted
-- @st.cache_data(ttl=300) + st.spinner + try/except error handling
-- 17 new tests in tests/test_conversions_page.py; all 141 tests passing
+✅ **Day 15 — Enhanced Mock Data + Dashboard Started**
+- Updated clickstream generator to 10,000 rows
+- Updated scrape generator to 100 rows with new columns
+- Created dashboard/app.py with sidebar and global filters
+- Created filters.py, metrics.py, charts.py components
+- Created traffic page skeleton with 4 KPI cards
+- Streamlit app running successfully on localhost:8501
+
+✅ **Day 16 — Traffic & Sessions Page Complete**
+- Connected traffic page to real PostgreSQL data
+- Added 4 KPI cards: sessions, users, pageviews, bounce rate
+- Added sessions over time line chart with 7-day rolling avg
+- Added channel bar chart and donut pie chart
+- Added new vs returning users stacked bar chart
+- Added device breakdown and geographic performance sections
+- Added caching, loading spinners, and error handling
+- Traffic page fully functional on localhost:8501
 
 ✅ **Day 17 — User Behavior & Funnels Page Complete**
 - Created dashboard/pages/2_behavior.py
@@ -138,26 +140,17 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 - Added traffic heatmap by day and hour
 - All tests passing with pytest
 
-✅ **Day 16 — Traffic & Sessions Dashboard Page**
-- Full traffic page with 6 PostgreSQL views (vw_traffic, vw_daily_traffic,
-  vw_channel_performance, vw_device_breakdown, vw_new_vs_returning, vw_geo_performance)
-- 5 KPI cards with % change vs previous period
-- Sessions over time line chart with 7-day rolling average (dashed overlay)
-- Channel bar chart (sorted descending) + donut pie side by side
-- New vs returning stacked bar chart over time
-- Device breakdown: sessions pie + bounce rate bar in two columns
-- Geographic performance: country table + horizontal bar chart
-- Raw data table with CSV download and last updated timestamp
-- @st.cache_data(ttl=300) on all 6 view loaders + sidebar cache clear button
-- st.spinner while loading + try/except with friendly DB error message
-
-✅ **Day 15 — Enhanced Mock Data + Dashboard Started**
-- Updated clickstream generator to 10,000 rows
-- Updated scrape generator to 100 rows with new columns
-- Created dashboard/app.py with sidebar and global filters
-- Created filters.py, metrics.py, charts.py components
-- Created traffic page skeleton with 4 KPI cards
-- Streamlit app running successfully on localhost:8501
+✅ **Day 18 — Conversion Tracking Page Complete**
+- Created vw_conversions.sql and vw_funnel.sql views
+- Created dashboard/pages/3_conversions.py
+- Added 4 KPI cards: CVR, goal completions, revenue, avg revenue
+- Added conversion rate over time line chart
+- Added goal completions by source/medium chart
+- Added revenue by channel horizontal bar chart
+- Added drop off waterfall chart
+- Added conversion funnel with stage percentages
+- Added channel contribution table with CSV download
+- All tests passing with pytest
 
 ## Project Architecture
 
