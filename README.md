@@ -45,6 +45,13 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 - All CSVs saved to data/raw/ folder
 - Verified all files generated successfully
 
+✅ **Day 8 — GA4 Ingestion Pipeline**
+- Created ingestion/ga4.py with --mode full and --mode incremental
+- Added error handling and Python logging
+- Created verify_ga4.py to verify data quality
+- Loaded 1,000 rows into raw_ga4_sessions table
+- All unit tests passing with pytest
+
 ✅ **Day 7 — Week 1 Review**
 - Verified all 15 packages pass setup_check.py
 - Confirmed dim_dates: 1,096 rows (2023-01-01 → 2025-12-31)
