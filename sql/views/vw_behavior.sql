@@ -1,3 +1,4 @@
+-- vw_behavior: per-page engagement metrics including avg time on page, exit rate, and scroll depth.
 CREATE OR REPLACE VIEW vw_behavior AS
 SELECT
     d.full_date,
