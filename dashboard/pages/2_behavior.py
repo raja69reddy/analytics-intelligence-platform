@@ -103,10 +103,11 @@ with st.sidebar:
         st.success("Page filter applied")
 
 # ── Load data ─────────────────────────────────────────────────────────────────
-df_behavior   = _load_behavior()
-df_top_pages  = _load_top_pages()
-df_scroll     = _load_scroll()
-df_engagement = _load_engagement()
+with st.spinner("Loading behavior data from PostgreSQL…"):
+    df_behavior   = _load_behavior()
+    df_top_pages  = _load_top_pages()
+    df_scroll     = _load_scroll()
+    df_engagement = _load_engagement()
 
 # Apply page URL filter
 if page_search:
