@@ -1,5 +1,13 @@
 # Changelog
 
+## Day 10 - Log Parser + Enhanced Mock Data
+- Updated gen_server_logs.py with 5,000 rows and more fields
+- Created utils/log_parser.py with 5 parsing functions
+- Updated server_logs.py to use log_parser
+- Added server_log_analysis.sql queries
+- Updated GA4 mock data with device and country columns
+- All tests passing
+
 ## Day 9 - Server Logs Pipeline + GA4 Improvements
 - Improved ga4.py incremental mode with --since flag
 - Built ingestion/server_logs.py pipeline
