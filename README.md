@@ -2,16 +2,26 @@
 
 A solo-use, full-stack web analytics project built with PostgreSQL + Python + Streamlit.
 
-## 90-Day Challenge Progress
+## 📋 Progress Log
 
-| Day | Task | Status |
-|-----|------|--------|
-| Day 1 | Project scaffold, folder structure, README skeleton | ✅ Done |
-| Day 2 | utils/db.py - SQLAlchemy connection helper + .env setup | ✅ Done |
-| Day 3 | sql/schema.sql - all table definitions | ✅ Done |
-| Day 4 | Build dim_dates table + populate_dates.py | ⏳ Upcoming |
-| Day 5 | Virtual env + requirements verified | ⏳ Upcoming |
-| Day 6 | Mock data generators | ⏳ Upcoming |
+✅ **Day 1 — Project Scaffold**
+- Created complete folder structure
+- Set up .env.example with all required variables
+- .gitignore covering Python, venv, __pycache__
+- README skeleton with all sections
+
+✅ **Day 2 — Database Connection**
+- utils/db.py with SQLAlchemy connection helper
+- Connected to PostgreSQL web_analytics database
+- Added python-dotenv for credential management
+- Tested connection successfully
+
+✅ **Day 3 — SQL Schema**
+- All 8 table definitions written in sql/schema.sql
+- Applied schema to PostgreSQL database
+- Tables created: raw_ga4_sessions, raw_server_logs,
+  raw_scrape_pages, raw_clickstream_events, dim_pages,
+  dim_dates, fct_sessions, fct_events
 
 ## Stack
 
