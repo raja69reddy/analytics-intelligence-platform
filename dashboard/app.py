@@ -93,6 +93,26 @@ with st.sidebar:
 
     st.divider()
 
+    # ── AI Report Generation ──────────────────────────────────────────────────
+    st.subheader("📋 AI Reports")
+    from pathlib import Path as _Path
+    _reports_dir = _Path(__file__).resolve().parent.parent / "data" / "processed" / "reports"
+    _report_files = sorted(_reports_dir.glob("report_*.md"), reverse=True) if _reports_dir.exists() else []
+
+    if _report_files:
+        _latest = _report_files[0]
+        from datetime import datetime as _dt
+        _mtime = _dt.fromtimestamp(_latest.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+        st.caption(f"Last report: {_mtime}")
+        st.success("Report ready")
+    else:
+        st.caption("No reports generated yet.")
+
+    if st.button("Generate Report", key="sidebar_gen_report"):
+        st.switch_page("pages/6_reports.py")
+
+    st.divider()
+
     # ── Ask a Question (NLQ) ──────────────────────────────────────────────────
     st.subheader("💬 Ask a Question")
     nlq_question = st.text_input(
