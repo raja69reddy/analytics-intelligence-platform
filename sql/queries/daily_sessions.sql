@@ -1,12 +1,4 @@
--- daily_sessions.sql
--- Returns daily session counts and key metrics over a date range.
--- Powers the traffic-over-time line chart on the Traffic dashboard page.
--- Parameters (optional — remove WHERE clause to get all-time totals):
---   :start_date  DATE  e.g. '2024-01-01'
---   :end_date    DATE  e.g. '2024-03-31'
---
--- Example usage in Python:
---   query_sql_file('sql/queries/daily_sessions.sql', {'start_date': '2024-01-01', 'end_date': '2024-03-31'})
+-- daily_sessions.sql: daily session counts and KPIs for a given date range (:start_date, :end_date).
 
 SELECT
     d.full_date,
