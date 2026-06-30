@@ -316,3 +316,43 @@ else:
     st.info("No page view data for the selected URL.")
 
 st.divider()
+
+# ── Traffic heatmap by day and hour ───────────────────────────────────────────
+st.subheader("Traffic Heatmap — Day × Hour")
+_heatmap_sql = """
+SELECT
+    EXTRACT(DOW  FROM log_time)::int  AS dow,
+    EXTRACT(HOUR FROM log_time)::int  AS hour_of_day,
+    COUNT(*)                          AS total_requests
+FROM raw_server_logs
+GROUP BY 1, 2
+ORDER BY 1, 2
+"""
+df_heat = query_df(_heatmap_sql)
+if not df_heat.empty:
+    import pandas as pd
+    _day_map = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"}
+    df_heat["day_name"] = df_heat["dow"].map(_day_map)
+    pivot = df_heat.pivot_table(
+        index="day_name", columns="hour_of_day",
+        values="total_requests", fill_value=0,
+    )
+    day_order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    pivot = pivot.reindex([d for d in day_order if d in pivot.index])
+    fig_heat = go.Figure(go.Heatmap(
+        z=pivot.values.tolist(),
+        x=[str(h) for h in pivot.columns.tolist()],
+        y=pivot.index.tolist(),
+        colorscale="Blues",
+        hoverongaps=False,
+        colorbar=dict(title="Requests"),
+    ))
+    fig_heat.update_layout(
+        title="Request Volume by Day of Week and Hour",
+        xaxis_title="Hour of Day (0–23)",
+        yaxis_title="Day of Week",
+        template="plotly_white",
+    )
+    st.plotly_chart(fig_heat, use_container_width=True)
+else:
+    st.info("No hourly traffic data available.")
