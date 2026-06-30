@@ -37,13 +37,23 @@ with st.sidebar:
         st.success(f"Filters applied: {active}")
 
 # ── Load data ─────────────────────────────────────────────────────────────────
-df_traffic    = run_view("vw_traffic")
-df_daily      = run_view("vw_daily_traffic")
-df_channels   = run_view("vw_channel_performance")
-df_devices    = run_view("vw_device_breakdown")
-df_newret     = run_view("vw_new_vs_returning")
+df_traffic  = run_view("vw_traffic")
+df_daily    = run_view("vw_daily_traffic")
+df_channels = run_view("vw_channel_performance")
+df_devices  = run_view("vw_device_breakdown")
+df_newret   = run_view("vw_new_vs_returning")
 
-# Apply date filter to daily and traffic views
+# Debug: verify each view returned rows
+with st.expander("Debug: data shapes", expanded=False):
+    st.write({
+        "vw_traffic":             df_traffic.shape,
+        "vw_daily_traffic":       df_daily.shape,
+        "vw_channel_performance": df_channels.shape,
+        "vw_device_breakdown":    df_devices.shape,
+        "vw_new_vs_returning":    df_newret.shape,
+    })
+
+# Apply date / channel filters
 df_traffic = apply_filters(df_traffic, start_date, end_date, channels)
 df_daily   = apply_filters(df_daily,   start_date, end_date)
 
