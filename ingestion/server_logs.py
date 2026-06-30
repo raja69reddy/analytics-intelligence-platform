@@ -10,7 +10,6 @@ import logging
 import sys
 from datetime import date
 from pathlib import Path
-from urllib.parse import urlparse
 
 import pandas as pd
 from sqlalchemy import text
@@ -18,7 +17,12 @@ from sqlalchemy import text
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.db import get_engine
-from utils.helpers import parse_url, clean_user_agent
+from utils.log_parser import (
+    extract_page_from_url,
+    parse_response_size,
+    parse_status_code,
+    parse_timestamp,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,16 +33,8 @@ log = logging.getLogger("server_logs_ingestion")
 
 CSV_PATH = Path(__file__).resolve().parent.parent / "data" / "raw" / "server_logs.csv"
 TABLE = "raw_server_logs"
-REQUIRED_COLUMNS = {"log_timestamp", "ip_address", "request_method", "url",
-                    "status_code", "response_size", "user_agent"}
-
-
-def _split_url(url_str: str) -> tuple[str, str | None]:
-    """Return (clean_path, query_string_or_None) from a path or URL string."""
-    parsed = urlparse(url_str)
-    path = parsed.path or url_str
-    qs = parsed.query if parsed.query else None
-    return path, qs
+REQUIRED_COLUMNS = {"log_timestamp", "ip_address", "request_method",
+                    "url", "status_code", "response_size", "user_agent"}
 
 
 def load_csv() -> pd.DataFrame:
@@ -54,7 +50,7 @@ def load_csv() -> pd.DataFrame:
         print(f"Error reading CSV: {exc}")
         raise
 
-    # Validate expected columns are present
+    # Validate required columns are present
     missing = REQUIRED_COLUMNS - set(df.columns)
     if missing:
         log.error("CSV is missing required columns: %s", missing)
@@ -67,20 +63,25 @@ def load_csv() -> pd.DataFrame:
     for col in str_cols:
         df[col] = df[col].str.strip()
 
-    # Convert log_timestamp to proper TIMESTAMP format
-    df["log_timestamp"] = pd.to_datetime(df["log_timestamp"], errors="coerce")
+    # Use parse_timestamp() for timestamp cleaning
+    df["log_timestamp"] = df["log_timestamp"].apply(parse_timestamp)
     dropped = df["log_timestamp"].isna().sum()
     if dropped:
         log.warning("Dropped %d rows with unparseable timestamps", dropped)
     df = df.dropna(subset=["log_timestamp"])
 
-    # Extract clean URL path and query string using parse_url helper
-    url_parts = df["url"].fillna("").apply(_split_url)
-    df["url"] = url_parts.apply(lambda x: x[0])
-    df["query_string"] = url_parts.apply(lambda x: x[1])
+    # Use extract_page_from_url() to clean URL paths and split query strings
+    from urllib.parse import urlparse
+    df["query_string"] = df["url"].fillna("").apply(lambda u: urlparse(u).query or None)
+    df["url"] = df["url"].fillna("").apply(extract_page_from_url)
 
-    # Clean user_agent using clean_user_agent helper
-    df["user_agent"] = df["user_agent"].fillna("")
+    # Use parse_status_code() to add status_category column (for logging/reporting)
+    df["status_category"] = df["status_code"].apply(parse_status_code)
+    log.info("Status breakdown: %s", df["status_category"].value_counts().to_dict())
+
+    # Use parse_response_size() to log KB equivalent (raw bytes still stored in DB)
+    total_mb = df["response_size"].apply(parse_response_size).sum() / 1024
+    log.info("Total response data: %.1f MB", total_mb)
 
     # Fill nulls with 0 for numeric columns
     num_cols = df.select_dtypes(include="number").columns
@@ -93,9 +94,9 @@ def load_csv() -> pd.DataFrame:
         "response_size":  "response_bytes",
     })
 
-    # Keep only columns that exist in raw_server_logs (exclude BIGSERIAL id and DEFAULT ingested_at)
+    # Keep only columns that exist in raw_server_logs
     keep = ["log_time", "ip_address", "method", "url", "query_string",
-            "status_code", "response_bytes", "user_agent"]
+            "status_code", "response_bytes", "referrer", "user_agent", "response_time_ms"]
     df = df[[c for c in keep if c in df.columns]]
 
     log.info("Loaded %d rows from CSV", len(df))
@@ -141,16 +142,18 @@ def ingest(mode: str, since: date | None = None) -> int:
                 conn.execute(text(f"TRUNCATE {TABLE} RESTART IDENTITY"))
                 log.info("Truncated %s", TABLE)
 
-        # Use explicit CAST for ip_address (PostgreSQL INET type)
-        insert_sql = text(f"""
-            INSERT INTO {TABLE}
-                (log_time, ip_address, method, url, query_string,
-                 status_code, response_bytes, user_agent)
-            VALUES
-                (:log_time, CAST(:ip_address AS INET), :method, :url,
-                 :query_string, :status_code, :response_bytes, :user_agent)
-        """)
-        records = df.to_dict("records")
+        # Build INSERT columns dynamically based on what's in the DataFrame
+        db_cols = ["log_time", "ip_address", "method", "url", "query_string",
+                   "status_code", "response_bytes", "referrer", "user_agent", "response_time_ms"]
+        present = [c for c in db_cols if c in df.columns]
+        values_clause = ", ".join(
+            f"CAST(:ip_address AS INET)" if c == "ip_address" else f":{c}"
+            for c in present
+        )
+        insert_sql = text(
+            f"INSERT INTO {TABLE} ({', '.join(present)}) VALUES ({values_clause})"
+        )
+        records = df[present].to_dict("records")
         with engine.begin() as conn:
             conn.execute(insert_sql, records)
 
