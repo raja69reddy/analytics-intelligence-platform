@@ -2,7 +2,7 @@
 import os
 import re
 from datetime import date, timedelta
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 
 def date_to_id(d: date) -> int:
@@ -56,6 +56,54 @@ def parse_url_parts(url: str) -> dict:
     path = parsed.path or "/"
     section = path.strip("/").split("/")[0] if path.strip("/") else "home"
     return {"url_path": path, "url_domain": parsed.netloc, "page_section": section}
+
+
+def parse_url(url: str) -> dict:
+    """Extract path, domain, and query params from a URL."""
+    parsed = urlparse(url)
+    return {
+        "domain": parsed.netloc,
+        "path": parsed.path or "/",
+        "query_params": parse_qs(parsed.query),
+    }
+
+
+def get_date_id(d: date) -> int:
+    """Convert a date to YYYYMMDD integer format."""
+    return int(d.strftime("%Y%m%d"))
+
+
+def clean_user_agent(ua: str) -> dict:
+    """Extract browser and OS from a user agent string."""
+    ua = ua or ""
+
+    if "Edg/" in ua or "Edge/" in ua:
+        browser = "Edge"
+    elif "OPR/" in ua or "Opera" in ua:
+        browser = "Opera"
+    elif "Chrome/" in ua:
+        browser = "Chrome"
+    elif "Firefox/" in ua:
+        browser = "Firefox"
+    elif "Safari/" in ua:
+        browser = "Safari"
+    else:
+        browser = "Other"
+
+    if "Windows" in ua:
+        os_name = "Windows"
+    elif "Mac OS X" in ua:
+        os_name = "macOS"
+    elif "Linux" in ua:
+        os_name = "Linux"
+    elif "Android" in ua:
+        os_name = "Android"
+    elif "iPhone" in ua or "iPad" in ua:
+        os_name = "iOS"
+    else:
+        os_name = "Other"
+
+    return {"browser": browser, "os": os_name}
 
 
 def clean_url(url: str) -> str:

@@ -23,6 +23,12 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
   raw_scrape_pages, raw_clickstream_events, dim_pages,
   dim_dates, fct_sessions, fct_events
 
+✅ **Day 4 — Helper Functions + dim_dates Table**
+- Created utils/helpers.py with parse_url, get_date_id, clean_user_agent
+- Built sql/populate_dates.py script
+- Filled dim_dates table with dates from 2023 to 2025
+- Verified all rows inserted successfully into PostgreSQL
+
 ## Stack
 
 | Layer | Tool |
