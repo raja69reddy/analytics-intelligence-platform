@@ -63,12 +63,20 @@ def load_csv() -> pd.DataFrame:
         log.error("CSV is missing required columns: %s", missing)
         raise ValueError(f"Missing columns: {missing}")
 
-    # Normalize URLs — lowercase, strip trailing slash
+    # Normalize URLs — lowercase, strip trailing slash; log and drop invalid entries
     invalid_urls = df["url"].isna() | (df["url"].astype(str).str.strip() == "")
     if invalid_urls.sum():
         log.error("Dropping %d rows with missing/empty URLs", invalid_urls.sum())
         df = df[~invalid_urls]
     df["url"] = df["url"].apply(_normalize_url)
+    # Log any URLs that fail basic validation (no scheme or host)
+    bad_urls = df["url"].apply(lambda u: not urlparse(u).scheme or not urlparse(u).netloc)
+    if bad_urls.sum():
+        log.error(
+            "Dropping %d rows with malformed URLs (missing scheme or host): %s",
+            bad_urls.sum(), df.loc[bad_urls, "url"].tolist(),
+        )
+        df = df[~bad_urls]
 
     # Clean title and meta_description — strip whitespace
     for col in ["title", "meta_description"]:
