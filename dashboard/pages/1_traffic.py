@@ -112,10 +112,10 @@ if not df_daily.empty:
 else:
     st.info("No daily traffic data available for the selected date range.")
 
+st.subheader("Traffic by Channel")
 col_left, col_right = st.columns(2)
 
 with col_left:
-    st.subheader("Sessions by Channel")
     if not df_channels.empty:
         # Sort ascending so that the longest bar appears at the top in a horizontal chart
         df_ch_sorted = df_channels.sort_values("total_sessions", ascending=True)
@@ -128,21 +128,34 @@ with col_left:
         st.plotly_chart(fig_ch, use_container_width=True)
 
 with col_right:
-    st.subheader("New vs Returning")
-    if not df_newret.empty:
-        summary = {
-            "User Type": ["New", "Returning"],
-            "Sessions": [
-                int(df_newret["new_user_sessions"].sum()),
-                int(df_newret["returning_user_sessions"].sum()),
-            ],
-        }
-        import pandas as pd
-        fig_nr = pie_chart(
-            pd.DataFrame(summary), names="User Type", values="Sessions",
-            title="New vs Returning Users",
+    if not df_channels.empty:
+        fig_ch_pie = pie_chart(
+            df_channels, names="channel_grouping", values="total_sessions",
+            title="Channel Distribution",
         )
-        st.plotly_chart(fig_nr, use_container_width=True)
+        st.plotly_chart(fig_ch_pie, use_container_width=True)
+
+st.divider()
+
+st.subheader("New vs Returning")
+if not df_newret.empty:
+    import pandas as pd
+    summary = {
+        "User Type": ["New", "Returning"],
+        "Sessions": [
+            int(df_newret["new_user_sessions"].sum()),
+            int(df_newret["returning_user_sessions"].sum()),
+        ],
+    }
+    fig_nr = pie_chart(
+        pd.DataFrame(summary), names="User Type", values="Sessions",
+        title="New vs Returning Users",
+    )
+    st.plotly_chart(fig_nr, use_container_width=True)
+else:
+    st.info("No new vs returning data available.")
+
+st.divider()
 
 st.subheader("Sessions by Device")
 if not df_devices.empty:
