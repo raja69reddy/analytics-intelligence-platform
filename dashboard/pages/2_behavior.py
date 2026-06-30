@@ -289,3 +289,30 @@ else:
     st.info("No behavior data available.")
 
 st.divider()
+
+# ── Page views over time ───────────────────────────────────────────────────────
+st.subheader("Page Views Over Time")
+pv_url = st.text_input(
+    "Filter by page URL (optional)", placeholder="/blog/", key="pv_url_filter"
+)
+_pv_where = "AND url ILIKE :url_pat" if pv_url else ""
+_pv_params = {"url_pat": f"%{pv_url}%"} if pv_url else {}
+_pv_sql = f"""
+SELECT DATE(log_time) AS log_date, COUNT(*) AS total_requests
+FROM raw_server_logs
+WHERE 1=1 {_pv_where}
+GROUP BY DATE(log_time)
+ORDER BY log_date
+"""
+df_pv = query_df(_pv_sql, _pv_params)
+if not df_pv.empty:
+    fig_pv = line_chart(
+        df_pv, x="log_date", y="total_requests",
+        title="Daily Page Requests" + (f" — {pv_url}" if pv_url else ""),
+        labels={"log_date": "Date", "total_requests": "Requests"},
+    )
+    st.plotly_chart(fig_pv, use_container_width=True)
+else:
+    st.info("No page view data for the selected URL.")
+
+st.divider()
