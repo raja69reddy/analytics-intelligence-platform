@@ -137,19 +137,26 @@ with col_right:
 
 st.divider()
 
-st.subheader("New vs Returning")
+st.subheader("New vs Returning Users")
 if not df_newret.empty:
-    import pandas as pd
-    summary = {
-        "User Type": ["New", "Returning"],
-        "Sessions": [
-            int(df_newret["new_user_sessions"].sum()),
-            int(df_newret["returning_user_sessions"].sum()),
-        ],
-    }
-    fig_nr = pie_chart(
-        pd.DataFrame(summary), names="User Type", values="Sessions",
-        title="New vs Returning Users",
+    import plotly.graph_objects as go
+    fig_nr = go.Figure()
+    fig_nr.add_trace(go.Bar(
+        name="New Users",
+        x=df_newret["session_date"],
+        y=df_newret["new_user_sessions"],
+    ))
+    fig_nr.add_trace(go.Bar(
+        name="Returning Users",
+        x=df_newret["session_date"],
+        y=df_newret["returning_user_sessions"],
+    ))
+    fig_nr.update_layout(
+        barmode="stack",
+        title="New vs Returning Users Over Time",
+        xaxis_title="Date",
+        yaxis_title="Sessions",
+        template="plotly_white",
     )
     st.plotly_chart(fig_nr, use_container_width=True)
 else:
