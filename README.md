@@ -8,9 +8,10 @@ A solo-use, full-stack web analytics project built with PostgreSQL + Python + St
 |-----|------|--------|
 | Day 1 | Project scaffold, folder structure, README skeleton | ✅ Done |
 | Day 2 | utils/db.py - SQLAlchemy connection helper + .env setup | ✅ Done |
-| Day 3 | sql/schema.sql - all table definitions | ⏳ Upcoming |
+| Day 3 | sql/schema.sql - all table definitions | ✅ Done |
 | Day 4 | Build dim_dates table + populate_dates.py | ⏳ Upcoming |
 | Day 5 | Virtual env + requirements verified | ⏳ Upcoming |
+| Day 6 | Mock data generators | ⏳ Upcoming |
 
 ## Stack
 
