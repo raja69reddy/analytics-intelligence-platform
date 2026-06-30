@@ -45,4 +45,18 @@ with st.expander("Debug: data shapes", expanded=False):
         "vw_funnel":      df_funnel.shape,
     })
 
-st.info("Conversion sections loading below…")
+# ── KPI cards ─────────────────────────────────────────────────────────────────
+total_sessions      = int(df_conv["sessions"].sum())        if not df_conv.empty else 0
+total_completions   = int(df_conv["goal_completions"].sum()) if not df_conv.empty else 0
+total_revenue       = float(df_conv["revenue"].sum())        if not df_conv.empty else 0.0
+overall_cvr         = (total_completions / total_sessions * 100) if total_sessions else 0.0
+avg_rev_per_session = (total_revenue / total_sessions) if total_sessions else 0.0
+
+display_kpi_row([
+    {"title": "Overall Conversion Rate", "value": f"{overall_cvr:.2f}%"},
+    {"title": "Total Goal Completions",  "value": format_number(total_completions)},
+    {"title": "Total Revenue",           "value": f"${total_revenue:,.2f}"},
+    {"title": "Avg Revenue Per Session", "value": f"${avg_rev_per_session:.2f}"},
+])
+
+st.divider()
