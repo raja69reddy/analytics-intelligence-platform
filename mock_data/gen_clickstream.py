@@ -1,4 +1,4 @@
-"""Generate mock clickstream events → raw_clickstream_events."""
+"""Generate mock clickstream events — CSV export or direct DB load."""
 import argparse
 import json
 import os
@@ -12,6 +12,30 @@ from faker import Faker
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from utils.db import get_engine
+
+CSV_OUT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "raw", "clickstream_events.csv"))
+
+CSV_EVENT_TYPES    = ["click", "scroll", "pageview", "form_submit"]
+CSV_EVENT_WEIGHTS  = [0.25, 0.35, 0.30, 0.10]
+
+
+def generate_csv(n: int = 5000, days: int = 90) -> pd.DataFrame:
+    """Generate n simplified clickstream event rows for CSV export."""
+    end = datetime.now(tz=timezone.utc)
+    start = end - timedelta(days=days)
+    rows = []
+    for _ in range(n):
+        ts = start + timedelta(seconds=random.randint(0, days * 86400))
+        event_type = random.choices(CSV_EVENT_TYPES, weights=CSV_EVENT_WEIGHTS, k=1)[0]
+        rows.append({
+            "event_timestamp": ts.strftime("%Y-%m-%d %H:%M:%S"),
+            "session_id":      str(uuid.uuid4()),
+            "user_id":         str(uuid.uuid4()),
+            "event_type":      event_type,
+            "page_url":        random.choice(PAGES),
+            "scroll_depth":    round(random.uniform(0.0, 1.0), 4) if event_type == "scroll" else None,
+        })
+    return pd.DataFrame(rows).sort_values("event_timestamp").reset_index(drop=True)
 
 fake = Faker()
 
@@ -100,12 +124,20 @@ def load(df: pd.DataFrame, mode: str = "full") -> None:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["full", "incremental"], default="full")
+    parser.add_argument("--mode", choices=["csv", "full", "incremental"], default="csv")
     parser.add_argument("--days", type=int, default=90)
+    parser.add_argument("--rows", type=int, default=5000)
     parser.add_argument("--sessions-per-day", type=int, default=200)
     args = parser.parse_args()
-    df = generate(days=args.days, sessions_per_day=args.sessions_per_day)
-    load(df, mode=args.mode)
+
+    if args.mode == "csv":
+        df = generate_csv(n=args.rows, days=args.days)
+        os.makedirs(os.path.dirname(CSV_OUT), exist_ok=True)
+        df.to_csv(CSV_OUT, index=False)
+        print(f"Generated {len(df)} rows saved to data/raw/clickstream_events.csv")
+    else:
+        df = generate(days=args.days, sessions_per_day=args.sessions_per_day)
+        load(df, mode=args.mode)
 
 
 if __name__ == "__main__":
