@@ -56,6 +56,56 @@ with st.spinner("Loading KPIs..."):
 
 st.divider()
 
+# ── Word count vs engagement scatter ─────────────────────────────────────────
+st.subheader("Word Count vs Engagement")
+
+@st.cache_data(ttl=300)
+def _load_wc_scatter():
+    return query_df(
+        "SELECT s.url, s.word_count, s.organic_sessions, "
+        "s.organic_pageviews AS pageviews, "
+        "s.avg_session_duration_s, "
+        "ROUND(s.organic_bounces::NUMERIC / NULLIF(s.organic_sessions, 0) * 100, 2) AS bounce_rate_pct "
+        "FROM vw_seo s "
+        "WHERE s.word_count IS NOT NULL AND s.word_count > 0"
+    )
+
+with st.spinner("Loading scatter data..."):
+    try:
+        import plotly.express as px
+        import numpy as np
+
+        _wc_df = _load_wc_scatter()
+        if _wc_df.empty:
+            st.info("No data available for scatter plot.")
+        else:
+            _wc_df["bubble_size"] = (_wc_df["pageviews"].fillna(1).clip(lower=1))
+
+            fig_scatter = px.scatter(
+                _wc_df,
+                x="word_count",
+                y="avg_session_duration_s",
+                size="bubble_size",
+                color="bounce_rate_pct",
+                hover_name="url",
+                hover_data={"word_count": True, "organic_sessions": True, "bubble_size": False},
+                labels={
+                    "word_count": "Word Count",
+                    "avg_session_duration_s": "Avg Session Duration (s)",
+                    "bounce_rate_pct": "Bounce Rate %",
+                },
+                title="Word Count vs Engagement (bubble = pageviews, color = bounce rate)",
+                color_continuous_scale="RdYlGn_r",
+                trendline="ols",
+            )
+            fig_scatter.update_layout(height=450)
+            st.plotly_chart(fig_scatter, use_container_width=True)
+            st.caption("Trend line shows relationship between content length and user engagement.")
+    except Exception as exc:
+        st.error(f"Could not render scatter plot: {exc}")
+
+st.divider()
+
 # ── Top organic landing pages ─────────────────────────────────────────────────
 st.subheader("Top Organic Landing Pages")
 
