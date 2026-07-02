@@ -145,6 +145,56 @@ with st.sidebar:
 
     st.divider()
 
+    # ── Pipeline Status ───────────────────────────────────────────────────────
+    st.subheader("⚙️ Pipeline Status")
+
+    @st.cache_data(ttl=60)
+    def _sidebar_pipeline_status():
+        from utils.db import query_df as _qdf
+        tables = {
+            "GA4":         "raw_ga4_sessions",
+            "Server Logs": "raw_server_logs",
+            "Clickstream": "raw_clickstream_events",
+            "Scraper":     "raw_scrape_pages",
+        }
+        total_rows = 0
+        last_ingest = None
+        for label, table in tables.items():
+            try:
+                df = _qdf(f"SELECT COUNT(*) AS n, MAX(ingested_at) AS ts FROM {table}")
+                n = int(df["n"].iloc[0])
+                ts = df["ts"].iloc[0]
+                total_rows += n
+                if ts and (last_ingest is None or ts > last_ingest):
+                    last_ingest = ts
+            except Exception:
+                pass
+        return total_rows, last_ingest
+
+    _total_rows, _last_ingest = _sidebar_pipeline_status()
+    st.metric("Total Rows Ingested", f"{_total_rows:,}")
+
+    if _last_ingest:
+        from datetime import datetime as _dtt
+        _last_dt = _last_ingest if hasattr(_last_ingest, "strftime") else _dtt.fromisoformat(str(_last_ingest))
+        _age_h = (_dtt.now() - _last_dt).total_seconds() / 3600
+        _ts_str = _last_dt.strftime("%Y-%m-%d %H:%M")
+        st.caption(f"Last ingest: {_ts_str}")
+        if _age_h < 24:
+            st.success(f"Data fresh ({_age_h:.0f}h ago)")
+        elif _age_h < 48:
+            st.warning(f"Data aging ({_age_h:.0f}h ago)")
+        else:
+            st.error(f"Data stale ({_age_h:.0f}h ago) — refresh needed")
+    else:
+        st.caption("No ingest timestamp found.")
+
+    if st.button("Refresh Data", key="sidebar_refresh"):
+        _sidebar_pipeline_status.clear()
+        st.rerun()
+
+    st.divider()
+
     st.subheader("Global Filters")
     start_date, end_date = get_date_filter()
     channels   = get_channel_filter()
