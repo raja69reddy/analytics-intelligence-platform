@@ -147,6 +147,43 @@ with col_a:
             except Exception as exc:
                 st.error(f"Error launching pipeline: {exc}")
 
+st.divider()
+
+# ── Alert history ──────────────────────────────────────────────────────────────
+st.subheader("Alert History")
+from pathlib import Path as _P
+_alert_log = _P(__file__).resolve().parent.parent.parent / "data" / "processed" / "pipeline_logs" / "alerts.log"
+
+if _alert_log.exists():
+    _lines = _alert_log.read_text(encoding="utf-8").strip().splitlines()
+    if _lines:
+        _last_50 = list(reversed(_lines[-50:]))
+        import pandas as pd
+        _alert_df = pd.DataFrame({"Alert": _last_50})
+
+        def _alert_row_color(row):
+            line = row["Alert"]
+            if "[CRITICAL]" in line:
+                return ["background-color: #f8d7da"]
+            if "[WARNING]" in line:
+                return ["background-color: #fff3cd"]
+            return [""]
+
+        st.dataframe(
+            _alert_df.style.apply(_alert_row_color, axis=1),
+            use_container_width=True, hide_index=True,
+        )
+        if st.button("Dismiss All Alerts (clear log)", key="dismiss_alerts"):
+            _alert_log.write_text("", encoding="utf-8")
+            st.success("Alert log cleared.")
+            st.rerun()
+    else:
+        st.success("No alerts logged.")
+else:
+    st.info("Alert log not found — alerts will appear here after checks run.")
+
+st.divider()
+
 with col_b:
     st.markdown("**Run Single Pipeline**")
     selected = st.selectbox(

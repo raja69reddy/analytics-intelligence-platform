@@ -145,6 +145,39 @@ with st.sidebar:
 
     st.divider()
 
+    # ── Active Alerts ─────────────────────────────────────────────────────────
+    st.subheader("🚨 Active Alerts")
+
+    @st.cache_data(ttl=120)
+    def _sidebar_alerts():
+        try:
+            from utils.alerts import run_all_checks
+            return run_all_checks()
+        except Exception as exc:
+            return [{"check": "system", "status": "error", "message": str(exc)}]
+
+    _alert_results = _sidebar_alerts()
+    _has_alerts = False
+    for _r in _alert_results:
+        _sev = _r.get("severity", "")
+        _msg = _r.get("message", "")
+        if _r.get("status") == "alert":
+            _has_alerts = True
+            if _sev == "critical":
+                st.error(f"🔴 {_r['check'].replace('_', ' ').title()}: {_msg}")
+            else:
+                st.warning(f"🟡 {_r['check'].replace('_', ' ').title()}: {_msg}")
+        elif _r.get("status") == "error":
+            st.warning(f"🟡 Check error: {_r['check']} — {_msg}")
+
+    if not _has_alerts:
+        st.success("🟢 All systems healthy")
+
+    if st.button("View Alert History", key="sidebar_alert_history"):
+        st.switch_page("pages/7_pipeline.py")
+
+    st.divider()
+
     # ── Pipeline Status ───────────────────────────────────────────────────────
     st.subheader("⚙️ Pipeline Status")
 
