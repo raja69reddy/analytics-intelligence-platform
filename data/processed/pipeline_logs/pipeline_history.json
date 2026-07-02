@@ -1,0 +1,23 @@
+[
+  {
+    "name": "ga4",
+    "rows": 1000,
+    "duration_s": 2.5,
+    "status": "success",
+    "timestamp": "2026-07-02T11:29:34.035019"
+  },
+  {
+    "name": "server_logs",
+    "rows": 5000,
+    "duration_s": 4.1,
+    "status": "success",
+    "timestamp": "2026-07-02T11:29:34.079649"
+  },
+  {
+    "name": "clickstream",
+    "rows": 0,
+    "duration_s": 0.1,
+    "status": "error: CSV missing",
+    "timestamp": "2026-07-02T11:29:34.081101"
+  }
+]
