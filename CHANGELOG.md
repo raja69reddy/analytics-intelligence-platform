@@ -1,5 +1,15 @@
 # Changelog
 
+## Day 23 - Funnel SQL + Pipeline Monitor + Alerts
+- Created 5 new SQL queries
+- Updated run_all.py with dry-run and pipeline flags
+- Created utils/pipeline_monitor.py
+- Created dashboard/pages/7_pipeline.py
+- Created utils/alerts.py monitoring system
+- Added alerts to dashboard sidebar
+- Added project metrics to home page
+- All tests passing
+
 ## Day 22 - Conversion SQL Queries + SEO Dashboard Page
 - Created 4 conversion SQL queries
 - Created dashboard/pages/4_seo.py SEO page
