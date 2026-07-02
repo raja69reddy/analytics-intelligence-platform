@@ -209,6 +209,17 @@ A production-grade analytics platform built with Python, PostgreSQL, and Streaml
 - Added internal vs external links analysis
 - All tests passing with pytest
 
+✅ **Day 23 — Funnel SQL + Pipeline Monitor + Alerts**
+- Created 5 new SQL queries: funnel dropoff, user segments,
+  content performance, anomaly report, cohort analysis
+- Updated run_all.py with --dry-run and --pipeline flags
+- Created utils/pipeline_monitor.py for run logging
+- Created dashboard/pages/7_pipeline.py Pipeline Monitor
+- Created utils/alerts.py monitoring system
+- Added alerts to dashboard sidebar with severity badges
+- Added project metrics to dashboard home page
+- All tests passing with pytest
+
 ## Project Architecture
 
 ```
