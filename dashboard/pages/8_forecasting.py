@@ -33,6 +33,62 @@ forecast_days = st.selectbox(
 
 st.divider()
 
+# ── KPI cards ─────────────────────────────────────────────────────────────────
+st.subheader("Forecast KPIs")
+
+
+@st.cache_data(ttl=600)
+def _load_kpi_forecasts(days: int):
+    from ai.forecasting.traffic_forecaster import TrafficForecaster
+    from ai.forecasting.conversion_forecaster import ConversionForecaster
+
+    tf = TrafficForecaster()
+    hist_df = tf.load_historical_data()
+    tf.train_model(hist_df)
+    fc_t = tf.forecast(days=days)
+    hist_end = hist_df["ds"].max()
+    future_t = fc_t[fc_t["ds"] > hist_end]
+    predicted_sessions_total = int(future_t["yhat"].clip(lower=0).sum())
+
+    # Next traffic peak (day with highest predicted sessions)
+    if not future_t.empty:
+        peak_row = future_t.loc[future_t["yhat"].idxmax()]
+        days_to_peak = int((peak_row["ds"] - hist_end).days)
+    else:
+        days_to_peak = 0
+
+    cf = ConversionForecaster()
+    hist_cvr = cf.load_conversion_data()
+    cf.train_model(hist_cvr)
+    fc_c = cf.forecast(days=days)
+    summary = cf.get_forecast_summary(fc_c, days=days)
+
+    # Confidence score: 80% interval — narrower = higher confidence
+    if not future_t.empty:
+        avg_upper = future_t["yhat_upper"].mean()
+        avg_lower = future_t["yhat_lower"].mean()
+        avg_pred  = future_t["yhat"].clip(lower=1).mean()
+        interval_pct = (avg_upper - avg_lower) / avg_pred * 100
+        confidence = max(0, min(100, round(100 - interval_pct / 2, 0)))
+    else:
+        confidence = 50
+
+    return predicted_sessions_total, summary["avg_cvr_pct"], confidence, days_to_peak
+
+
+with st.spinner("Loading forecast KPIs..."):
+    try:
+        _pred_sessions, _pred_cvr, _confidence, _peak_days = _load_kpi_forecasts(forecast_days)
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric(f"Predicted Sessions (Next {forecast_days}d)", f"{_pred_sessions:,}")
+        k2.metric(f"Predicted Avg CVR (Next {forecast_days}d)", f"{_pred_cvr:.4f}%")
+        k3.metric("Forecast Confidence Score", f"{int(_confidence)} / 100")
+        k4.metric("Days Until Next Traffic Peak", f"{_peak_days} days")
+    except Exception as exc:
+        st.error(f"Could not load KPIs: {exc}")
+
+st.divider()
+
 
 # ── Traffic forecast ──────────────────────────────────────────────────────────
 st.subheader("Traffic Forecast")
