@@ -57,7 +57,7 @@ class TrafficForecaster:
             yearly_seasonality=True,
             weekly_seasonality=True,
             daily_seasonality=False,
-            seasonality_mode="multiplicative",
+            seasonality_mode="additive",
             interval_width=0.80,
         )
         model.fit(prophet_df)
