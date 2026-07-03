@@ -146,6 +146,46 @@ with st.sidebar:
 
     st.divider()
 
+    # ── Forecast Preview ──────────────────────────────────────────────────────
+    st.subheader("🔮 Forecast Preview")
+
+    @st.cache_data(ttl=1800)
+    def _sidebar_forecast():
+        try:
+            from ai.forecasting.traffic_forecaster import TrafficForecaster
+            from ai.forecasting.conversion_forecaster import ConversionForecaster
+
+            tf = TrafficForecaster()
+            hist = tf.load_historical_data()
+            tf.train_model(hist)
+            fc_t = tf.forecast(days=7)
+            hist_end = hist["ds"].max()
+            future_t = fc_t[fc_t["ds"] > hist_end]
+            pred_sessions_7d = int(future_t["yhat"].clip(lower=0).sum())
+
+            cf = ConversionForecaster()
+            hist_c = cf.load_conversion_data()
+            cf.train_model(hist_c)
+            fc_c = cf.forecast(days=7)
+            summary = cf.get_forecast_summary(fc_c, days=7)
+
+            return pred_sessions_7d, summary["avg_cvr_pct"]
+        except Exception as exc:
+            return None, None
+
+    _pred_7d, _pred_cvr_7d = _sidebar_forecast()
+
+    if _pred_7d is not None:
+        st.metric("Next 7 Days Predicted Sessions", f"{_pred_7d:,}")
+        st.metric("Predicted Avg CVR (7d)", f"{_pred_cvr_7d:.4f}%")
+    else:
+        st.caption("Forecast not available.")
+
+    if st.button("View Full Forecast", key="sidebar_forecast_link"):
+        st.switch_page("pages/8_forecasting.py")
+
+    st.divider()
+
     # ── Active Alerts ─────────────────────────────────────────────────────────
     st.subheader("🚨 Active Alerts")
 
