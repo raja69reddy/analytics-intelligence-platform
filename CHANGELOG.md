@@ -1,5 +1,22 @@
 # Changelog
 
+## Day 25 - User Behavior SQL + Smart Alerts System
+- Created sql/queries/user_behavior.sql (8 queries: time on page, scroll depth, session duration, engagement scores, sticky pages)
+- Created sql/queries/retention_analysis.sql (7 queries: DAU, WAU, MAU, stickiness, retention, churn, re-engagement)
+- Created sql/queries/session_quality.sql (6 queries: high/low quality sessions, quality by channel, trend, best time/day)
+- Created sql/queries/device_analysis.sql (6 queries: sessions over time, CVR, bounce, duration, load time, revenue by device)
+- Enhanced utils/alerts.py with 7 smart alert checks: traffic_drop, bounce_spike, conversion_drop, page_speed_degradation, anomaly_detected, data_staleness, error_rate
+- Added generate_alert_summary() aggregating all check results
+- Created utils/alert_rules.py with AlertRule dataclass and 6 pre-defined rules; evaluate_all_rules() returns violations only
+- Added alerts table to sql/schema.sql and applied to PostgreSQL (id, alert_type, severity, message, recommended_action, is_resolved, created_at, resolved_at)
+- Updated dashboard/pages/7_pipeline.py: active alert summary KPIs, alert history table, resolution rate, Mark as Resolved button, alert trend log viewer
+- Created utils/weekly_digest.py: generates weekly markdown digest saved to data/processed/digests/
+- Ran weekly digest successfully
+- Added retention analysis section to dashboard/pages/2_behavior.py (DAU/WAU/MAU KPIs, stickiness, retention chart, re-engagement by channel)
+- Added session quality section to dashboard/pages/2_behavior.py (high/low quality pie, quality by channel bar, best-time heatmap)
+- Added 7 new unit tests in tests/test_alerts.py
+- All 276 tests passing
+
 ## Day 24 - SEO SQL + Predictive Analytics
 - Created 3 new SQL queries: seo_content, keyword_analysis, page_speed
 - Built TrafficForecaster using Facebook Prophet
