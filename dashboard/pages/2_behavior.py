@@ -104,6 +104,35 @@ def _load_retention():
     """)
 
 @st.cache_data(ttl=300)
+def _load_session_quality():
+    return query_df("""
+        WITH quality AS (
+            SELECT
+                channel_grouping,
+                COUNT(*) AS total_sessions,
+                COUNT(CASE WHEN session_duration_s > 180 AND NOT bounce THEN 1 END) AS high_quality,
+                COUNT(CASE WHEN session_duration_s < 30 OR bounce THEN 1 END) AS low_quality
+            FROM raw_ga4_sessions
+            GROUP BY channel_grouping
+        )
+        SELECT channel_grouping, total_sessions, high_quality, low_quality,
+               ROUND(high_quality::NUMERIC / NULLIF(total_sessions, 0) * 100, 2) AS high_quality_pct,
+               ROUND(low_quality::NUMERIC  / NULLIF(total_sessions, 0) * 100, 2) AS low_quality_pct
+        FROM quality ORDER BY high_quality_pct DESC
+    """)
+
+@st.cache_data(ttl=300)
+def _load_quality_heatmap():
+    return query_df("""
+        SELECT EXTRACT(DOW FROM session_date)::INT AS dow,
+               EXTRACT(HOUR FROM (session_date + interval '12 hours'))::INT AS hour_of_day,
+               COUNT(CASE WHEN session_duration_s > 180 AND NOT bounce THEN 1 END) AS high_quality
+        FROM raw_ga4_sessions
+        GROUP BY dow, hour_of_day
+        ORDER BY dow, hour_of_day
+    """)
+
+@st.cache_data(ttl=300)
 def _load_dau_mau():
     return query_df("""
         WITH dau AS (
@@ -468,6 +497,91 @@ if not df_retention.empty:
         st.plotly_chart(fig_re, use_container_width=True)
 else:
     st.info("No retention data available.")
+
+st.divider()
+
+# ── Session Quality ───────────────────────────────────────────────────────────
+st.subheader("Session Quality")
+
+df_sq = _load_session_quality()
+
+if not df_sq.empty:
+    total_all  = int(df_sq["total_sessions"].sum())
+    high_all   = int(df_sq["high_quality"].sum())
+    low_all    = int(df_sq["low_quality"].sum())
+    mid_all    = total_all - high_all - low_all
+
+    sq1, sq2, sq3 = st.columns(3)
+    with sq1:
+        st.metric("High Quality Sessions", f"{high_all:,}", delta=f"{round(high_all/total_all*100,1)}% of total" if total_all else None)
+    with sq2:
+        st.metric("Medium Quality Sessions", f"{mid_all:,}")
+    with sq3:
+        st.metric("Low Quality Sessions", f"{low_all:,}", delta=f"-{round(low_all/total_all*100,1)}% bounce/quick-exit" if total_all else None, delta_color="inverse")
+
+    # High / low quality pie
+    pie_col, bar_col = st.columns(2)
+    with pie_col:
+        fig_pie = go.Figure(go.Pie(
+            labels=["High Quality", "Medium Quality", "Low Quality"],
+            values=[high_all, mid_all, low_all],
+            marker_colors=["#2ca02c", "#ffbb78", "#d62728"],
+            hole=0.35,
+        ))
+        fig_pie.update_layout(title="Session Quality Distribution", template="plotly_white")
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    with bar_col:
+        fig_bar = go.Figure()
+        fig_bar.add_trace(go.Bar(
+            name="High Quality %",
+            x=df_sq["channel_grouping"],
+            y=df_sq["high_quality_pct"],
+            marker_color="#2ca02c",
+        ))
+        fig_bar.add_trace(go.Bar(
+            name="Low Quality %",
+            x=df_sq["channel_grouping"],
+            y=df_sq["low_quality_pct"],
+            marker_color="#d62728",
+        ))
+        fig_bar.update_layout(
+            barmode="group",
+            title="Session Quality by Channel",
+            xaxis_title="Channel",
+            yaxis_title="% of Sessions",
+            template="plotly_white",
+        )
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    # Best time heatmap — high quality sessions by day-of-week
+    df_qheat = _load_quality_heatmap()
+    if not df_qheat.empty:
+        _day_map2 = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"}
+        df_qheat["day_name"] = df_qheat["dow"].map(_day_map2)
+        pivot_q = df_qheat.pivot_table(
+            index="day_name", columns="hour_of_day",
+            values="high_quality", fill_value=0,
+        )
+        day_order2 = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        pivot_q = pivot_q.reindex([d for d in day_order2 if d in pivot_q.index])
+        fig_qheat = go.Figure(go.Heatmap(
+            z=pivot_q.values.tolist(),
+            x=[str(h) for h in pivot_q.columns.tolist()],
+            y=pivot_q.index.tolist(),
+            colorscale="Greens",
+            hoverongaps=False,
+            colorbar=dict(title="High Quality"),
+        ))
+        fig_qheat.update_layout(
+            title="Best Time for High Quality Sessions (Day × Hour)",
+            xaxis_title="Hour of Day",
+            yaxis_title="Day of Week",
+            template="plotly_white",
+        )
+        st.plotly_chart(fig_qheat, use_container_width=True)
+else:
+    st.info("No session quality data available.")
 
 st.divider()
 
