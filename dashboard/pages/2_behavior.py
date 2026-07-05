@@ -89,6 +89,35 @@ SELECT EXTRACT(DOW FROM log_time)::int AS dow,
 FROM raw_server_logs GROUP BY 1, 2 ORDER BY 1, 2
 """)
 
+@st.cache_data(ttl=300)
+def _load_retention():
+    return query_df("""
+        SELECT
+            DATE_TRUNC('week', session_date)::DATE AS week_start,
+            SUM(sessions)  AS weekly_sessions,
+            SUM(new_users) AS new_users,
+            SUM(sessions) - SUM(new_users) AS returning_users,
+            ROUND((SUM(sessions) - SUM(new_users))::NUMERIC / NULLIF(SUM(sessions), 0) * 100, 2) AS retention_rate_pct
+        FROM raw_ga4_sessions
+        GROUP BY week_start
+        ORDER BY week_start
+    """)
+
+@st.cache_data(ttl=300)
+def _load_dau_mau():
+    return query_df("""
+        WITH dau AS (
+            SELECT session_date, SUM(sessions) AS daily_s FROM raw_ga4_sessions GROUP BY session_date
+        ),
+        mau AS (
+            SELECT DATE_TRUNC('month', session_date)::DATE AS mo, SUM(sessions) ms, COUNT(DISTINCT session_date) active_days
+            FROM raw_ga4_sessions GROUP BY mo
+        )
+        SELECT m.mo AS month_start, m.ms AS monthly_sessions, m.active_days,
+               ROUND(m.ms::NUMERIC / NULLIF(m.active_days, 0), 1) AS avg_dau
+        FROM mau m ORDER BY m.mo
+    """)
+
 # ── Sidebar filters ───────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Filters")
@@ -358,6 +387,87 @@ if not df_pv.empty:
     st.plotly_chart(fig_pv, use_container_width=True)
 else:
     st.info("No page view data for the selected URL.")
+
+st.divider()
+
+# ── Retention Analysis ────────────────────────────────────────────────────────
+st.subheader("Retention Analysis")
+
+import pandas as pd
+
+df_dau_mau  = _load_dau_mau()
+df_retention = _load_retention()
+
+# KPI cards: DAU, WAU, MAU, stickiness
+if not df_retention.empty:
+    last_week_row = df_retention.iloc[-1]
+    dau_approx  = int(last_week_row.get("weekly_sessions", 0) / 7 or 0)
+    wau         = int(last_week_row.get("weekly_sessions", 0) or 0)
+    mau         = int(df_dau_mau["monthly_sessions"].iloc[-1]) if not df_dau_mau.empty else 0
+    stickiness  = round(dau_approx / mau * 100, 1) if mau else 0
+    ret_rate    = float(last_week_row.get("retention_rate_pct", 0) or 0)
+
+    k1, k2, k3, k4 = st.columns(4)
+    with k1:
+        st.metric("DAU (last week avg)", f"{dau_approx:,}")
+    with k2:
+        st.metric("WAU (last week)", f"{wau:,}")
+    with k3:
+        st.metric("MAU (last month)", f"{mau:,}")
+    with k4:
+        st.metric("Stickiness (DAU/MAU)", f"{stickiness}%")
+
+    # Retention trend chart
+    fig_ret = go.Figure()
+    fig_ret.add_trace(go.Scatter(
+        x=df_retention["week_start"].astype(str),
+        y=df_retention["retention_rate_pct"],
+        mode="lines+markers",
+        name="Retention Rate %",
+        line=dict(color="#00CC96", width=2),
+    ))
+    fig_ret.add_trace(go.Bar(
+        x=df_retention["week_start"].astype(str),
+        y=df_retention["weekly_sessions"],
+        name="Weekly Sessions",
+        yaxis="y2",
+        opacity=0.3,
+        marker_color="#636EFA",
+    ))
+    fig_ret.update_layout(
+        title="Weekly Retention Rate & Session Volume",
+        xaxis_title="Week",
+        yaxis=dict(title="Retention Rate %", range=[0, 100]),
+        yaxis2=dict(title="Sessions", overlaying="y", side="right"),
+        template="plotly_white",
+        legend=dict(orientation="h", y=1.1),
+    )
+    st.plotly_chart(fig_ret, use_container_width=True)
+
+    # Re-engagement rate by channel
+    df_reeng = query_df("""
+        SELECT channel_grouping,
+               ROUND((SUM(sessions) - SUM(new_users))::NUMERIC / NULLIF(SUM(sessions), 0) * 100, 2) AS re_engagement_pct
+        FROM raw_ga4_sessions
+        GROUP BY channel_grouping ORDER BY re_engagement_pct DESC
+    """)
+    if not df_reeng.empty:
+        fig_re = go.Figure(go.Bar(
+            x=df_reeng["channel_grouping"],
+            y=df_reeng["re_engagement_pct"],
+            marker_color="#AB63FA",
+            text=df_reeng["re_engagement_pct"].apply(lambda v: f"{v}%"),
+            textposition="outside",
+        ))
+        fig_re.update_layout(
+            title="Re-engagement Rate by Channel (Returning Users %)",
+            xaxis_title="Channel",
+            yaxis_title="Re-engagement %",
+            template="plotly_white",
+        )
+        st.plotly_chart(fig_re, use_container_width=True)
+else:
+    st.info("No retention data available.")
 
 st.divider()
 
