@@ -6,8 +6,14 @@ data/processed/digests/weekly_YYYY-MM-DD.md.
 from __future__ import annotations
 
 import logging
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+
+# Ensure project root is on sys.path when run as a script
+_ROOT_PATH = str(Path(__file__).resolve().parent.parent)
+if _ROOT_PATH not in sys.path:
+    sys.path.insert(0, _ROOT_PATH)
 
 logger = logging.getLogger(__name__)
 
