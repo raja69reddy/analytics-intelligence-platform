@@ -233,6 +233,20 @@ A production-grade analytics platform built with Python, PostgreSQL, and Streaml
 - Predictive Analytics AI feature complete ✅
 - All tests passing with pytest
 
+✅ **Day 25 — User Behavior SQL + Smart Alerts System**
+- Created user_behavior.sql (8 queries: time on page, scroll depth, session duration, engagement scores, sticky pages)
+- Created retention_analysis.sql (7 queries: DAU, WAU, MAU, stickiness, retention rate, churn, re-engagement)
+- Created session_quality.sql (6 queries: high/low quality sessions, quality by channel, trend, best time of day/day of week)
+- Created device_analysis.sql (6 queries: sessions over time, CVR, bounce, duration, load time, revenue by device)
+- Enhanced utils/alerts.py with 7 smart alert checks including traffic_drop, bounce_spike, conversion_drop, page_speed_degradation, anomaly_detected, data_staleness, error_rate
+- Created utils/alert_rules.py with AlertRule dataclass and 6 pre-defined rules
+- Added alerts table to PostgreSQL schema
+- Updated pipeline dashboard with alert management UI (resolution tracking, alert trend viewer)
+- Created utils/weekly_digest.py — generates markdown performance digest
+- Added retention analysis section to behavior dashboard (DAU/WAU/MAU KPIs, stickiness, retention chart)
+- Added session quality section to behavior dashboard (pie, channel bar, best-time heatmap)
+- 276 tests passing with pytest
+
 ## Project Architecture
 
 ```
