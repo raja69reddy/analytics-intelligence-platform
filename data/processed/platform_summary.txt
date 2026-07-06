@@ -1,0 +1,29 @@
+============================================================
+  ANALYTICS INTELLIGENCE PLATFORM - SUMMARY REPORT
+============================================================
+
+-- TRAFFIC --------------------------------------------------
+  GA4 Date Range:        2026-03-22 to 2026-06-19
+  Total Sessions:              50,561
+  Total New Users:             13,142
+  Total Pageviews:            228,286
+  Avg Bounce Rate:              1.94%
+  Avg Session Duration:        315.5s
+  Top Channel:           Email (9,935 sessions)
+
+-- CONVERSIONS -----------------------------------------------
+  Total Goal Completions:           0
+  Overall CVR:                0.0000%
+  Total Revenue:         $       0.00
+
+-- SEO -------------------------------------------------------
+  Total Pages Scraped:              8
+  Avg Page Load Time:           1133ms
+  Pages Missing Meta:               0
+
+-- DATA LAYER ------------------------------------------------
+  Server Log Rows:              5,000
+  Clickstream Events:          10,000
+  dim_dates Rows:               1,096
+
+============================================================
