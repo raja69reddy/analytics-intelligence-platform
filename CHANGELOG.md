@@ -1,5 +1,23 @@
 # Changelog
 
+## Day 26 - EDA Notebook + Data Dictionary
+- Verified dim_dates fully populated (1,096 rows, 2023-01-01 to 2025-12-31)
+- Created analysis/explore.ipynb with 7 analysis sections
+- Section 1: Data Overview — row counts, date ranges, column names for all 4 raw tables
+- Section 2: Traffic Analysis — daily sessions, channel breakdown, new vs returning chart
+- Section 3: User Behavior — top pages, scroll depth distribution, event type pie
+- Section 4: Conversion Analysis — daily CVR trend, goal completions by channel
+- Section 5: SEO Analysis — word count distribution, load time histogram, word count vs load time scatter
+- Section 6: Anomaly Detection — sessions chart with anomaly markers, severity distribution
+- Section 7: Key Findings — 12 actionable insights across traffic, behavior, conversion, SEO
+- Generated 12 EDA plot PNGs to data/processed/eda_plots/
+- Created analysis/generate_summary.py — loads all metrics and saves platform_summary.txt
+- Added 4 composite performance indexes (ga4_date_channel, srvlogs_time_url, click_event_page, scrape_url_wordcount)
+  reducing query times by up to 99%
+- Created data/DATA_DICTIONARY.md with full column descriptions, view descriptions, AI feature docs, and sample queries
+- Added 21 unit tests in tests/test_eda.py
+- All 297 tests passing with pytest
+
 ## Day 25 - User Behavior SQL + Smart Alerts System
 - Created sql/queries/user_behavior.sql (8 queries: time on page, scroll depth, session duration, engagement scores, sticky pages)
 - Created sql/queries/retention_analysis.sql (7 queries: DAU, WAU, MAU, stickiness, retention, churn, re-engagement)
