@@ -1,5 +1,25 @@
 # Changelog
 
+## Day 27 - Smart Alerts AI Module + System Health
+- Created utils/validate_data.py — 68 checks across tables, views, nulls, PK duplicates, date ranges (100/100 health)
+- Created ai/smart_alerts/__init__.py and ai/smart_alerts/detector.py with SmartAlertDetector class
+  - detect_traffic_anomalies(df) using IsolationForest (sklearn) with anomaly scoring
+  - detect_conversion_drops(df) using 7-day rolling average statistical threshold
+  - detect_bounce_spikes(df) using rolling average comparison
+  - detect_engagement_drops(df) using session duration trend analysis
+  - generate_alert_message(alert_type, data) using OpenAI or template fallback
+  - run_all(df) runs all four detectors, returns combined Alert list
+- Created ai/smart_alerts/alert_models.py with Alert dataclass (UUID, severity enum, to_dict) and AlertSummary dataclass (from_alerts, all_clear, to_dict)
+- Created ai/smart_alerts/run_alerts.py — full pipeline: loads DB, runs detectors, saves to alerts table, saves markdown report
+- Ran run_alerts.py: 7 WARNING alerts detected and saved to PostgreSQL
+- Updated dashboard/pages/7_pipeline.py with SmartAlertDetector integration: real-time alert counts, expandable alert cards, alert trend chart
+- Created ai/smart_alerts/scheduler.py with run_hourly_check, run_daily_check, schedule_alerts, get_next_run_time; includes Windows Task Scheduler setup guide
+- Updated README AI Features table: Smart Alerts status changed from Planned to Complete
+- Created utils/health_check.py: checks PostgreSQL, 6 tables, 6 views, 3 AI models, Smart Alerts module, report artifacts, 8 dashboard pages
+- Ran health_check.py: 29/29 checks passed (100/100 score, ALL SYSTEMS HEALTHY)
+- Added tests/test_smart_alerts.py with 13 tests covering initialization, anomaly detection, severity validation, DB save/delete, pipeline run, AlertSummary aggregation, bounce spike detection
+- pytest: 301 passed (13 new smart alert tests)
+
 ## Day 26 - EDA Notebook + Data Dictionary
 - Verified dim_dates fully populated (1,096 rows, 2023-01-01 to 2025-12-31)
 - Created analysis/explore.ipynb with 7 analysis sections
