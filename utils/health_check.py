@@ -71,7 +71,7 @@ def _check_views() -> list[HealthItem]:
         "vw_top_pages",
         "vw_conversions",
         "vw_device_breakdown",
-        "vw_search_performance",
+        "vw_seo",
     ]
     items = []
     try:
@@ -134,7 +134,7 @@ def _check_dashboard_pages() -> list[HealthItem]:
     pages_dir = ROOT / "dashboard" / "pages"
     expected  = [
         "1_traffic.py", "2_behavior.py", "3_conversions.py",
-        "4_seo.py", "5_ai_insights.py", "6_pipeline.py", "7_pipeline.py",
+        "4_seo.py", "5_nlq.py", "6_reports.py", "7_pipeline.py", "8_forecasting.py",
     ]
     items = []
     for pg in expected:
