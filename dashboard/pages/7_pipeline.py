@@ -209,6 +209,80 @@ else:
 
 st.divider()
 
+# ── Smart Alert Detector ───────────────────────────────────────────────────────
+st.subheader("AI Smart Alert Detector")
+
+
+@st.cache_data(ttl=300)
+def _run_smart_alerts() -> dict:
+    try:
+        from ai.smart_alerts.detector import SmartAlertDetector
+        from ai.smart_alerts.alert_models import AlertSummary
+        df_traffic = query_df("SELECT * FROM vw_daily_traffic ORDER BY session_date")
+        detector   = SmartAlertDetector()
+        alerts     = detector.run_all(df_traffic)
+        summary    = AlertSummary.from_alerts(alerts)
+        return summary.to_dict()
+    except Exception as exc:
+        return {"error": str(exc), "total_alerts": 0, "critical_count": 0,
+                "warning_count": 0, "all_clear": True, "alerts": []}
+
+
+with st.spinner("Running SmartAlertDetector..."):
+    smart = _run_smart_alerts()
+
+if "error" in smart and smart["error"]:
+    st.error(f"SmartAlertDetector error: {smart['error']}")
+else:
+    # Real-time alert count by severity
+    sa1, sa2, sa3, sa4 = st.columns(4)
+    with sa1:
+        st.metric("AI Alerts (total)", smart.get("total_alerts", 0))
+    with sa2:
+        st.metric("Critical", smart.get("critical_count", 0))
+    with sa3:
+        st.metric("Warning", smart.get("warning_count", 0))
+    with sa4:
+        status_label = "All Clear" if smart.get("all_clear") else "Issues Found"
+        st.metric("Status", status_label)
+
+    if smart.get("all_clear"):
+        st.success("SmartAlertDetector: No anomalies or threshold breaches detected.")
+    else:
+        # Alert details — expandable cards
+        for alert in smart.get("alerts", []):
+            sev  = alert.get("severity", "WARNING")
+            icon = "🔴" if sev == "CRITICAL" else "🟡"
+            with st.expander(f"{icon} [{sev}] {alert.get('title', '')}"):
+                st.write(f"**Type:** `{alert.get('alert_type', '')}`")
+                st.write(f"**Message:** {alert.get('message', '')}")
+                st.write(f"**Recommended action:** {alert.get('recommended_action', '')}")
+                mv = alert.get("metric_value")
+                tv = alert.get("threshold_value")
+                if mv is not None:
+                    st.caption(f"Metric: {mv} | Baseline: {tv}")
+
+    # Alert trend chart over time (from DB)
+    df_trend = query_df("""
+        SELECT created_at::DATE AS alert_date, severity, COUNT(*) AS n
+        FROM alerts
+        GROUP BY alert_date, severity
+        ORDER BY alert_date
+    """)
+    if not df_trend.empty:
+        import plotly.express as px
+        fig_trend = px.bar(df_trend, x="alert_date", y="n", color="severity",
+                           color_discrete_map={"critical": "#d62728", "warning": "#ff7f0e", "info": "#636EFA"},
+                           title="Alert Trend Over Time", labels={"n": "Alerts", "alert_date": "Date"})
+        fig_trend.update_layout(template="plotly_white", legend_title="Severity")
+        st.plotly_chart(fig_trend, use_container_width=True)
+
+    if st.button("Re-run Smart Alert Detection", key="rerun_smart"):
+        _run_smart_alerts.clear()
+        st.rerun()
+
+st.divider()
+
 # ── Pipeline run history ───────────────────────────────────────────────────────
 st.subheader("Pipeline Run History")
 
