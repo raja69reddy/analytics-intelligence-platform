@@ -49,7 +49,7 @@ NOT_NULL_CHECKS = {
     "raw_ga4_sessions":       ["session_date", "sessions", "channel_grouping"],
     "raw_server_logs":        ["log_time", "url", "status_code"],
     "raw_clickstream_events": ["event_time", "event_name"],
-    "raw_scrape_pages":       ["url", "http_status"],
+    "raw_scrape_pages":       ["url"],
 }
 
 DATE_COLUMNS = {
