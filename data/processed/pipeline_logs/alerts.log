@@ -16,3 +16,8 @@
 [2026-07-04T22:03:28.335945] [WARNING] 5 traffic anomaly(s) detected by AI model (0 high-severity)
 [2026-07-05T20:23:26.529681] [WARNING] 5 traffic anomaly(s) detected by AI model (0 high-severity)
 [2026-07-05T20:23:46.342586] [WARNING] 5 traffic anomaly(s) detected by AI model (0 high-severity)
+[2026-07-08T19:03:47.976761] [WARNING] 5 traffic anomaly(s) detected by AI model (0 high-severity)
+[2026-07-08T19:03:47.988986] [CRITICAL] Data is 66.7h old (threshold: 24h)
+[2026-07-08T19:04:10.857501] [CRITICAL] Data is 66.7h old (threshold: 24h)
+[2026-07-08T19:04:10.877427] [WARNING] 5 traffic anomaly(s) detected by AI model (0 high-severity)
+[2026-07-08T19:04:10.882553] [CRITICAL] Data is 66.7h old (threshold: 24h)
