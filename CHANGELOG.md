@@ -1,5 +1,19 @@
 # Changelog
 
+## Day 28 - EDA Funnel + Fact Tables ETL
+- Extended dim_dates to 2026 to cover mock data date range
+- Created sql/populate_dim_pages.py — upserts unique URL paths from server logs, GA4, and clickstream; enriches with scrape metadata via ON CONFLICT (url) DO UPDATE; 11 pages loaded
+- Created sql/populate_fct_sessions.py — joins raw_ga4_sessions with dim_dates and dim_pages, inserts 2,000 rows into fct_sessions (FK integrity: 0 null date_id, 0 null page_id)
+- Created sql/populate_fct_events.py — joins raw_clickstream_events with dim_dates and dim_pages, inserts 10,000 rows into fct_events (event types: scroll/pageview/click/form_submit)
+- Added Section 8 to analysis/explore.ipynb — funnel visualization (Homepage → Products → Pricing → Checkout → Purchase) using Plotly funnel chart with drop-off rates
+- Added Section 9 to analysis/explore.ipynb — cohort retention analysis with weekly heatmap and channel cohort breakdown
+- Added Section 10 to analysis/explore.ipynb — executive summary (all KPIs in one table, saves platform_executive_summary.md)
+- Created sql/run_all_transforms.py — master ETL pipeline running all 4 transforms in dependency order; 3.22s total runtime
+- Updated ingestion/run_all.py — now runs 4 stages: ingest → transform → validate → smart alert detection; --skip-transforms flag for ingestion-only runs
+- Added tests/test_transforms.py — 15 tests covering FK integrity, row counts, event name validation, and integration test
+- Updated tests/test_eda.py — fixed dim_dates assertions to reflect 2026 extension
+- 316 tests passing with pytest
+
 ## Day 27 - Smart Alerts AI Module + System Health
 - Created utils/validate_data.py — 68 checks across tables, views, nulls, PK duplicates, date ranges (100/100 health)
 - Created ai/smart_alerts/__init__.py and ai/smart_alerts/detector.py with SmartAlertDetector class
