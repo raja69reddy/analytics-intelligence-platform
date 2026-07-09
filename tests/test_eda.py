@@ -34,13 +34,14 @@ def test_raw_scrape_pages_has_data():
     assert int(df["n"].iloc[0]) > 0, "raw_scrape_pages is empty"
 
 
-# ── 2. dim_dates has exactly 1096 rows ────────────────────────────────────────
+# ── 2. dim_dates has enough rows to cover all raw data ───────────────────────
+# Extended to 2026 in Day 28 to match mock data (which spans 2026).
 
 def test_dim_dates_row_count():
     from utils.db import query_df
     df = query_df("SELECT COUNT(*) n FROM dim_dates")
-    assert int(df["n"].iloc[0]) == 1096, (
-        f"Expected 1096 dim_dates rows, got {df['n'].iloc[0]}"
+    assert int(df["n"].iloc[0]) >= 1096, (
+        f"Expected at least 1096 dim_dates rows, got {df['n'].iloc[0]}"
     )
 
 
@@ -48,7 +49,11 @@ def test_dim_dates_date_range():
     from utils.db import query_df
     df = query_df("SELECT MIN(full_date)::TEXT mn, MAX(full_date)::TEXT mx FROM dim_dates")
     assert df["mn"].iloc[0] == "2023-01-01"
-    assert df["mx"].iloc[0] == "2025-12-31"
+    # dim_dates now extends to cover 2026 raw data
+    from datetime import date
+    assert df["mx"].iloc[0] >= "2026-01-01", (
+        f"dim_dates max date {df['mx'].iloc[0]} should cover 2026 raw data"
+    )
 
 
 # ── 3. All SQL views return data (no crash) ───────────────────────────────────
