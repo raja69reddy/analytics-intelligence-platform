@@ -1,0 +1,5 @@
+dim_pages population run — 2026-07-09
+Inserted/Updated 11 rows in dim_pages (11 new on first run, 11 updated on subsequent runs).
+dim_pages has 11 rows.
+Sample: /, /about, /blog, /blog/post-1, /blog/post-2
+page_title and word_count columns populated from raw_scrape_pages metadata.
