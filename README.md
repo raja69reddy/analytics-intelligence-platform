@@ -271,6 +271,18 @@ A production-grade analytics platform built with Python, PostgreSQL, and Streaml
 - Ran health_check.py: 100/100 score, ALL SYSTEMS HEALTHY
 - 301 tests passing with pytest (13 new smart alert tests)
 
+✅ **Day 28 — EDA Funnel + Fact Tables ETL**
+- Created populate_fct_sessions.py — joins GA4 with dim tables; 2,000 rows loaded, 0 null FKs
+- Created populate_fct_events.py — joins clickstream with dim tables; 10,000 rows loaded, 0 null FKs
+- Created populate_dim_pages.py — upserts page metadata from 3 raw sources; 11 pages
+- Extended dim_dates to 2026 to cover actual mock data date range
+- Added funnel visualization to EDA notebook (Section 8: Homepage → Purchase funnel)
+- Added cohort retention analysis with heatmap (Section 9: weekly cohorts, channel breakdown)
+- Added platform executive summary to EDA notebook (Section 10: all KPIs in one table)
+- Created sql/run_all_transforms.py master ETL pipeline (4 steps, 3.22s total)
+- Updated run_all.py — now runs full ingestion + transform + validate + alerts pipeline
+- All unit tests passing with pytest (316 passed)
+
 ## Project Architecture
 
 ```
