@@ -1,11 +1,19 @@
 """
-Orchestration script: runs all 4 ingestion pipelines in order.
+Orchestration script: runs all 4 ingestion pipelines then ETL transforms,
+data validation, and alert checks in sequence.
+
+Pipeline stages:
+  Step 1 — Ingestion   : ga4, server_logs, clickstream, scraper
+  Step 2 — Transforms  : dim_pages, dim_dates, fct_sessions, fct_events
+  Step 3 — Validation  : 68-point data quality check
+  Step 4 — Alerts      : smart alert detection
 
 Usage:
     python ingestion/run_all.py --mode full
     python ingestion/run_all.py --mode incremental --since 2024-06-01
     python ingestion/run_all.py --mode full --pipeline ga4
     python ingestion/run_all.py --mode full --dry-run
+    python ingestion/run_all.py --mode full --skip-transforms
 """
 import argparse
 import logging
@@ -112,6 +120,8 @@ def main() -> None:
                         default=None, help="Run only this pipeline (default: all)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Validate inputs without inserting any rows")
+    parser.add_argument("--skip-transforms", action="store_true",
+                        help="Skip ETL transform, validation, and alert steps")
     args = parser.parse_args()
 
     if args.mode == "incremental" and args.since is None:
@@ -166,9 +176,50 @@ def main() -> None:
     print(f"  Total wall time: {total_elapsed:.1f}s")
     print("=" * 65)
 
-    # Save log
+    # Save ingestion log
     log_path = _save_run_log(results, args.mode, args.dry_run)
-    print(f"\n  Log saved to: {log_path}\n")
+    print(f"\n  Log saved to: {log_path}")
+
+    # ── Step 2: ETL Transforms ─────────────────────────────────────────────
+    if not args.skip_transforms and not args.dry_run:
+        print("\n" + "=" * 65)
+        print("  Step 2: ETL Transforms (dim + fact tables)")
+        print("=" * 65)
+        try:
+            from sql.run_all_transforms import run as run_transforms
+            run_transforms(verbose=True)
+        except Exception as exc:
+            print(f"  [ERR] Transform step failed: {exc}")
+            logger.error("Transform step failed: %s", exc)
+
+        # ── Step 3: Data Validation ───────────────────────────────────────
+        print("\n" + "=" * 65)
+        print("  Step 3: Data Validation")
+        print("=" * 65)
+        try:
+            from utils.validate_data import run_validation, print_report
+            val = run_validation()
+            print_report(val)
+        except Exception as exc:
+            print(f"  [ERR] Validation step failed: {exc}")
+            logger.error("Validation step failed: %s", exc)
+
+        # ── Step 4: Smart Alert Checks ────────────────────────────────────
+        print("\n" + "=" * 65)
+        print("  Step 4: Smart Alert Detection")
+        print("=" * 65)
+        try:
+            from ai.smart_alerts.run_alerts import run_pipeline
+            summary = run_pipeline(save_to_db=True, verbose=True)
+            status_str = "ALL CLEAR" if summary.all_clear else f"{summary.total_alerts} alerts"
+            print(f"\n  Alert check complete: {status_str}")
+        except Exception as exc:
+            print(f"  [ERR] Alert step failed: {exc}")
+            logger.error("Alert step failed: %s", exc)
+
+        print("\n" + "=" * 65)
+        print("  Full pipeline complete: ingest -> transform -> validate -> alerts")
+        print("=" * 65 + "\n")
 
 
 if __name__ == "__main__":
