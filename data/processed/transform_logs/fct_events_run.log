@@ -1,0 +1,4 @@
+fct_events population run — 2026-07-09
+Inserted 10000 rows into fct_events.
+FK check: null date_id=0, null page_id=0
+Event distribution: scroll=3566, pageview=2921, click=2494, form_submit=1019
