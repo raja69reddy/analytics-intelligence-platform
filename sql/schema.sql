@@ -124,7 +124,8 @@ CREATE INDEX IF NOT EXISTS idx_events_name    ON raw_clickstream_events(event_na
 -- Dimension tables store slowly-changing descriptive attributes.
 -- They are referenced by fact tables via integer foreign keys.
 
--- dim_pages: one row per unique URL, populated by ingestion scripts.
+-- dim_pages: one row per unique URL, populated by sql/populate_dim_pages.py.
+-- Uses ON CONFLICT (url) DO UPDATE for safe upserts from multiple raw sources.
 CREATE TABLE IF NOT EXISTS dim_pages (
     page_id         BIGSERIAL PRIMARY KEY,               -- surrogate key used in fact table FKs
     url             TEXT NOT NULL UNIQUE,                -- full URL — the natural deduplication key
