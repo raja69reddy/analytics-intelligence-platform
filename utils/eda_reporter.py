@@ -33,7 +33,7 @@ def _collect_metrics() -> dict:
 
     # Channel share
     df_ch = query_df(
-        "SELECT channel_grouping, SUM(sessions) AS s"
+        "SELECT channel_grouping, SUM(total_sessions) AS s"
         " FROM vw_channel_performance"
         " GROUP BY 1 ORDER BY 2 DESC LIMIT 3"
     )
@@ -41,19 +41,19 @@ def _collect_metrics() -> dict:
     # Conversions
     df_cv = query_df(
         "SELECT SUM(goal_completions) AS total_conv,"
-        " AVG(conversion_rate) AS avg_cvr"
+        " AVG(conversion_rate_pct) AS avg_cvr"
         " FROM vw_conversions"
     )
 
     # Device breakdown
     df_dv = query_df(
-        "SELECT device_category, SUM(sessions) AS s"
+        "SELECT device_category, SUM(total_sessions) AS s"
         " FROM vw_device_breakdown GROUP BY 1 ORDER BY 2 DESC LIMIT 1"
     )
 
     # Top page
     df_pg = query_df(
-        "SELECT page_url, SUM(pageviews) AS pv"
+        "SELECT url, SUM(total_requests) AS pv"
         " FROM vw_top_pages GROUP BY 1 ORDER BY 2 DESC LIMIT 1"
     )
 
@@ -97,7 +97,7 @@ def _collect_metrics() -> dict:
         "total_conv":      int(df_cv["total_conv"].iloc[0] or 0),
         "avg_cvr":         float(df_cv["avg_cvr"].iloc[0] or 0),
         "top_device":      df_dv["device_category"].iloc[0] if len(df_dv) else "N/A",
-        "top_page":        df_pg["page_url"].iloc[0] if len(df_pg) else "N/A",
+        "top_page":        df_pg["url"].iloc[0] if len(df_pg) else "N/A",
         "seo_pages":       int(df_seo["pages"].iloc[0] or 0),
         "avg_wc":          float(df_seo["avg_wc"].iloc[0] or 0),
         "ga4_rows":        int(r["ga4"] or 0),
