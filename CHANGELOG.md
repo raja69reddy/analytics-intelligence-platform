@@ -1,5 +1,17 @@
 # Changelog
 
+## Day 29 - EDA Notebook Complete
+- Added Section 11 (Funnel Deep Dive) — device-level funnel breakdown, per-device CVR
+- Added Section 12 (Channel Performance) — sessions over time line chart, channel share pie, bounce/CVR bar charts, top-3 channel summary
+- Added Section 13 (Device Analysis) — device share pie, bounce/CVR/duration comparisons
+- Added Section 14 (Geographic Analysis) — top-10 countries by sessions, bounce, and CVR; top-5 CVR markets
+- Added Section 15 (Time Series) — hourly traffic line chart, DOW bar chart, hour x DOW heatmap, peak window identification
+- Added Section 16 (AI Insights Summary) — 5 actionable insights, 5 recommended next steps, 4 plots saved to eda_plots/
+- Created utils/eda_reporter.py — loads all metrics from DB, formats PDF-style markdown report, saves eda_report_YYYY-MM-DD.md
+- Ran eda_reporter.py: 10 key metrics printed, report saved to data/processed/
+- Added tests/test_eda_notebook.py with 15 tests (notebook structure, reporter metrics, report file, plot existence)
+- 331 tests passing with pytest (15 new EDA notebook tests)
+
 ## Day 28 - EDA Funnel + Fact Tables ETL
 - Extended dim_dates to 2026 to cover mock data date range
 - Created sql/populate_dim_pages.py — upserts unique URL paths from server logs, GA4, and clickstream; enriches with scrape metadata via ON CONFLICT (url) DO UPDATE; 11 pages loaded
