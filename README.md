@@ -283,6 +283,16 @@ A production-grade analytics platform built with Python, PostgreSQL, and Streaml
 - Updated run_all.py — now runs full ingestion + transform + validate + alerts pipeline
 - All unit tests passing with pytest (316 passed)
 
+✅ **Day 29 — EDA Notebook Complete**
+- Added funnel visualization to analysis/explore.ipynb (Section 11: deep-dive with device breakdown)
+- Added channel performance analysis section (Section 12: trend line, pie, bounce/CVR bars)
+- Added device and geographic analysis sections (Sections 13 & 14: device share, geo top-10)
+- Added time series heatmap analysis (Section 15: hour x DOW heatmap, peak traffic windows)
+- Added AI insights summary with 5 actionable findings and 4 saved PNG plots (Section 16)
+- Created utils/eda_reporter.py — auto-generates markdown report from live DB metrics
+- Ran eda_reporter.py: 10 key metrics printed, eda_report_2026-07-10.md saved
+- All unit tests passing with pytest (331 passed, 15 new EDA notebook tests)
+
 ## Project Architecture
 
 ```
