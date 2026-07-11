@@ -1,0 +1,4 @@
+run_all.py — 2026-07-11T19:53:49.209992
+mode=full  dry_run=False
+------------------------------------------------------------
+error: numpy string dtypes are not allowed, use 'str' or 'object' instead ga4            rows=None  time=0.1s  table_total=2000

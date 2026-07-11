@@ -1,0 +1,7 @@
+run_all.py — 2026-07-11T19:55:13.818344
+mode=full  dry_run=False
+------------------------------------------------------------
+success    ga4            rows=2000  time=0.8s  table_total=2000
+success    server_logs    rows=5000  time=4.0s  table_total=5000
+success    clickstream    rows=10000  time=1.6s  table_total=10000
+success    scraper        rows=100  time=0.0s  table_total=198

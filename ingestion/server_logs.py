@@ -41,7 +41,7 @@ REQUIRED_COLUMNS = {"log_timestamp", "ip_address", "request_method",
 def load_csv() -> pd.DataFrame:
     try:
         log.info("Reading %s", CSV_PATH)
-        df = pd.read_csv(CSV_PATH)
+        df = pd.read_csv(CSV_PATH, dtype_backend="numpy_nullable")
     except FileNotFoundError:
         log.error("CSV file not found: %s", CSV_PATH)
         print(f"Error: CSV file not found at {CSV_PATH}")
@@ -58,11 +58,10 @@ def load_csv() -> pd.DataFrame:
         print(f"Error: CSV is missing required columns: {missing}")
         raise ValueError(f"Missing columns: {missing}")
 
-    # Strip whitespace from string columns
-    str_cols = df.select_dtypes(include="str").columns.tolist() or \
-               df.select_dtypes(include="object").columns.tolist()
+    # Strip whitespace from string/object columns
+    str_cols = df.select_dtypes(include=["object", "string"]).columns.tolist()
     for col in str_cols:
-        df[col] = df[col].str.strip()
+        df[col] = df[col].astype(str).str.strip().replace("nan", None)
 
     # Use parse_timestamp() for timestamp cleaning
     df["log_timestamp"] = df["log_timestamp"].apply(parse_timestamp)

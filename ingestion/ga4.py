@@ -33,7 +33,7 @@ TABLE = "raw_ga4_sessions"
 def load_csv() -> pd.DataFrame:
     try:
         log.info("Reading %s", CSV_PATH)
-        df = pd.read_csv(CSV_PATH)
+        df = pd.read_csv(CSV_PATH, dtype_backend="numpy_nullable")
     except FileNotFoundError:
         log.error("CSV file not found: %s", CSV_PATH)
         print(f"Error: CSV file not found at {CSV_PATH}")
@@ -43,11 +43,10 @@ def load_csv() -> pd.DataFrame:
         print(f"Error reading CSV: {exc}")
         raise
 
-    # Strip whitespace from string columns
-    str_cols = df.select_dtypes(include="str").columns.tolist() or \
-               df.select_dtypes(include="object").columns.tolist()
+    # Strip whitespace from string/object columns
+    str_cols = df.select_dtypes(include=["object", "string"]).columns.tolist()
     for col in str_cols:
-        df[col] = df[col].str.strip()
+        df[col] = df[col].astype(str).str.strip().replace("nan", None)
 
     # Convert session_date to proper DATE
     df["session_date"] = pd.to_datetime(df["session_date"]).dt.date
