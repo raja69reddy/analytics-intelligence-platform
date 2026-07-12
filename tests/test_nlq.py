@@ -1,6 +1,6 @@
 """Unit tests for ai/nlq/safety.py and ai/nlq/cache.py."""
+
 import pandas as pd
-import pytest
 
 from ai.nlq.safety import (
     has_dangerous_keywords,
@@ -10,8 +10,8 @@ from ai.nlq.safety import (
 )
 from ai.nlq.cache import QueryCache
 
-
 # ── is_safe_query ──────────────────────────────────────────────────────────────
+
 
 def test_is_safe_query_select_allowed():
     assert is_safe_query("SELECT * FROM raw_ga4_sessions") is True
@@ -44,6 +44,7 @@ def test_is_safe_query_non_select_first_word():
 
 # ── has_dangerous_keywords ────────────────────────────────────────────────────
 
+
 def test_has_dangerous_keywords_drop():
     assert has_dangerous_keywords("DROP TABLE users") is True
 
@@ -69,6 +70,7 @@ def test_has_dangerous_keywords_case_insensitive():
 
 
 # ── sanitize_input ─────────────────────────────────────────────────────────────
+
 
 def test_sanitize_input_removes_double_dash():
     result = sanitize_input("top sessions -- DROP TABLE")
@@ -98,6 +100,7 @@ def test_sanitize_input_normal_question_unchanged():
 
 # ── validate_table_names ───────────────────────────────────────────────────────
 
+
 def test_validate_table_names_valid_raw():
     sql = "SELECT * FROM raw_ga4_sessions"
     assert validate_table_names(sql) is True
@@ -124,6 +127,7 @@ def test_validate_table_names_invalid_in_join():
 
 
 # ── QueryCache ────────────────────────────────────────────────────────────────
+
 
 def test_cache_miss_returns_none():
     cache = QueryCache()
@@ -157,8 +161,8 @@ def test_cache_stats_hit_rate():
     cache = QueryCache()
     df = pd.DataFrame({"n": [1]})
     cache.cache_query("q1", "SELECT 1", df)
-    cache.get_cached_query("q1")   # hit
-    cache.get_cached_query("q2")   # miss
+    cache.get_cached_query("q1")  # hit
+    cache.get_cached_query("q2")  # miss
     stats = cache.get_cache_stats()
     assert stats["hits"] == 1
     assert stats["misses"] == 1

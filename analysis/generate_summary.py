@@ -3,6 +3,7 @@ Platform summary report generator.
 Loads key metrics from all views and raw tables, prints a formatted report,
 and saves to data/processed/platform_summary.txt.
 """
+
 import sys
 from pathlib import Path
 
@@ -38,16 +39,20 @@ def collect_metrics() -> dict:
                SUM(revenue)     AS total_revenue
         FROM raw_ga4_sessions
     """)
-    metrics["total_sessions"]        = int(_safe(df, "total_sessions", 0) or 0)
-    metrics["total_new_users"]       = int(_safe(df, "total_new_users", 0) or 0)
-    metrics["total_pageviews"]       = int(_safe(df, "total_pageviews", 0) or 0)
-    metrics["avg_bounce_rate_pct"]   = float(_safe(df, "avg_bounce_rate_pct", 0) or 0)
-    metrics["avg_session_duration_s"]= float(_safe(df, "avg_session_duration_s", 0) or 0)
-    metrics["total_conversions"]     = int(_safe(df, "total_conversions", 0) or 0)
-    metrics["total_revenue"]         = float(_safe(df, "total_revenue", 0) or 0)
-    metrics["overall_cvr_pct"]       = round(
-        metrics["total_conversions"] / metrics["total_sessions"] * 100, 4
-    ) if metrics["total_sessions"] else 0.0
+    metrics["total_sessions"] = int(_safe(df, "total_sessions", 0) or 0)
+    metrics["total_new_users"] = int(_safe(df, "total_new_users", 0) or 0)
+    metrics["total_pageviews"] = int(_safe(df, "total_pageviews", 0) or 0)
+    metrics["avg_bounce_rate_pct"] = float(_safe(df, "avg_bounce_rate_pct", 0) or 0)
+    metrics["avg_session_duration_s"] = float(
+        _safe(df, "avg_session_duration_s", 0) or 0
+    )
+    metrics["total_conversions"] = int(_safe(df, "total_conversions", 0) or 0)
+    metrics["total_revenue"] = float(_safe(df, "total_revenue", 0) or 0)
+    metrics["overall_cvr_pct"] = (
+        round(metrics["total_conversions"] / metrics["total_sessions"] * 100, 4)
+        if metrics["total_sessions"]
+        else 0.0
+    )
 
     # Server logs
     df2 = query_df("SELECT COUNT(*) n FROM raw_server_logs")
@@ -64,16 +69,18 @@ def collect_metrics() -> dict:
                COUNT(CASE WHEN meta_description IS NULL OR meta_description = '' THEN 1 END) AS missing_meta
         FROM raw_scrape_pages WHERE http_status = 200
     """)
-    metrics["total_scraped_pages"]  = int(_safe(df4, "total_pages", 0))
-    metrics["avg_load_time_ms"]     = float(_safe(df4, "avg_load_time_ms", 0) or 0)
-    metrics["pages_missing_meta"]   = int(_safe(df4, "missing_meta", 0))
+    metrics["total_scraped_pages"] = int(_safe(df4, "total_pages", 0))
+    metrics["avg_load_time_ms"] = float(_safe(df4, "avg_load_time_ms", 0) or 0)
+    metrics["pages_missing_meta"] = int(_safe(df4, "missing_meta", 0))
 
     # dim_dates
     df5 = query_df("SELECT COUNT(*) n FROM dim_dates")
     metrics["dim_dates_rows"] = int(_safe(df5, "n", 0))
 
     # Date range from GA4
-    df6 = query_df("SELECT MIN(session_date) mn, MAX(session_date) mx FROM raw_ga4_sessions")
+    df6 = query_df(
+        "SELECT MIN(session_date) mn, MAX(session_date) mx FROM raw_ga4_sessions"
+    )
     metrics["ga4_date_min"] = str(_safe(df6, "mn", "N/A"))
     metrics["ga4_date_max"] = str(_safe(df6, "mx", "N/A"))
 

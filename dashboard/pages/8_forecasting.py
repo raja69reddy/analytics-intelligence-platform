@@ -1,7 +1,7 @@
 """Predictive Analytics dashboard page."""
+
 import os
 import sys
-from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -67,7 +67,7 @@ def _load_kpi_forecasts(days: int):
     if not future_t.empty:
         avg_upper = future_t["yhat_upper"].mean()
         avg_lower = future_t["yhat_lower"].mean()
-        avg_pred  = future_t["yhat"].clip(lower=1).mean()
+        avg_pred = future_t["yhat"].clip(lower=1).mean()
         interval_pct = (avg_upper - avg_lower) / avg_pred * 100
         confidence = max(0, min(100, round(100 - interval_pct / 2, 0)))
     else:
@@ -78,7 +78,9 @@ def _load_kpi_forecasts(days: int):
 
 with st.spinner("Loading forecast KPIs..."):
     try:
-        _pred_sessions, _pred_cvr, _confidence, _peak_days = _load_kpi_forecasts(forecast_days)
+        _pred_sessions, _pred_cvr, _confidence, _peak_days = _load_kpi_forecasts(
+            forecast_days
+        )
         k1, k2, k3, k4 = st.columns(4)
         k1.metric(f"Predicted Sessions (Next {forecast_days}d)", f"{_pred_sessions:,}")
         k2.metric(f"Predicted Avg CVR (Next {forecast_days}d)", f"{_pred_cvr:.4f}%")
@@ -97,6 +99,7 @@ st.subheader("Traffic Forecast")
 @st.cache_data(ttl=600)
 def _load_traffic_forecast(days: int):
     from ai.forecasting.traffic_forecaster import TrafficForecaster
+
     tf = TrafficForecaster()
     hist_df = tf.load_historical_data()
     tf.train_model(hist_df)
@@ -111,36 +114,48 @@ with st.spinner("Generating traffic forecast..."):
         fig_traffic = go.Figure()
 
         # Actuals
-        fig_traffic.add_trace(go.Scatter(
-            x=_hist_df["ds"], y=_hist_df["y"],
-            mode="lines", name="Actual Sessions",
-            line=dict(color="#1f77b4", width=2),
-        ))
+        fig_traffic.add_trace(
+            go.Scatter(
+                x=_hist_df["ds"],
+                y=_hist_df["y"],
+                mode="lines",
+                name="Actual Sessions",
+                line=dict(color="#1f77b4", width=2),
+            )
+        )
 
         # Split into fitted (historical) + future
         _hist_end = _hist_df["ds"].max()
-        _fc_hist  = _traffic_fc[_traffic_fc["ds"] <= _hist_end]
-        _fc_fut   = _traffic_fc[_traffic_fc["ds"] > _hist_end]
+        _fc_hist = _traffic_fc[_traffic_fc["ds"] <= _hist_end]
+        _fc_fut = _traffic_fc[_traffic_fc["ds"] > _hist_end]
 
-        fig_traffic.add_trace(go.Scatter(
-            x=_fc_fut["ds"], y=_fc_fut["yhat"],
-            mode="lines", name="Forecast",
-            line=dict(color="#ff7f0e", width=2, dash="dash"),
-        ))
+        fig_traffic.add_trace(
+            go.Scatter(
+                x=_fc_fut["ds"],
+                y=_fc_fut["yhat"],
+                mode="lines",
+                name="Forecast",
+                line=dict(color="#ff7f0e", width=2, dash="dash"),
+            )
+        )
 
         # Confidence band
-        fig_traffic.add_trace(go.Scatter(
-            x=pd.concat([_fc_fut["ds"], _fc_fut["ds"].iloc[::-1]]),
-            y=pd.concat([_fc_fut["yhat_upper"], _fc_fut["yhat_lower"].iloc[::-1]]),
-            fill="toself",
-            fillcolor="rgba(255,127,14,0.15)",
-            line=dict(color="rgba(0,0,0,0)"),
-            name="80% Confidence Interval",
-        ))
+        fig_traffic.add_trace(
+            go.Scatter(
+                x=pd.concat([_fc_fut["ds"], _fc_fut["ds"].iloc[::-1]]),
+                y=pd.concat([_fc_fut["yhat_upper"], _fc_fut["yhat_lower"].iloc[::-1]]),
+                fill="toself",
+                fillcolor="rgba(255,127,14,0.15)",
+                line=dict(color="rgba(0,0,0,0)"),
+                name="80% Confidence Interval",
+            )
+        )
 
         fig_traffic.update_layout(
-            xaxis_title="Date", yaxis_title="Sessions",
-            height=420, hovermode="x unified",
+            xaxis_title="Date",
+            yaxis_title="Sessions",
+            height=420,
+            hovermode="x unified",
             legend=dict(orientation="h", y=-0.15),
         )
         st.plotly_chart(fig_traffic, use_container_width=True)
@@ -157,6 +172,7 @@ st.subheader("Conversion Rate Forecast")
 @st.cache_data(ttl=600)
 def _load_cvr_forecast(days: int):
     from ai.forecasting.conversion_forecaster import ConversionForecaster
+
     cf = ConversionForecaster()
     hist_df = cf.load_conversion_data()
     cf.train_model(hist_df)
@@ -171,33 +187,47 @@ with st.spinner("Generating CVR forecast..."):
 
         fig_cvr = go.Figure()
 
-        fig_cvr.add_trace(go.Scatter(
-            x=_cvr_hist["ds"], y=_cvr_hist["y"],
-            mode="lines", name="Actual CVR %",
-            line=dict(color="#2ca02c", width=2),
-        ))
+        fig_cvr.add_trace(
+            go.Scatter(
+                x=_cvr_hist["ds"],
+                y=_cvr_hist["y"],
+                mode="lines",
+                name="Actual CVR %",
+                line=dict(color="#2ca02c", width=2),
+            )
+        )
 
         _cvr_hist_end = _cvr_hist["ds"].max()
         _cvr_fut = _cvr_fc[_cvr_fc["ds"] > _cvr_hist_end]
 
-        fig_cvr.add_trace(go.Scatter(
-            x=_cvr_fut["ds"], y=_cvr_fut["yhat"],
-            mode="lines", name="CVR Forecast",
-            line=dict(color="#d62728", width=2, dash="dash"),
-        ))
+        fig_cvr.add_trace(
+            go.Scatter(
+                x=_cvr_fut["ds"],
+                y=_cvr_fut["yhat"],
+                mode="lines",
+                name="CVR Forecast",
+                line=dict(color="#d62728", width=2, dash="dash"),
+            )
+        )
 
-        fig_cvr.add_trace(go.Scatter(
-            x=pd.concat([_cvr_fut["ds"], _cvr_fut["ds"].iloc[::-1]]),
-            y=pd.concat([_cvr_fut["yhat_upper"], _cvr_fut["yhat_lower"].iloc[::-1]]),
-            fill="toself",
-            fillcolor="rgba(214,39,40,0.10)",
-            line=dict(color="rgba(0,0,0,0)"),
-            name="80% Confidence Interval",
-        ))
+        fig_cvr.add_trace(
+            go.Scatter(
+                x=pd.concat([_cvr_fut["ds"], _cvr_fut["ds"].iloc[::-1]]),
+                y=pd.concat(
+                    [_cvr_fut["yhat_upper"], _cvr_fut["yhat_lower"].iloc[::-1]]
+                ),
+                fill="toself",
+                fillcolor="rgba(214,39,40,0.10)",
+                line=dict(color="rgba(0,0,0,0)"),
+                name="80% Confidence Interval",
+            )
+        )
 
         fig_cvr.update_layout(
-            xaxis_title="Date", yaxis_title="CVR (%)",
-            height=380, hovermode="x unified",
+            xaxis_title="Date",
+            yaxis_title="CVR (%)",
+            height=380,
+            hovermode="x unified",
             legend=dict(orientation="h", y=-0.15),
         )
         st.plotly_chart(fig_cvr, use_container_width=True)
@@ -213,15 +243,30 @@ st.subheader("Forecast vs Actual — Last 14 Days")
 try:
     # Join historical actuals with in-sample predictions
     _actual = _hist_df.rename(columns={"ds": "date", "y": "actual_sessions"}).tail(14)
-    _fitted = _traffic_fc[_traffic_fc["ds"] <= _hist_end].rename(
-        columns={"ds": "date", "yhat": "predicted_sessions",
-                 "yhat_lower": "lower", "yhat_upper": "upper"}
-    ).tail(14)
-    _compare = _actual.merge(_fitted[["date", "predicted_sessions", "lower", "upper"]], on="date", how="inner")
-    _compare["error"] = (_compare["actual_sessions"] - _compare["predicted_sessions"]).round(1)
+    _fitted = (
+        _traffic_fc[_traffic_fc["ds"] <= _hist_end]
+        .rename(
+            columns={
+                "ds": "date",
+                "yhat": "predicted_sessions",
+                "yhat_lower": "lower",
+                "yhat_upper": "upper",
+            }
+        )
+        .tail(14)
+    )
+    _compare = _actual.merge(
+        _fitted[["date", "predicted_sessions", "lower", "upper"]],
+        on="date",
+        how="inner",
+    )
+    _compare["error"] = (
+        _compare["actual_sessions"] - _compare["predicted_sessions"]
+    ).round(1)
     _compare["error_pct"] = (
         (_compare["actual_sessions"] - _compare["predicted_sessions"])
-        / _compare["actual_sessions"].replace(0, float("nan")) * 100
+        / _compare["actual_sessions"].replace(0, float("nan"))
+        * 100
     ).round(2)
     _compare["date"] = _compare["date"].dt.strftime("%Y-%m-%d")
     for col in ["actual_sessions", "predicted_sessions", "lower", "upper"]:

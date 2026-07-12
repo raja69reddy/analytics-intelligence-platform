@@ -1,11 +1,12 @@
 """Run once to create all tables, then apply all views."""
+
 import argparse
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from utils.db import run_sql_file
+from utils.db import run_sql_file  # noqa: E402
 
 SQL_DIR = os.path.dirname(__file__)
 VIEWS_DIR = os.path.join(SQL_DIR, "views")

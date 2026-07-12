@@ -1,6 +1,7 @@
 """
 Project summary: prints an overview of all tables, views, tests, and data ranges.
 """
+
 import subprocess
 import sys
 from pathlib import Path
@@ -8,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from utils.db import query_df
+from utils.db import query_df  # noqa: E402
 
 RAW_TABLES = [
     "raw_ga4_sessions",
@@ -33,7 +34,9 @@ def _count(table: str) -> int:
 
 def _date_range(table: str, col: str) -> tuple[str, str]:
     try:
-        df = query_df(f"SELECT MIN({col})::date AS mn, MAX({col})::date AS mx FROM {table}")
+        df = query_df(
+            f"SELECT MIN({col})::date AS mn, MAX({col})::date AS mx FROM {table}"
+        )
         return str(df["mn"].iloc[0]), str(df["mx"].iloc[0])
     except Exception:
         return "N/A", "N/A"
@@ -62,10 +65,16 @@ def _view_count() -> int:
 def _test_count() -> str:
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "tests/", "--co", "-q", "--tb=no"],
-        capture_output=True, text=True, cwd=ROOT,
+        capture_output=True,
+        text=True,
+        cwd=ROOT,
     )
     for line in reversed(result.stdout.splitlines()):
-        if "test" in line.lower() or "selected" in line.lower() or "item" in line.lower():
+        if (
+            "test" in line.lower()
+            or "selected" in line.lower()
+            or "item" in line.lower()
+        ):
             return line.strip()
     return "unknown"
 
@@ -80,10 +89,10 @@ def run_summary() -> None:
     print("\n  RAW TABLES")
     print("  " + "-" * 58)
     date_cols = {
-        "raw_ga4_sessions":       "session_date",
-        "raw_server_logs":        "log_time",
+        "raw_ga4_sessions": "session_date",
+        "raw_server_logs": "log_time",
         "raw_clickstream_events": "event_time",
-        "raw_scrape_pages":       "scraped_at",
+        "raw_scrape_pages": "scraped_at",
     }
     for t in RAW_TABLES:
         rows = _count(t)

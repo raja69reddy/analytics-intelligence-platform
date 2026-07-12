@@ -1,6 +1,7 @@
 """
 KPI card and formatting helpers for the Web Analytics Dashboard.
 """
+
 from typing import Literal
 
 import streamlit as st

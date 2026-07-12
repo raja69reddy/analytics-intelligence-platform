@@ -2,22 +2,27 @@
 Tests for page behavior SQL views: vw_top_pages, vw_page_performance,
 vw_error_pages, vw_scroll_depth, vw_engagement_events.
 """
+
 import sys
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from utils.db import query_df
+from utils.db import query_df  # noqa: E402
 
 
 class TestVwTopPages:
     VIEW = "vw_top_pages"
     REQUIRED_COLS = {
-        "url", "page_title", "page_section", "total_requests",
-        "unique_visitors", "avg_response_time_ms", "error_rate_pct", "last_visited",
+        "url",
+        "page_title",
+        "page_section",
+        "total_requests",
+        "unique_visitors",
+        "avg_response_time_ms",
+        "error_rate_pct",
+        "last_visited",
     }
 
     def test_view_exists_and_returns_data(self):
@@ -41,8 +46,13 @@ class TestVwTopPages:
 class TestVwPagePerformance:
     VIEW = "vw_page_performance"
     REQUIRED_COLS = {
-        "url", "total_requests", "avg_response_time_ms", "p95_response_time_ms",
-        "fast_requests", "normal_requests", "slow_requests",
+        "url",
+        "total_requests",
+        "avg_response_time_ms",
+        "p95_response_time_ms",
+        "fast_requests",
+        "normal_requests",
+        "slow_requests",
     }
 
     def test_view_exists_and_returns_data(self):
@@ -71,8 +81,12 @@ class TestVwPagePerformance:
 class TestVwErrorPages:
     VIEW = "vw_error_pages"
     REQUIRED_COLS = {
-        "url", "total_requests", "errors_4xx", "errors_5xx",
-        "total_errors", "error_rate_pct",
+        "url",
+        "total_requests",
+        "errors_4xx",
+        "errors_5xx",
+        "total_errors",
+        "error_rate_pct",
     }
 
     def test_view_exists_and_returns_data(self):
@@ -98,8 +112,13 @@ class TestVwErrorPages:
 class TestVwScrollDepth:
     VIEW = "vw_scroll_depth"
     REQUIRED_COLS = {
-        "page_url", "scroll_events", "avg_scroll_depth_pct",
-        "bucket_0_25", "bucket_25_50", "bucket_50_75", "bucket_75_100",
+        "page_url",
+        "scroll_events",
+        "avg_scroll_depth_pct",
+        "bucket_0_25",
+        "bucket_25_50",
+        "bucket_50_75",
+        "bucket_75_100",
     }
 
     def test_view_exists_and_returns_data(self):
@@ -129,8 +148,12 @@ class TestVwScrollDepth:
 class TestVwEngagementEvents:
     VIEW = "vw_engagement_events"
     REQUIRED_COLS = {
-        "page_url", "total_events", "click_events", "scroll_events",
-        "pageview_events", "form_submit_events",
+        "page_url",
+        "total_events",
+        "click_events",
+        "scroll_events",
+        "pageview_events",
+        "form_submit_events",
     }
     ALL_EVENT_TYPES = {"click", "scroll", "pageview", "form_submit"}
 
@@ -146,7 +169,9 @@ class TestVwEngagementEvents:
     def test_all_event_types_present_in_source(self):
         df = query_df("SELECT DISTINCT event_name FROM raw_clickstream_events")
         present = set(df["event_name"].tolist())
-        assert self.ALL_EVENT_TYPES == present, f"Expected event types {self.ALL_EVENT_TYPES}, got {present}"
+        assert (
+            self.ALL_EVENT_TYPES == present
+        ), f"Expected event types {self.ALL_EVENT_TYPES}, got {present}"
 
     def test_event_columns_sum_to_total(self):
         df = query_df(

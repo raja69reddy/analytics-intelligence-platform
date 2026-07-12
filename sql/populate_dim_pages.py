@@ -4,6 +4,7 @@ Populates dim_pages from raw_server_logs (all distinct URL paths)
 enriched with metadata from raw_scrape_pages.
 Uses ON CONFLICT (url) DO UPDATE for safe upsert.
 """
+
 from __future__ import annotations
 
 import sys
@@ -14,8 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from sqlalchemy import text
-from utils.db import get_engine, query_df
+from sqlalchemy import text  # noqa: E402
+from utils.db import get_engine, query_df  # noqa: E402
 
 
 def _get_all_paths() -> list[str]:
@@ -62,9 +63,11 @@ def _get_scrape_metadata() -> dict:
     for _, row in df.iterrows():
         result[row["path"]] = {
             "page_title": row["page_title"],
-            "word_count": int(row["word_count"]) if row["word_count"] is not None else None,
+            "word_count": (
+                int(row["word_count"]) if row["word_count"] is not None else None
+            ),
             "first_seen": row["first_seen"],
-            "last_seen":  row["last_seen"],
+            "last_seen": row["last_seen"],
         }
     return result
 
@@ -81,21 +84,21 @@ def _extract_section(path: str) -> str | None:
 
 
 def run(verbose: bool = True) -> int:
-    paths    = _get_all_paths()
+    paths = _get_all_paths()
     metadata = _get_scrape_metadata()
-    today    = date.today()
+    today = date.today()
 
-    engine   = get_engine()
+    engine = get_engine()
     inserted = 0
-    updated  = 0
+    updated = 0
 
     with engine.begin() as conn:
         for path in paths:
-            meta  = metadata.get(path, {})
+            meta = metadata.get(path, {})
             title = meta.get("page_title")
-            wc    = meta.get("word_count")
-            fs    = meta.get("first_seen") or today
-            ls    = meta.get("last_seen")  or today
+            wc = meta.get("word_count")
+            fs = meta.get("first_seen") or today
+            ls = meta.get("last_seen") or today
 
             # Determine if this is a landing page
             is_lp_result = query_df(
@@ -104,7 +107,8 @@ def run(verbose: bool = True) -> int:
             )
             is_lp = int(is_lp_result["n"].iloc[0]) > 0
 
-            result = conn.execute(text("""
+            result = conn.execute(
+                text("""
                 INSERT INTO dim_pages
                     (url, url_path, url_domain, page_title, page_section,
                      is_landing_page, word_count, first_seen, last_seen, updated_at)
@@ -118,17 +122,19 @@ def run(verbose: bool = True) -> int:
                     is_landing_page = EXCLUDED.is_landing_page OR dim_pages.is_landing_page,
                     updated_at      = NOW()
                 RETURNING (xmax = 0) AS is_insert
-            """), {
-                "url":     path,
-                "url_path": path,
-                "domain":  "example.com",
-                "title":   title,
-                "section": _extract_section(path),
-                "is_lp":   is_lp,
-                "wc":      wc,
-                "fs":      fs,
-                "ls":      ls,
-            })
+            """),
+                {
+                    "url": path,
+                    "url_path": path,
+                    "domain": "example.com",
+                    "title": title,
+                    "section": _extract_section(path),
+                    "is_lp": is_lp,
+                    "wc": wc,
+                    "fs": fs,
+                    "ls": ls,
+                },
+            )
             row = result.fetchone()
             if row and row[0]:
                 inserted += 1
@@ -136,8 +142,10 @@ def run(verbose: bool = True) -> int:
                 updated += 1
 
     if verbose:
-        print(f"Inserted/Updated {inserted + updated} rows in dim_pages "
-              f"({inserted} new, {updated} updated).")
+        print(
+            f"Inserted/Updated {inserted + updated} rows in dim_pages "
+            f"({inserted} new, {updated} updated)."
+        )
     return inserted + updated
 
 
@@ -146,6 +154,8 @@ if __name__ == "__main__":
     # Verify
     df = query_df("SELECT COUNT(*) AS n FROM dim_pages")
     print(f"dim_pages now has {df['n'].iloc[0]} rows.")
-    sample = query_df("SELECT page_id, url, page_title, word_count, is_landing_page FROM dim_pages LIMIT 5")
+    sample = query_df(
+        "SELECT page_id, url, page_title, word_count, is_landing_page FROM dim_pages LIMIT 5"
+    )
     print("\nSample rows:")
     print(sample.to_string(index=False))

@@ -5,6 +5,7 @@ Usage:
     python ingestion/server_logs.py --mode full
     python ingestion/server_logs.py --mode incremental --since 2024-01-01
 """
+
 import argparse
 import logging
 import sys
@@ -34,8 +35,15 @@ log = logging.getLogger("server_logs_ingestion")
 
 CSV_PATH = Path(__file__).resolve().parent.parent / "data" / "raw" / "server_logs.csv"
 TABLE = "raw_server_logs"
-REQUIRED_COLUMNS = {"log_timestamp", "ip_address", "request_method",
-                    "url", "status_code", "response_size", "user_agent"}
+REQUIRED_COLUMNS = {
+    "log_timestamp",
+    "ip_address",
+    "request_method",
+    "url",
+    "status_code",
+    "response_size",
+    "user_agent",
+}
 
 
 def load_csv() -> pd.DataFrame:
@@ -72,6 +80,7 @@ def load_csv() -> pd.DataFrame:
 
     # Use extract_page_from_url() to clean URL paths and split query strings
     from urllib.parse import urlparse
+
     df["query_string"] = df["url"].fillna("").apply(lambda u: urlparse(u).query or None)
     df["url"] = df["url"].fillna("").apply(extract_page_from_url)
 
@@ -88,15 +97,27 @@ def load_csv() -> pd.DataFrame:
     df[num_cols] = df[num_cols].fillna(0)
 
     # Rename CSV columns to match DB column names
-    df = df.rename(columns={
-        "log_timestamp":  "log_time",
-        "request_method": "method",
-        "response_size":  "response_bytes",
-    })
+    df = df.rename(
+        columns={
+            "log_timestamp": "log_time",
+            "request_method": "method",
+            "response_size": "response_bytes",
+        }
+    )
 
     # Keep only columns that exist in raw_server_logs
-    keep = ["log_time", "ip_address", "method", "url", "query_string",
-            "status_code", "response_bytes", "referrer", "user_agent", "response_time_ms"]
+    keep = [
+        "log_time",
+        "ip_address",
+        "method",
+        "url",
+        "query_string",
+        "status_code",
+        "response_bytes",
+        "referrer",
+        "user_agent",
+        "response_time_ms",
+    ]
     df = df[[c for c in keep if c in df.columns]]
 
     log.info("Loaded %d rows from CSV", len(df))
@@ -145,11 +166,21 @@ def ingest(mode: str, since: date | None = None) -> int:
                 log.info("Truncated %s", TABLE)
 
         # Build INSERT columns dynamically based on what's in the DataFrame
-        db_cols = ["log_time", "ip_address", "method", "url", "query_string",
-                   "status_code", "response_bytes", "referrer", "user_agent", "response_time_ms"]
+        db_cols = [
+            "log_time",
+            "ip_address",
+            "method",
+            "url",
+            "query_string",
+            "status_code",
+            "response_bytes",
+            "referrer",
+            "user_agent",
+            "response_time_ms",
+        ]
         present = [c for c in db_cols if c in df.columns]
         values_clause = ", ".join(
-            f"CAST(:ip_address AS INET)" if c == "ip_address" else f":{c}"
+            "CAST(:ip_address AS INET)" if c == "ip_address" else f":{c}"
             for c in present
         )
         insert_sql = text(
@@ -177,11 +208,21 @@ def ingest(mode: str, since: date | None = None) -> int:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Ingest server logs CSV into raw_server_logs")
-    parser.add_argument("--mode", choices=["full", "incremental"], default="full",
-                        help="full: truncate and reload; incremental: only insert new dates")
-    parser.add_argument("--since", default=None, metavar="YYYY-MM-DD",
-                        help="Start date for incremental load (e.g. 2024-01-01)")
+    parser = argparse.ArgumentParser(
+        description="Ingest server logs CSV into raw_server_logs"
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["full", "incremental"],
+        default="full",
+        help="full: truncate and reload; incremental: only insert new dates",
+    )
+    parser.add_argument(
+        "--since",
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="Start date for incremental load (e.g. 2024-01-01)",
+    )
     args = parser.parse_args()
     since = date.fromisoformat(args.since) if args.since else None
     try:

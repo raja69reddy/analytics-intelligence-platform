@@ -1,16 +1,15 @@
 """
 Unit tests for utils/log_parser.py — 15 tests covering all 5 parsing functions.
 """
+
 import sys
 from datetime import datetime
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from utils.log_parser import (
+from utils.log_parser import (  # noqa: E402
     extract_page_from_url,
     parse_ip,
     parse_response_size,
@@ -18,8 +17,8 @@ from utils.log_parser import (
     parse_timestamp,
 )
 
-
 # ── parse_ip ──────────────────────────────────────────────────────────────
+
 
 class TestParseIp:
     def test_valid_ipv4(self):
@@ -39,6 +38,7 @@ class TestParseIp:
 
 
 # ── parse_timestamp ───────────────────────────────────────────────────────
+
 
 class TestParseTimestamp:
     def test_string_iso_format(self):
@@ -66,6 +66,7 @@ class TestParseTimestamp:
 
 # ── parse_status_code ─────────────────────────────────────────────────────
 
+
 class TestParseStatusCode:
     def test_200_is_success(self):
         assert parse_status_code(200) == "2xx Success"
@@ -84,6 +85,7 @@ class TestParseStatusCode:
 
 
 # ── parse_response_size ───────────────────────────────────────────────────
+
 
 class TestParseResponseSize:
     def test_1024_bytes_is_1_kb(self):
@@ -104,9 +106,12 @@ class TestParseResponseSize:
 
 # ── extract_page_from_url ─────────────────────────────────────────────────
 
+
 class TestExtractPageFromUrl:
     def test_full_url_strips_host(self):
-        assert extract_page_from_url("https://example.com/blog/post-1") == "/blog/post-1"
+        assert (
+            extract_page_from_url("https://example.com/blog/post-1") == "/blog/post-1"
+        )
 
     def test_url_with_query_string(self):
         assert extract_page_from_url("https://example.com/search?q=hello") == "/search"

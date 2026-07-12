@@ -1,4 +1,5 @@
 """AI Generated Reports page."""
+
 import os
 import sys
 from datetime import datetime
@@ -8,7 +9,9 @@ import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "processed" / "reports"
+REPORTS_DIR = (
+    Path(__file__).resolve().parent.parent.parent / "data" / "processed" / "reports"
+)
 
 st.set_page_config(page_title="AI Generated Reports", page_icon="📋", layout="wide")
 
@@ -34,7 +37,9 @@ def _load_report(path: Path) -> str:
 st.subheader("Generate New Report")
 
 gen_col, _ = st.columns([1, 4])
-generate = gen_col.button("Generate New Report", type="primary", use_container_width=True)
+generate = gen_col.button(
+    "Generate New Report", type="primary", use_container_width=True
+)
 
 if generate:
     with st.spinner("Generating AI report — this may take up to 60 seconds..."):
@@ -50,7 +55,9 @@ if generate:
             st.session_state["latest_report_time"] = report["generated_at"]
         except EnvironmentError as exc:
             st.error(f"**Configuration error:** {exc}")
-            st.info("Add `OPENAI_API_KEY` to your `.env` file to enable AI report generation.")
+            st.info(
+                "Add `OPENAI_API_KEY` to your `.env` file to enable AI report generation."
+            )
         except Exception as exc:
             st.error(f"**Error generating report:** {exc}")
 
@@ -79,7 +86,9 @@ if reports:
     )
 
     # PDF placeholder
-    st.info("PDF export: install `weasyprint` and run `pip install weasyprint` to enable PDF download.")
+    st.info(
+        "PDF export: install `weasyprint` and run `pip install weasyprint` to enable PDF download."
+    )
 
     st.divider()
 
@@ -87,7 +96,9 @@ if reports:
     if len(reports) > 1:
         st.subheader("Report History (last 5)")
         for report_path in reports[1:6]:
-            ts = datetime.fromtimestamp(report_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+            ts = datetime.fromtimestamp(report_path.stat().st_mtime).strftime(
+                "%Y-%m-%d %H:%M"
+            )
             with st.expander(f"Report: {report_path.name}  ({ts})", expanded=False):
                 st.markdown(_load_report(report_path))
                 st.download_button(
@@ -98,7 +109,9 @@ if reports:
                     key=f"dl_{report_path.name}",
                 )
 else:
-    st.info("No reports generated yet. Click **Generate New Report** above to create your first report.")
+    st.info(
+        "No reports generated yet. Click **Generate New Report** above to create your first report."
+    )
 
 st.divider()
 

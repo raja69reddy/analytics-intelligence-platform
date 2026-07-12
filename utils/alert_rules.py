@@ -2,10 +2,11 @@
 AlertRule class and pre-defined rules for the smart alerts system.
 Each rule encapsulates a name, condition function, severity, and message template.
 """
+
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable
 
 logger = logging.getLogger(__name__)
@@ -14,10 +15,11 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AlertRule:
     """A single alerting rule with a callable condition."""
-    name:              str
-    condition:         Callable[[], dict]
-    severity:          str          # "critical" | "warning" | "info"
-    description:       str
+
+    name: str
+    condition: Callable[[], dict]
+    severity: str  # "critical" | "warning" | "info"
+    description: str
     recommended_action: str = ""
 
     def evaluate(self) -> dict:
@@ -31,14 +33,15 @@ class AlertRule:
         except Exception as exc:
             logger.error(f"AlertRule '{self.name}' evaluation error: {exc}")
             return {
-                "rule":    self.name,
-                "status":  "error",
+                "rule": self.name,
+                "status": "error",
                 "message": str(exc),
                 "severity": self.severity,
             }
 
 
 # ── Rule definitions ──────────────────────────────────────────────────────────
+
 
 def _get_rules() -> list[AlertRule]:
     """Lazy import avoids circular deps; called only when rules are evaluated."""

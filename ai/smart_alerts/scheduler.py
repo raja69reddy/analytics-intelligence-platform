@@ -20,6 +20,7 @@ Windows Task Scheduler (one-time setup):
 
 The scheduler writes a timestamped log to data/processed/alerts/scheduler.log.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -34,7 +35,7 @@ if str(ROOT) not in sys.path:
 
 ALERTS_DIR = ROOT / "data" / "processed" / "alerts"
 ALERTS_DIR.mkdir(parents=True, exist_ok=True)
-LOG_FILE   = ALERTS_DIR / "scheduler.log"
+LOG_FILE = ALERTS_DIR / "scheduler.log"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,15 +62,17 @@ def run_hourly_check() -> None:
 
         df = _load_traffic_df()
         detector = SmartAlertDetector()
-        alerts   = (
-            detector.detect_traffic_anomalies(df)
-            + detector.detect_bounce_spikes(df)
+        alerts = detector.detect_traffic_anomalies(df) + detector.detect_bounce_spikes(
+            df
         )
-        summary  = AlertSummary.from_alerts(alerts)
+        summary = AlertSummary.from_alerts(alerts)
         inserted = _save_alerts_to_db(alerts)
         logger.info(
             "Hourly check complete: %d alerts detected (%d critical, %d warning), %d saved to DB.",
-            summary.total_alerts, summary.critical_count, summary.warning_count, inserted,
+            summary.total_alerts,
+            summary.critical_count,
+            summary.warning_count,
+            inserted,
         )
     except Exception as exc:
         logger.error("Hourly check failed: %s", exc)
@@ -83,10 +86,13 @@ def run_daily_check() -> None:
     logger.info("Starting daily full alert sweep...")
     try:
         from ai.smart_alerts.run_alerts import run_pipeline
+
         summary = run_pipeline(save_to_db=True, verbose=False)
         logger.info(
             "Daily check complete: %d alerts (%d critical, %d warning). All clear: %s.",
-            summary.total_alerts, summary.critical_count, summary.warning_count,
+            summary.total_alerts,
+            summary.critical_count,
+            summary.warning_count,
             summary.all_clear,
         )
     except Exception as exc:
@@ -119,7 +125,9 @@ def get_next_run_time(mode: str = "hourly") -> datetime:
     if mode == "hourly":
         next_run = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
     else:
-        next_run = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        next_run = (now + timedelta(days=1)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
     return next_run
 
 
@@ -134,5 +142,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     next_run = get_next_run_time(args.mode)
-    logger.info("Next scheduled run after this one: %s", next_run.strftime("%Y-%m-%d %H:%M"))
+    logger.info(
+        "Next scheduled run after this one: %s", next_run.strftime("%Y-%m-%d %H:%M")
+    )
     schedule_alerts(args.mode)

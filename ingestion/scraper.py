@@ -7,6 +7,7 @@ Usage:
     python ingestion/scraper.py
     python ingestion/scraper.py --mode full
 """
+
 import argparse
 import logging
 import sys
@@ -71,11 +72,14 @@ def load_csv() -> pd.DataFrame:
         df = df[~invalid_urls]
     df["url"] = df["url"].apply(_normalize_url)
     # Log any URLs that fail basic validation (no scheme or host)
-    bad_urls = df["url"].apply(lambda u: not urlparse(u).scheme or not urlparse(u).netloc)
+    bad_urls = df["url"].apply(
+        lambda u: not urlparse(u).scheme or not urlparse(u).netloc
+    )
     if bad_urls.sum():
         log.error(
             "Dropping %d rows with malformed URLs (missing scheme or host): %s",
-            bad_urls.sum(), df.loc[bad_urls, "url"].tolist(),
+            bad_urls.sum(),
+            df.loc[bad_urls, "url"].tolist(),
         )
         df = df[~bad_urls]
 
@@ -85,7 +89,9 @@ def load_csv() -> pd.DataFrame:
             df[col] = df[col].astype(str).str.strip().replace("nan", None)
 
     # Validate word_count is a positive integer
-    df["word_count"] = pd.to_numeric(df["word_count"], errors="coerce").fillna(0).astype(int)
+    df["word_count"] = (
+        pd.to_numeric(df["word_count"], errors="coerce").fillna(0).astype(int)
+    )
     neg_mask = df["word_count"] < 0
     if neg_mask.sum():
         log.warning("Setting %d negative word_count values to 0", neg_mask.sum())
@@ -113,9 +119,11 @@ def _ensure_unique_constraint(engine) -> None:
             WHERE conname = 'uq_scrape_pages_url'
         """))
         if result.scalar() == 0:
-            conn.execute(text(
-                "ALTER TABLE raw_scrape_pages ADD CONSTRAINT uq_scrape_pages_url UNIQUE (url)"
-            ))
+            conn.execute(
+                text(
+                    "ALTER TABLE raw_scrape_pages ADD CONSTRAINT uq_scrape_pages_url UNIQUE (url)"
+                )
+            )
             log.info("Added UNIQUE constraint on raw_scrape_pages.url")
 
 
@@ -166,9 +174,12 @@ def ingest(mode: str = "full") -> int:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Ingest scrape pages CSV into raw_scrape_pages")
-    parser.add_argument("--mode", choices=["full"], default="full",
-                        help="full: upsert all rows by URL")
+    parser = argparse.ArgumentParser(
+        description="Ingest scrape pages CSV into raw_scrape_pages"
+    )
+    parser.add_argument(
+        "--mode", choices=["full"], default="full", help="full: upsert all rows by URL"
+    )
     args = parser.parse_args()
     try:
         ingest(args.mode)

@@ -1,4 +1,5 @@
 """Generate mock clickstream events — CSV export or direct DB load."""
+
 import argparse
 import json
 import os
@@ -11,18 +12,24 @@ import pandas as pd
 from faker import Faker
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from utils.db import get_engine
+from utils.db import get_engine  # noqa: E402
 
-CSV_OUT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "raw", "clickstream_events.csv"))
+CSV_OUT = os.path.normpath(
+    os.path.join(
+        os.path.dirname(__file__), "..", "data", "raw", "clickstream_events.csv"
+    )
+)
 
-CSV_EVENT_TYPES    = ["click", "scroll", "pageview", "form_submit"]
-CSV_EVENT_WEIGHTS  = [0.25, 0.35, 0.30, 0.10]
-CSV_DEVICES        = ["desktop", "mobile", "tablet"]
+CSV_EVENT_TYPES = ["click", "scroll", "pageview", "form_submit"]
+CSV_EVENT_WEIGHTS = [0.25, 0.35, 0.30, 0.10]
+CSV_DEVICES = ["desktop", "mobile", "tablet"]
 CSV_DEVICE_WEIGHTS = [0.55, 0.35, 0.10]
-CSV_BROWSERS       = ["Chrome", "Firefox", "Safari", "Edge"]
+CSV_BROWSERS = ["Chrome", "Firefox", "Safari", "Edge"]
 CSV_BROWSER_WEIGHTS = [0.52, 0.13, 0.25, 0.10]
-CSV_REFERRERS      = [
-    None, None, None,
+CSV_REFERRERS = [
+    None,
+    None,
+    None,
     "https://google.com",
     "https://twitter.com",
     "https://linkedin.com",
@@ -30,8 +37,14 @@ CSV_REFERRERS      = [
     "https://github.com",
 ]
 CSV_PAGES = [
-    "/", "/blog/", "/pricing/", "/about/", "/contact/",
-    "/blog/post-1/", "/blog/post-2/", "/products/",
+    "/",
+    "/blog/",
+    "/pricing/",
+    "/about/",
+    "/contact/",
+    "/blog/post-1/",
+    "/blog/post-2/",
+    "/products/",
 ]
 
 
@@ -43,19 +56,30 @@ def generate_csv(n: int = 10000, days: int = 90) -> pd.DataFrame:
     for _ in range(n):
         ts = start + timedelta(seconds=random.randint(0, days * 86400))
         event_type = random.choices(CSV_EVENT_TYPES, weights=CSV_EVENT_WEIGHTS, k=1)[0]
-        rows.append({
-            "event_timestamp":  ts.strftime("%Y-%m-%d %H:%M:%S"),
-            "session_id":       str(uuid.uuid4()),
-            "user_id":          str(uuid.uuid4()),
-            "event_type":       event_type,
-            "page_url":         random.choice(CSV_PAGES),
-            "scroll_depth":     round(random.uniform(0.0, 1.0), 4) if event_type == "scroll" else None,
-            "session_duration": random.randint(30, 1800),
-            "device_type":      random.choices(CSV_DEVICES, weights=CSV_DEVICE_WEIGHTS, k=1)[0],
-            "browser":          random.choices(CSV_BROWSERS, weights=CSV_BROWSER_WEIGHTS, k=1)[0],
-            "referrer_url":     random.choice(CSV_REFERRERS),
-        })
+        rows.append(
+            {
+                "event_timestamp": ts.strftime("%Y-%m-%d %H:%M:%S"),
+                "session_id": str(uuid.uuid4()),
+                "user_id": str(uuid.uuid4()),
+                "event_type": event_type,
+                "page_url": random.choice(CSV_PAGES),
+                "scroll_depth": (
+                    round(random.uniform(0.0, 1.0), 4)
+                    if event_type == "scroll"
+                    else None
+                ),
+                "session_duration": random.randint(30, 1800),
+                "device_type": random.choices(
+                    CSV_DEVICES, weights=CSV_DEVICE_WEIGHTS, k=1
+                )[0],
+                "browser": random.choices(
+                    CSV_BROWSERS, weights=CSV_BROWSER_WEIGHTS, k=1
+                )[0],
+                "referrer_url": random.choice(CSV_REFERRERS),
+            }
+        )
     return pd.DataFrame(rows).sort_values("event_timestamp").reset_index(drop=True)
+
 
 fake = Faker()
 
@@ -71,42 +95,56 @@ PAGES = [
 ]
 
 EVENTS = [
-    ("page_view",    0.40),
-    ("scroll",       0.25),
-    ("click",        0.18),
-    ("form_submit",  0.05),
-    ("download",     0.04),
-    ("video_play",   0.04),
-    ("add_to_cart",  0.03),
-    ("purchase",     0.01),
+    ("page_view", 0.40),
+    ("scroll", 0.25),
+    ("click", 0.18),
+    ("form_submit", 0.05),
+    ("download", 0.04),
+    ("video_play", 0.04),
+    ("add_to_cart", 0.03),
+    ("purchase", 0.01),
 ]
 
-EVENT_NAMES  = [e[0] for e in EVENTS]
+EVENT_NAMES = [e[0] for e in EVENTS]
 EVENT_WEIGHTS = [e[1] for e in EVENTS]
 DEVICES = ["desktop", "mobile", "tablet"]
 
 
-def _make_events_for_session(session_id: str, user_id: str, start_ts: datetime, n: int) -> list[dict]:
+def _make_events_for_session(
+    session_id: str, user_id: str, start_ts: datetime, n: int
+) -> list[dict]:
     page = random.choice(PAGES)
     device = random.choice(DEVICES)
     rows = []
     ts = start_ts
     for _ in range(n):
         name = random.choices(EVENT_NAMES, weights=EVENT_WEIGHTS, k=1)[0]
-        rows.append({
-            "event_time":        ts,
-            "session_id":        session_id,
-            "user_pseudo_id":    user_id,
-            "event_name":        name,
-            "page_url":          page,
-            "element_id":        f"#{fake.slug()}" if name == "click" else None,
-            "element_class":     f".{fake.slug()}" if name == "click" else None,
-            "element_text":      " ".join(fake.words(nb=3)) if name == "click" else None,
-            "scroll_depth_pct":  random.randint(10, 100) if name == "scroll" else None,
-            "event_value":       round(random.uniform(5, 300), 2) if name in ("purchase", "add_to_cart") else None,
-            "event_params":      json.dumps({"label": fake.slug()}) if random.random() < 0.2 else None,
-            "device_category":   device,
-        })
+        rows.append(
+            {
+                "event_time": ts,
+                "session_id": session_id,
+                "user_pseudo_id": user_id,
+                "event_name": name,
+                "page_url": page,
+                "element_id": f"#{fake.slug()}" if name == "click" else None,
+                "element_class": f".{fake.slug()}" if name == "click" else None,
+                "element_text": " ".join(fake.words(nb=3)) if name == "click" else None,
+                "scroll_depth_pct": (
+                    random.randint(10, 100) if name == "scroll" else None
+                ),
+                "event_value": (
+                    round(random.uniform(5, 300), 2)
+                    if name in ("purchase", "add_to_cart")
+                    else None
+                ),
+                "event_params": (
+                    json.dumps({"label": fake.slug()})
+                    if random.random() < 0.2
+                    else None
+                ),
+                "device_category": device,
+            }
+        )
         ts += timedelta(seconds=random.randint(2, 60))
     return rows
 
@@ -137,8 +175,19 @@ def load(df: pd.DataFrame, mode: str = "full") -> None:
     engine = get_engine()
     with engine.begin() as conn:
         if mode == "full":
-            conn.execute(__import__("sqlalchemy").text("TRUNCATE raw_clickstream_events RESTART IDENTITY"))
-    df.to_sql("raw_clickstream_events", engine, if_exists="append", index=False, method="multi", chunksize=500)
+            conn.execute(
+                __import__("sqlalchemy").text(
+                    "TRUNCATE raw_clickstream_events RESTART IDENTITY"
+                )
+            )
+    df.to_sql(
+        "raw_clickstream_events",
+        engine,
+        if_exists="append",
+        index=False,
+        method="multi",
+        chunksize=500,
+    )
     print(f"Loaded {len(df):,} rows into raw_clickstream_events ({mode} mode).")
 
 

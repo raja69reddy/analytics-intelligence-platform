@@ -3,6 +3,7 @@ Weekly performance digest generator.
 Queries the database, builds a markdown report, and saves it to
 data/processed/digests/weekly_YYYY-MM-DD.md.
 """
+
 from __future__ import annotations
 
 import logging
@@ -17,13 +18,14 @@ if _ROOT_PATH not in sys.path:
 
 logger = logging.getLogger(__name__)
 
-ROOT    = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent
 DIGESTS = ROOT / "data" / "processed" / "digests"
 DIGESTS.mkdir(parents=True, exist_ok=True)
 
 
 def _qdf(sql: str):
     from utils.db import query_df
+
     return query_df(sql)
 
 
@@ -37,9 +39,10 @@ def _safe(df, col, default="N/A"):
 
 # ── Section builders ──────────────────────────────────────────────────────────
 
+
 def _traffic_section(today: datetime) -> str:
     week_start = (today - timedelta(days=7)).strftime("%Y-%m-%d")
-    week_end   = today.strftime("%Y-%m-%d")
+    week_end = today.strftime("%Y-%m-%d")
     try:
         df = _qdf(f"""
             SELECT
@@ -50,22 +53,31 @@ def _traffic_section(today: datetime) -> str:
             FROM raw_ga4_sessions
             WHERE session_date BETWEEN '{week_start}' AND '{week_end}'
         """)
-        sessions   = _safe(df, "total_sessions", 0)
-        new_users  = _safe(df, "new_users", 0)
-        bounce     = _safe(df, "bounce_rate_pct", 0)
-        duration   = _safe(df, "avg_duration_s", 0)
+        sessions = _safe(df, "total_sessions", 0)
+        new_users = _safe(df, "new_users", 0)
+        bounce = _safe(df, "bounce_rate_pct", 0)
+        duration = _safe(df, "avg_duration_s", 0)
     except Exception as exc:
         return f"## Traffic\n\n_Error loading traffic data: {exc}_\n"
 
     try:
         prev_start = (today - timedelta(days=14)).strftime("%Y-%m-%d")
-        prev_end   = (today - timedelta(days=8)).strftime("%Y-%m-%d")
+        prev_end = (today - timedelta(days=8)).strftime("%Y-%m-%d")
         prev_df = _qdf(f"""
             SELECT SUM(sessions) AS prev_sessions FROM raw_ga4_sessions
             WHERE session_date BETWEEN '{prev_start}' AND '{prev_end}'
         """)
         prev_sessions = _safe(prev_df, "prev_sessions", 0) or 0
-        wow_pct = round((float(sessions or 0) - float(prev_sessions)) / float(prev_sessions) * 100, 1) if prev_sessions else 0
+        wow_pct = (
+            round(
+                (float(sessions or 0) - float(prev_sessions))
+                / float(prev_sessions)
+                * 100,
+                1,
+            )
+            if prev_sessions
+            else 0
+        )
         wow_str = f"+{wow_pct}%" if wow_pct >= 0 else f"{wow_pct}%"
     except Exception:
         wow_str = "N/A"
@@ -84,7 +96,7 @@ def _traffic_section(today: datetime) -> str:
 
 def _channel_section(today: datetime) -> str:
     week_start = (today - timedelta(days=7)).strftime("%Y-%m-%d")
-    week_end   = today.strftime("%Y-%m-%d")
+    week_end = today.strftime("%Y-%m-%d")
     try:
         df = _qdf(f"""
             SELECT channel_grouping,
@@ -102,13 +114,17 @@ def _channel_section(today: datetime) -> str:
 
     rows = "| Channel | Sessions | Bounce % | Avg Duration |\n|---------|----------|----------|--------------|\n"
     for _, row in df.iterrows():
-        rows += f"| {row.get('channel_grouping','?')} | {int(row.get('sessions',0) or 0):,} | {row.get('bounce_pct',0)}% | {int(row.get('avg_s',0) or 0)}s |\n"
+        ch = row.get("channel_grouping", "?")
+        sess = int(row.get("sessions", 0) or 0)
+        bounce = row.get("bounce_pct", 0)
+        dur = int(row.get("avg_s", 0) or 0)
+        rows += f"| {ch} | {sess:,} | {bounce}% | {dur}s |\n"
     return f"## Channel Breakdown\n\n{rows}"
 
 
 def _top_pages_section(today: datetime) -> str:
     week_start = (today - timedelta(days=7)).strftime("%Y-%m-%d")
-    week_end   = today.strftime("%Y-%m-%d")
+    week_end = today.strftime("%Y-%m-%d")
     try:
         df = _qdf(f"""
             SELECT landing_page,
@@ -133,7 +149,7 @@ def _top_pages_section(today: datetime) -> str:
 
 def _device_section(today: datetime) -> str:
     week_start = (today - timedelta(days=7)).strftime("%Y-%m-%d")
-    week_end   = today.strftime("%Y-%m-%d")
+    week_end = today.strftime("%Y-%m-%d")
     try:
         df = _qdf(f"""
             SELECT device_category,
@@ -149,19 +165,27 @@ def _device_section(today: datetime) -> str:
 
     rows = "| Device | Sessions | Share |\n|--------|----------|-------|\n"
     for _, row in df.iterrows():
-        rows += f"| {row.get('device_category','?')} | {int(row.get('sessions',0) or 0):,} | {row.get('share_pct',0)}% |\n"
+        dev = row.get("device_category", "?")
+        sess = int(row.get("sessions", 0) or 0)
+        share = row.get("share_pct", 0)
+        rows += f"| {dev} | {sess:,} | {share}% |\n"
     return f"## Device Breakdown\n\n{rows}"
 
 
 def _alerts_section() -> str:
     try:
         from utils.alerts import generate_alert_summary
+
         s = generate_alert_summary()
-        status = "All Clear" if s["all_clear"] else f"{s['active_alerts']} alert(s) firing"
+        status = (
+            "All Clear" if s["all_clear"] else f"{s['active_alerts']} alert(s) firing"
+        )
         lines = [f"## Alert Status\n\n**Status:** {status}  "]
         for a in s.get("alerts", []):
             icon = "🔴" if a.get("severity") == "critical" else "🟡"
-            lines.append(f"- {icon} [{a.get('severity','?').upper()}] {a.get('message','')}")
+            lines.append(
+                f"- {icon} [{a.get('severity', '?').upper()}] {a.get('message', '')}"
+            )
         if not s.get("alerts"):
             lines.append("- No active alerts")
         return "\n".join(lines) + "\n"
@@ -171,12 +195,13 @@ def _alerts_section() -> str:
 
 # ── Main digest function ──────────────────────────────────────────────────────
 
+
 def generate_weekly_digest(reference_date: datetime | None = None) -> Path:
     """Build and save the weekly digest markdown file. Returns the path."""
     today = reference_date or datetime.now()
     week_start = (today - timedelta(days=7)).strftime("%Y-%m-%d")
-    week_end   = today.strftime("%Y-%m-%d")
-    generated  = today.strftime("%Y-%m-%d %H:%M")
+    week_end = today.strftime("%Y-%m-%d")
+    generated = today.strftime("%Y-%m-%d %H:%M")
 
     header = f"""# Weekly Analytics Digest
 

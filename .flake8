@@ -1,0 +1,21 @@
+[flake8]
+max-line-length = 120
+exclude =
+    .git,
+    __pycache__,
+    .pytest_cache,
+    .venv,
+    venv
+
+# E402: module level import not at top — common pattern when sys.path must be set first
+per-file-ignores =
+    ingestion/*.py: E402
+    mock_data/*.py: E402
+    sql/*.py: E402
+    tests/*.py: E402
+    utils/*.py: E402
+    analysis/*.py: E402
+    ai/**/*.py: E402
+    dashboard/**/*.py: E402
+    # Long AI prompts are intentionally verbose
+    ai/report_generation/prompts.py: E501

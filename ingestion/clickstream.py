@@ -5,6 +5,7 @@ Usage:
     python ingestion/clickstream.py --mode full
     python ingestion/clickstream.py --mode incremental --since 2024-01-01
 """
+
 import argparse
 import logging
 import sys
@@ -27,10 +28,18 @@ logging.basicConfig(
 )
 log = logging.getLogger("clickstream_ingestion")
 
-CSV_PATH = Path(__file__).resolve().parent.parent / "data" / "raw" / "clickstream_events.csv"
+CSV_PATH = (
+    Path(__file__).resolve().parent.parent / "data" / "raw" / "clickstream_events.csv"
+)
 TABLE = "raw_clickstream_events"
 VALID_EVENT_TYPES = {"click", "scroll", "pageview", "form_submit"}
-REQUIRED_COLUMNS = {"event_timestamp", "session_id", "user_id", "event_type", "page_url"}
+REQUIRED_COLUMNS = {
+    "event_timestamp",
+    "session_id",
+    "user_id",
+    "event_type",
+    "page_url",
+}
 
 
 def load_csv() -> pd.DataFrame:
@@ -71,14 +80,20 @@ def load_csv() -> pd.DataFrame:
         log.error(
             "Found %d rows with invalid event_type values (dropping): %s  "
             "— valid types are: %s",
-            invalid_mask.sum(), invalid_vals, sorted(VALID_EVENT_TYPES),
+            invalid_mask.sum(),
+            invalid_vals,
+            sorted(VALID_EVENT_TYPES),
         )
         df = df[~invalid_mask]
-    log.info("Event type counts after validation: %s",
-             df["event_type"].value_counts().to_dict())
+    log.info(
+        "Event type counts after validation: %s",
+        df["event_type"].value_counts().to_dict(),
+    )
 
     # Clean page_url using parse_url() — keep just the path
-    df["page_url"] = df["page_url"].fillna("").apply(lambda u: parse_url(u)["path"] if u else None)
+    df["page_url"] = (
+        df["page_url"].fillna("").apply(lambda u: parse_url(u)["path"] if u else None)
+    )
 
     # Validate scroll_depth is between 0.0 and 1.0, then convert to 0-100 integer
     if "scroll_depth" in df.columns:
@@ -86,8 +101,12 @@ def load_csv() -> pd.DataFrame:
             (df["scroll_depth"] < 0.0) | (df["scroll_depth"] > 1.0)
         )
         if invalid_scroll.sum():
-            log.warning("Clamping %d scroll_depth values outside [0, 1]", invalid_scroll.sum())
-            df.loc[invalid_scroll, "scroll_depth"] = df.loc[invalid_scroll, "scroll_depth"].clip(0.0, 1.0)
+            log.warning(
+                "Clamping %d scroll_depth values outside [0, 1]", invalid_scroll.sum()
+            )
+            df.loc[invalid_scroll, "scroll_depth"] = df.loc[
+                invalid_scroll, "scroll_depth"
+            ].clip(0.0, 1.0)
         df["scroll_depth_pct"] = (df["scroll_depth"] * 100).round().astype("Int64")
         df = df.drop(columns=["scroll_depth"])
 
@@ -96,16 +115,25 @@ def load_csv() -> pd.DataFrame:
     df[num_cols] = df[num_cols].fillna(0)
 
     # Rename CSV columns to match DB column names
-    df = df.rename(columns={
-        "event_timestamp": "event_time",
-        "user_id":         "user_pseudo_id",
-        "event_type":      "event_name",
-        "device_type":     "device_category",
-    })
+    df = df.rename(
+        columns={
+            "event_timestamp": "event_time",
+            "user_id": "user_pseudo_id",
+            "event_type": "event_name",
+            "device_type": "device_category",
+        }
+    )
 
     # Keep only columns that exist in raw_clickstream_events
-    keep = ["event_time", "session_id", "user_pseudo_id", "event_name",
-            "page_url", "scroll_depth_pct", "device_category"]
+    keep = [
+        "event_time",
+        "session_id",
+        "user_pseudo_id",
+        "event_name",
+        "page_url",
+        "scroll_depth_pct",
+        "device_category",
+    ]
     df = df[[c for c in keep if c in df.columns]]
 
     log.info("Loaded %d rows from CSV", len(df))
@@ -142,7 +170,7 @@ def ingest(mode: str, since: date | None = None) -> int:
             df = df[~df["event_time"].dt.date.isin(existing)]
             log.info("After dedup: %d new rows to insert", len(df))
             if df.empty:
-                print(f"No new rows to insert.")
+                print("No new rows to insert.")
                 return 0
 
         with engine.begin() as conn:
@@ -150,7 +178,14 @@ def ingest(mode: str, since: date | None = None) -> int:
                 conn.execute(text(f"TRUNCATE {TABLE} RESTART IDENTITY"))
                 log.info("Truncated %s", TABLE)
 
-        df.to_sql(TABLE, engine, if_exists="append", index=False, method="multi", chunksize=500)
+        df.to_sql(
+            TABLE,
+            engine,
+            if_exists="append",
+            index=False,
+            method="multi",
+            chunksize=500,
+        )
 
     except Exception as exc:
         log.error("Insert failed: %s", exc)
@@ -166,7 +201,9 @@ def ingest(mode: str, since: date | None = None) -> int:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Ingest clickstream CSV into raw_clickstream_events")
+    parser = argparse.ArgumentParser(
+        description="Ingest clickstream CSV into raw_clickstream_events"
+    )
     parser.add_argument("--mode", choices=["full", "incremental"], default="full")
     parser.add_argument("--since", default=None, metavar="YYYY-MM-DD")
     args = parser.parse_args()

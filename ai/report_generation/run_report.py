@@ -3,6 +3,7 @@
 Usage:
     python ai/report_generation/run_report.py
 """
+
 import os
 import sys
 import time

@@ -1,21 +1,20 @@
 """Tests for ETL transform scripts — fct_sessions, fct_events, dim_pages."""
+
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-import pandas as pd
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from utils.db import query_df, get_engine
-from sqlalchemy import text
-
+from utils.db import query_df, get_engine  # noqa: E402
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture(scope="module")
 def engine():
@@ -23,6 +22,7 @@ def engine():
 
 
 # ── fct_sessions tests ────────────────────────────────────────────────────────
+
 
 def test_fct_sessions_has_rows():
     """fct_sessions must have at least as many rows as raw_ga4_sessions."""
@@ -76,6 +76,7 @@ def test_fct_sessions_page_id_references_dim_pages():
 
 
 # ── fct_events tests ──────────────────────────────────────────────────────────
+
 
 def test_fct_events_has_rows():
     """fct_events must have at least as many rows as raw_clickstream_events."""
@@ -131,6 +132,7 @@ def test_fct_events_event_names_are_known():
 
 # ── dim_pages tests ───────────────────────────────────────────────────────────
 
+
 def test_dim_pages_has_rows():
     df = query_df("SELECT COUNT(*) AS n FROM dim_pages")
     assert int(df["n"].iloc[0]) > 0, "dim_pages is empty"
@@ -161,9 +163,11 @@ def test_dim_pages_has_page_titles():
 
 # ── run_all_transforms integration test ──────────────────────────────────────
 
+
 def test_run_all_transforms_completes():
     """run_all_transforms.run() should complete without error and return counts."""
     from sql.run_all_transforms import run as run_transforms
+
     result = run_transforms(verbose=False)
     assert "final_counts" in result
     assert result["final_counts"]["fct_sessions"] > 0

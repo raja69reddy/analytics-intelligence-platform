@@ -12,6 +12,7 @@ Public API:
   query_sql_file(path) — run a .sql file and return a DataFrame
   test_connection()    — smoke-test the DB credentials
 """
+
 import os
 from contextlib import contextmanager
 
@@ -116,6 +117,7 @@ def query_df(sql: str, params: dict | None = None):
         A pandas DataFrame containing all result rows and columns.
     """
     import pandas as pd
+
     with get_engine().connect() as conn:
         return pd.read_sql(text(sql), conn, params=params or {})
 

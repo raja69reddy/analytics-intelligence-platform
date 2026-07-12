@@ -4,6 +4,7 @@ Loads raw_clickstream_events, joins with dim_dates and dim_pages,
 and inserts into fct_events.
 TRUNCATE + INSERT pattern for idempotent reruns.
 """
+
 from __future__ import annotations
 
 import sys
@@ -13,8 +14,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from sqlalchemy import text
-from utils.db import get_engine, query_df
+from sqlalchemy import text  # noqa: E402
+from utils.db import get_engine, query_df  # noqa: E402
 
 
 def run(verbose: bool = True) -> int:
@@ -90,5 +91,7 @@ if __name__ == "__main__":
             COUNT(*) FILTER (WHERE page_id IS NULL) AS null_page_fk
         FROM fct_events
     """)
-    print(f"\nFK check: null date_id={df_fk['null_date_fk'].iloc[0]}, "
-          f"null page_id={df_fk['null_page_fk'].iloc[0]}")
+    print(
+        f"\nFK check: null date_id={df_fk['null_date_fk'].iloc[0]}, "
+        f"null page_id={df_fk['null_page_fk'].iloc[0]}"
+    )

@@ -1,10 +1,13 @@
 """Print row counts and a 5-row preview for each CSV in data/raw/."""
+
 import os
 import sys
 
 import pandas as pd
 
-DATA_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "data", "raw"))
+DATA_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "data", "raw")
+)
 
 CSVS = [
     "ga4_sessions.csv",

@@ -1,13 +1,14 @@
 """Fill dim_dates with every date from 2023-01-01 to 2025-12-31."""
+
 import os
 import sys
 from datetime import date, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from sqlalchemy import text
+from sqlalchemy import text  # noqa: E402
 
-from utils.db import get_engine
+from utils.db import get_engine  # noqa: E402
 
 START = date(2023, 1, 1)
 END = date(2025, 12, 31)
@@ -15,18 +16,18 @@ END = date(2025, 12, 31)
 
 def build_row(d: date) -> dict:
     return {
-        "date_id":        int(d.strftime("%Y%m%d")),
-        "full_date":      d,
-        "day_of_week":    d.isoweekday(),
-        "day_name":       d.strftime("%A"),
-        "week_number":    int(d.strftime("%V")),
-        "month":          d.month,
-        "month_name":     d.strftime("%B"),
-        "quarter":        (d.month - 1) // 3 + 1,
-        "year":           d.year,
-        "is_weekend":     d.isoweekday() >= 6,
+        "date_id": int(d.strftime("%Y%m%d")),
+        "full_date": d,
+        "day_of_week": d.isoweekday(),
+        "day_name": d.strftime("%A"),
+        "week_number": int(d.strftime("%V")),
+        "month": d.month,
+        "month_name": d.strftime("%B"),
+        "quarter": (d.month - 1) // 3 + 1,
+        "year": d.year,
+        "is_weekend": d.isoweekday() >= 6,
         "is_month_start": d.day == 1,
-        "is_month_end":   (d + timedelta(days=1)).month != d.month,
+        "is_month_end": (d + timedelta(days=1)).month != d.month,
     }
 
 
@@ -62,7 +63,7 @@ def verify() -> None:
     with engine.connect() as conn:
         count = conn.execute(text("SELECT COUNT(*) FROM dim_dates")).scalar()
         first = conn.execute(text("SELECT MIN(full_date) FROM dim_dates")).scalar()
-        last  = conn.execute(text("SELECT MAX(full_date) FROM dim_dates")).scalar()
+        last = conn.execute(text("SELECT MAX(full_date) FROM dim_dates")).scalar()
     print(f"  Row count : {count:,}")
     print(f"  First date: {first}")
     print(f"  Last date : {last}")

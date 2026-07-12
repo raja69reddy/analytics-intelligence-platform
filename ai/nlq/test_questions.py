@@ -6,6 +6,7 @@ executes against PostgreSQL, and prints results + timing.
 Usage:
     python ai/nlq/test_questions.py
 """
+
 import sys
 import os
 import time

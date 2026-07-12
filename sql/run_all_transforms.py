@@ -9,6 +9,7 @@ Runs all dimension and fact table population scripts in dependency order:
 
 Prints progress for each step, total time, and final row counts.
 """
+
 from __future__ import annotations
 
 import sys
@@ -23,6 +24,7 @@ if str(ROOT) not in sys.path:
 
 def _row_count(table: str) -> int:
     from utils.db import query_df
+
     df = query_df(f"SELECT COUNT(*) AS n FROM {table}")
     return int(df["n"].iloc[0])
 
@@ -42,6 +44,7 @@ def run(verbose: bool = True) -> dict:
         _print_step(1, "populate_dim_pages.py")
     t0 = time.perf_counter()
     from sql.populate_dim_pages import run as run_dim_pages
+
     n1 = run_dim_pages(verbose=verbose)
     results["dim_pages"] = {"rows_affected": n1, "elapsed_s": time.perf_counter() - t0}
     if verbose:
@@ -52,6 +55,7 @@ def run(verbose: bool = True) -> dict:
         _print_step(2, "populate_dates.py (extend to current year)")
     t0 = time.perf_counter()
     from sql.populate_dates import populate as populate_dates
+
     current_year_end = date(date.today().year, 12, 31)
     n2 = populate_dates(start=date(2023, 1, 1), end=current_year_end)
     results["dim_dates"] = {"rows_affected": n2, "elapsed_s": time.perf_counter() - t0}
@@ -64,8 +68,12 @@ def run(verbose: bool = True) -> dict:
         _print_step(3, "populate_fct_sessions.py")
     t0 = time.perf_counter()
     from sql.populate_fct_sessions import run as run_fct_sessions
+
     n3 = run_fct_sessions(verbose=verbose)
-    results["fct_sessions"] = {"rows_affected": n3, "elapsed_s": time.perf_counter() - t0}
+    results["fct_sessions"] = {
+        "rows_affected": n3,
+        "elapsed_s": time.perf_counter() - t0,
+    }
     if verbose:
         print(f"      Elapsed: {results['fct_sessions']['elapsed_s']:.2f}s")
 
@@ -74,6 +82,7 @@ def run(verbose: bool = True) -> dict:
         _print_step(4, "populate_fct_events.py")
     t0 = time.perf_counter()
     from sql.populate_fct_events import run as run_fct_events
+
     n4 = run_fct_events(verbose=verbose)
     results["fct_events"] = {"rows_affected": n4, "elapsed_s": time.perf_counter() - t0}
     if verbose:
@@ -83,10 +92,10 @@ def run(verbose: bool = True) -> dict:
 
     # ── Final row counts ─────────────────────────────────────────────────────
     counts = {
-        "dim_pages":    _row_count("dim_pages"),
-        "dim_dates":    _row_count("dim_dates"),
+        "dim_pages": _row_count("dim_pages"),
+        "dim_dates": _row_count("dim_dates"),
         "fct_sessions": _row_count("fct_sessions"),
-        "fct_events":   _row_count("fct_events"),
+        "fct_events": _row_count("fct_events"),
     }
 
     if verbose:
@@ -95,14 +104,14 @@ def run(verbose: bool = True) -> dict:
         print("  ETL TRANSFORM PIPELINE COMPLETE")
         print(sep)
         print(f"  Total time:        {total_elapsed:.2f}s")
-        print(f"\n  Final row counts:")
+        print("\n  Final row counts:")
         for tbl, cnt in counts.items():
             print(f"    {tbl:<18} {cnt:>8,} rows")
         print(sep)
 
     return {
-        "steps":         results,
-        "final_counts":  counts,
+        "steps": results,
+        "final_counts": counts,
         "total_elapsed": total_elapsed,
     }
 

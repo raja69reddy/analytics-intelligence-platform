@@ -2,28 +2,29 @@
 Data quality report for all raw tables in the web_analytics database.
 Checks null counts, duplicate counts, date ranges, and row counts.
 """
+
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from utils.db import query_df
+from utils.db import query_df  # noqa: E402
 
 # Table config: (table_name, date_column, pk_columns_for_dup_check)
 RAW_TABLES = [
-    ("raw_ga4_sessions",       "session_date", ["id"]),
-    ("raw_server_logs",        "log_time",     ["id"]),
-    ("raw_clickstream_events", "event_time",   ["id"]),
-    ("raw_scrape_pages",       "scraped_at",   ["url"]),
+    ("raw_ga4_sessions", "session_date", ["id"]),
+    ("raw_server_logs", "log_time", ["id"]),
+    ("raw_clickstream_events", "event_time", ["id"]),
+    ("raw_scrape_pages", "scraped_at", ["url"]),
 ]
 
 # Key columns to check for NULLs per table
 NULL_COLS = {
-    "raw_ga4_sessions":       ["session_date", "channel_grouping", "sessions", "pageviews"],
-    "raw_server_logs":        ["log_time", "ip_address", "url", "status_code"],
+    "raw_ga4_sessions": ["session_date", "channel_grouping", "sessions", "pageviews"],
+    "raw_server_logs": ["log_time", "ip_address", "url", "status_code"],
     "raw_clickstream_events": ["event_time", "session_id", "event_name", "page_url"],
-    "raw_scrape_pages":       ["url", "scraped_at", "word_count"],
+    "raw_scrape_pages": ["url", "scraped_at", "word_count"],
 }
 
 
@@ -35,7 +36,11 @@ def _null_counts(table: str) -> dict[str, int]:
     cols = NULL_COLS.get(table, [])
     result = {}
     for col in cols:
-        n = int(query_df(f"SELECT COUNT(*) AS n FROM {table} WHERE {col} IS NULL")["n"].iloc[0])
+        n = int(
+            query_df(f"SELECT COUNT(*) AS n FROM {table} WHERE {col} IS NULL")[
+                "n"
+            ].iloc[0]
+        )
         result[col] = n
     return result
 
@@ -51,7 +56,9 @@ def _duplicate_count(table: str, pk_cols: list[str]) -> int:
 
 
 def _date_range(table: str, date_col: str) -> tuple[str, str]:
-    df = query_df(f"SELECT MIN({date_col})::date AS mn, MAX({date_col})::date AS mx FROM {table}")
+    df = query_df(
+        f"SELECT MIN({date_col})::date AS mn, MAX({date_col})::date AS mx FROM {table}"
+    )
     mn = str(df["mn"].iloc[0])
     mx = str(df["mx"].iloc[0])
     return mn, mx

@@ -4,6 +4,7 @@ Loads all EDA findings from the database, generates a PDF-style markdown
 report, and saves it to data/processed/eda_report_YYYY-MM-DD.md.
 Also prints the top 10 key metrics to stdout.
 """
+
 from __future__ import annotations
 
 import sys
@@ -15,7 +16,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 PROCESSED_DIR = ROOT / "data" / "processed"
-PLOTS_DIR     = PROCESSED_DIR / "eda_plots"
+PLOTS_DIR = PROCESSED_DIR / "eda_plots"
 
 
 def _collect_metrics() -> dict:
@@ -82,40 +83,43 @@ def _collect_metrics() -> dict:
     last_ts = df_fresh["ts"].iloc[0]
     if hasattr(last_ts, "tzinfo") and last_ts.tzinfo:
         last_ts = last_ts.replace(tzinfo=None)
-    freshness_hrs = (datetime.now() - last_ts).total_seconds() / 3600 if last_ts else None
+    freshness_hrs = (
+        (datetime.now() - last_ts).total_seconds() / 3600 if last_ts else None
+    )
 
-    t   = df_t.iloc[0]
-    r   = df_rows.iloc[0]
+    t = df_t.iloc[0]
+    r = df_rows.iloc[0]
     return {
-        "total_sessions":  int(t["total_sessions"] or 0),
-        "total_bounces":   int(t["total_bounces"] or 0),
-        "avg_bounce_pct":  float(t["avg_bounce_pct"] or 0),
-        "first_date":      str(t["first_date"]),
-        "last_date":       str(t["last_date"]),
-        "top_channel":     df_ch["channel_grouping"].iloc[0] if len(df_ch) else "N/A",
-        "top_channel_s":   int(df_ch["s"].iloc[0]) if len(df_ch) else 0,
-        "total_conv":      int(df_cv["total_conv"].iloc[0] or 0),
-        "avg_cvr":         float(df_cv["avg_cvr"].iloc[0] or 0),
-        "top_device":      df_dv["device_category"].iloc[0] if len(df_dv) else "N/A",
-        "top_page":        df_pg["url"].iloc[0] if len(df_pg) else "N/A",
-        "seo_pages":       int(df_seo["pages"].iloc[0] or 0),
-        "avg_wc":          float(df_seo["avg_wc"].iloc[0] or 0),
-        "ga4_rows":        int(r["ga4"] or 0),
-        "click_rows":      int(r["clicks"] or 0),
-        "log_rows":        int(r["logs"] or 0),
-        "fct_s_rows":      int(r["fct_s"] or 0),
-        "fct_e_rows":      int(r["fct_e"] or 0),
-        "dim_pages":       int(r["pages"] or 0),
-        "alerts":          int(r["alerts"] or 0),
-        "plot_count":      plot_count,
-        "freshness_hrs":   freshness_hrs,
+        "total_sessions": int(t["total_sessions"] or 0),
+        "total_bounces": int(t["total_bounces"] or 0),
+        "avg_bounce_pct": float(t["avg_bounce_pct"] or 0),
+        "first_date": str(t["first_date"]),
+        "last_date": str(t["last_date"]),
+        "top_channel": df_ch["channel_grouping"].iloc[0] if len(df_ch) else "N/A",
+        "top_channel_s": int(df_ch["s"].iloc[0]) if len(df_ch) else 0,
+        "total_conv": int(df_cv["total_conv"].iloc[0] or 0),
+        "avg_cvr": float(df_cv["avg_cvr"].iloc[0] or 0),
+        "top_device": df_dv["device_category"].iloc[0] if len(df_dv) else "N/A",
+        "top_page": df_pg["url"].iloc[0] if len(df_pg) else "N/A",
+        "seo_pages": int(df_seo["pages"].iloc[0] or 0),
+        "avg_wc": float(df_seo["avg_wc"].iloc[0] or 0),
+        "ga4_rows": int(r["ga4"] or 0),
+        "click_rows": int(r["clicks"] or 0),
+        "log_rows": int(r["logs"] or 0),
+        "fct_s_rows": int(r["fct_s"] or 0),
+        "fct_e_rows": int(r["fct_e"] or 0),
+        "dim_pages": int(r["pages"] or 0),
+        "alerts": int(r["alerts"] or 0),
+        "plot_count": plot_count,
+        "freshness_hrs": freshness_hrs,
     }
 
 
 def _format_report(m: dict, generated_at: str) -> str:
     fresh_str = (
         f"{m['freshness_hrs']:.1f} hours ago"
-        if m["freshness_hrs"] is not None else "unknown"
+        if m["freshness_hrs"] is not None
+        else "unknown"
     )
     return (
         f"# Analytics Intelligence Platform — EDA Report\n\n"
@@ -167,7 +171,7 @@ def _format_report(m: dict, generated_at: str) -> str:
 def generate_report(verbose: bool = True) -> Path:
     """Generate EDA report and save to data/processed/eda_report_YYYY-MM-DD.md."""
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
-    today        = date.today().isoformat()
+    today = date.today().isoformat()
 
     if verbose:
         print("Collecting metrics from database...")
@@ -178,19 +182,23 @@ def generate_report(verbose: bool = True) -> Path:
         sep = "-" * 50
         print(sep)
         metrics_display = [
-            ("Total Sessions",      f"{m['total_sessions']:,}"),
-            ("Avg Bounce Rate",     f"{m['avg_bounce_pct']:.1f}%"),
-            ("Total Conversions",   f"{m['total_conv']:,}"),
-            ("Avg CVR",             f"{m['avg_cvr']:.4f}%"),
-            ("Top Channel",         f"{m['top_channel']} ({m['top_channel_s']:,} sessions)"),
-            ("Top Page",            m["top_page"]),
-            ("Top Device",          m["top_device"]),
-            ("SEO Pages",           f"{m['seo_pages']} (avg {m['avg_wc']:.0f} words)"),
-            ("Saved EDA Plots",     str(m["plot_count"])),
-            ("Data Freshness",      (
-                f"{m['freshness_hrs']:.1f}h ago"
-                if m["freshness_hrs"] is not None else "unknown"
-            )),
+            ("Total Sessions", f"{m['total_sessions']:,}"),
+            ("Avg Bounce Rate", f"{m['avg_bounce_pct']:.1f}%"),
+            ("Total Conversions", f"{m['total_conv']:,}"),
+            ("Avg CVR", f"{m['avg_cvr']:.4f}%"),
+            ("Top Channel", f"{m['top_channel']} ({m['top_channel_s']:,} sessions)"),
+            ("Top Page", m["top_page"]),
+            ("Top Device", m["top_device"]),
+            ("SEO Pages", f"{m['seo_pages']} (avg {m['avg_wc']:.0f} words)"),
+            ("Saved EDA Plots", str(m["plot_count"])),
+            (
+                "Data Freshness",
+                (
+                    f"{m['freshness_hrs']:.1f}h ago"
+                    if m["freshness_hrs"] is not None
+                    else "unknown"
+                ),
+            ),
         ]
         for i, (label, value) in enumerate(metrics_display, 1):
             print(f"  {i:>2}. {label:<22} {value}")

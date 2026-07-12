@@ -7,6 +7,7 @@ Public exports:
     NLQEngine  — main class: translate, validate, execute, format
     run_nlq    — convenience function for the CLI pipeline
 """
+
 from ai.nlq.nlq_engine import NLQEngine
 from ai.nlq.run_nlq import run_nlq
 

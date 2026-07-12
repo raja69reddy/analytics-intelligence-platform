@@ -1,17 +1,22 @@
 """Utility functions for anomaly detection data loading and feature engineering."""
+
 from __future__ import annotations
 
 import logging
 
-import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 # ── Feature column definitions by metric type ─────────────────────────────────
-_TRAFFIC_FEATURES    = ["total_sessions", "total_pageviews", "avg_bounce_rate", "avg_session_duration"]
+_TRAFFIC_FEATURES = [
+    "total_sessions",
+    "total_pageviews",
+    "avg_bounce_rate",
+    "avg_session_duration",
+]
 _CONVERSION_FEATURES = ["conversion_rate", "goal_completions", "revenue"]
-_BOUNCE_FEATURES     = ["avg_bounce_rate", "total_sessions"]
+_BOUNCE_FEATURES = ["avg_bounce_rate", "total_sessions"]
 
 
 def load_traffic_data() -> pd.DataFrame:
@@ -22,13 +27,22 @@ def load_traffic_data() -> pd.DataFrame:
     """
     try:
         from utils.query_runner import run_view
+
         df = run_view("vw_daily_traffic")
         logger.info("Loaded %d rows from vw_daily_traffic.", len(df))
         return df
     except Exception as exc:
         logger.warning("Could not load traffic data from DB: %s", exc)
-        return pd.DataFrame(columns=["session_date", "total_sessions", "total_pageviews",
-                                     "avg_bounce_rate", "avg_session_duration", "sessions_7day_avg"])
+        return pd.DataFrame(
+            columns=[
+                "session_date",
+                "total_sessions",
+                "total_pageviews",
+                "avg_bounce_rate",
+                "avg_session_duration",
+                "sessions_7day_avg",
+            ]
+        )
 
 
 def load_conversion_data() -> pd.DataFrame:
@@ -38,13 +52,15 @@ def load_conversion_data() -> pd.DataFrame:
     """
     try:
         from utils.query_runner import run_view
+
         df = run_view("vw_conversions")
         logger.info("Loaded %d rows from vw_conversions.", len(df))
         return df
     except Exception as exc:
         logger.warning("Could not load conversion data from DB: %s", exc)
-        return pd.DataFrame(columns=["session_date", "conversion_rate",
-                                     "goal_completions", "revenue"])
+        return pd.DataFrame(
+            columns=["session_date", "conversion_rate", "goal_completions", "revenue"]
+        )
 
 
 def prepare_features(df: pd.DataFrame, metric_type: str = "traffic") -> list[str]:
@@ -54,16 +70,18 @@ def prepare_features(df: pd.DataFrame, metric_type: str = "traffic") -> list[str
     are returned, so the caller can safely index df with the result.
     """
     candidates: list[str] = {
-        "traffic":    _TRAFFIC_FEATURES,
+        "traffic": _TRAFFIC_FEATURES,
         "conversion": _CONVERSION_FEATURES,
-        "bounce":     _BOUNCE_FEATURES,
+        "bounce": _BOUNCE_FEATURES,
     }.get(metric_type, _TRAFFIC_FEATURES)
 
     available = [c for c in candidates if c in df.columns]
     if not available:
         logger.warning(
             "No recognised feature columns found in df for metric_type='%s'. "
-            "Available columns: %s", metric_type, list(df.columns)
+            "Available columns: %s",
+            metric_type,
+            list(df.columns),
         )
     return available
 

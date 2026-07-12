@@ -4,30 +4,30 @@ Verification script for raw_ga4_sessions data quality.
 Usage:
     python ingestion/verify_ga4.py
 """
+
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from utils.db import get_engine, query_df
-from sqlalchemy import text
+from utils.db import query_df
 
 TABLE = "raw_ga4_sessions"
 
 
 def run_verification() -> None:
-    engine = get_engine()
-
     # Total row count
     df_count = query_df(f"SELECT COUNT(*) AS total FROM {TABLE}")
     total = df_count["total"].iloc[0]
     print(f"\n{'='*50}")
-    print(f"  raw_ga4_sessions Verification Report")
+    print("  raw_ga4_sessions Verification Report")
     print(f"{'='*50}")
     print(f"\nTotal rows: {total:,}")
 
     # Date range
-    df_dates = query_df(f"SELECT MIN(session_date) AS min_date, MAX(session_date) AS max_date FROM {TABLE}")
+    df_dates = query_df(
+        f"SELECT MIN(session_date) AS min_date, MAX(session_date) AS max_date FROM {TABLE}"
+    )
     min_date = df_dates["min_date"].iloc[0]
     max_date = df_dates["max_date"].iloc[0]
     print(f"Date range: {min_date}  ->  {max_date}")
@@ -42,10 +42,19 @@ def run_verification() -> None:
     """)
     print("\nTop 5 channels by session count:")
     for _, row in df_channels.iterrows():
-        print(f"  {row['channel_grouping']:<20} {int(row['total_sessions']):>8,} sessions")
+        print(
+            f"  {row['channel_grouping']:<20} {int(row['total_sessions']):>8,} sessions"
+        )
 
     # Null check for key columns
-    key_cols = ["session_date", "source", "medium", "channel_grouping", "sessions", "pageviews"]
+    key_cols = [
+        "session_date",
+        "source",
+        "medium",
+        "channel_grouping",
+        "sessions",
+        "pageviews",
+    ]
     print("\nNull value check:")
     found_nulls = False
     for col in key_cols:

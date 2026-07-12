@@ -5,6 +5,7 @@ Usage:
     python ingestion/ga4.py --mode full
     python ingestion/ga4.py --mode incremental --since 2024-01-01
 """
+
 import argparse
 import logging
 import sys
@@ -56,10 +57,12 @@ def load_csv() -> pd.DataFrame:
     df[num_cols] = df[num_cols].fillna(0)
 
     # Map CSV columns to DB column names
-    df = df.rename(columns={
-        "channel": "channel_grouping",
-        "avg_session_duration": "session_duration_s",
-    })
+    df = df.rename(
+        columns={
+            "channel": "channel_grouping",
+            "avg_session_duration": "session_duration_s",
+        }
+    )
 
     # Derive boolean bounce from bounce_rate float
     df["bounce"] = df["bounce_rate"] > 0.5
@@ -114,7 +117,14 @@ def ingest(mode: str, since: date | None = None) -> int:
                 conn.execute(text(f"TRUNCATE {TABLE} RESTART IDENTITY"))
                 log.info("Truncated %s", TABLE)
 
-        df.to_sql(TABLE, engine, if_exists="append", index=False, method="multi", chunksize=500)
+        df.to_sql(
+            TABLE,
+            engine,
+            if_exists="append",
+            index=False,
+            method="multi",
+            chunksize=500,
+        )
 
     except Exception as exc:
         log.error("Insert failed: %s", exc)
@@ -135,10 +145,18 @@ def ingest(mode: str, since: date | None = None) -> int:
 
 def main():
     parser = argparse.ArgumentParser(description="Ingest GA4 CSV into raw_ga4_sessions")
-    parser.add_argument("--mode", choices=["full", "incremental"], default="full",
-                        help="full: truncate and reload; incremental: only insert new dates")
-    parser.add_argument("--since", default=None, metavar="YYYY-MM-DD",
-                        help="Start date for incremental load (e.g. 2024-01-01)")
+    parser.add_argument(
+        "--mode",
+        choices=["full", "incremental"],
+        default="full",
+        help="full: truncate and reload; incremental: only insert new dates",
+    )
+    parser.add_argument(
+        "--since",
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="Start date for incremental load (e.g. 2024-01-01)",
+    )
     args = parser.parse_args()
     since = date.fromisoformat(args.since) if args.since else None
     try:

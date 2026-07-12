@@ -15,6 +15,7 @@ Usage:
     python ingestion/run_all.py --mode full --dry-run
     python ingestion/run_all.py --mode full --skip-transforms
 """
+
 import argparse
 import logging
 import sys
@@ -53,6 +54,7 @@ def _yellow(s: str) -> str:
 
 def _row_count(table: str) -> int:
     from utils.db import query_df
+
     return int(query_df(f"SELECT COUNT(*) AS n FROM {table}")["n"].iloc[0])
 
 
@@ -69,12 +71,11 @@ def _run_pipeline(
     try:
         if dry_run:
             # Validate: just import and check the CSV source exists
-            from pathlib import Path as P
             csv_map = {
-                "ga4":         "ga4_sessions.csv",
+                "ga4": "ga4_sessions.csv",
                 "server_logs": "server_logs.csv",
                 "clickstream": "clickstream_events.csv",
-                "scraper":     "scrape_pages.csv",
+                "scraper": "scrape_pages.csv",
             }
             csv_path = ROOT / "data" / "raw" / csv_map.get(name, "")
             if not csv_path.exists():
@@ -114,14 +115,28 @@ def _save_run_log(results: list, mode: str, dry_run: bool) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run all ingestion pipelines")
     parser.add_argument("--mode", choices=["full", "incremental"], required=True)
-    parser.add_argument("--since", type=date.fromisoformat, default=None,
-                        help="Start date for incremental mode (YYYY-MM-DD)")
-    parser.add_argument("--pipeline", choices=["ga4", "server_logs", "clickstream", "scraper"],
-                        default=None, help="Run only this pipeline (default: all)")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Validate inputs without inserting any rows")
-    parser.add_argument("--skip-transforms", action="store_true",
-                        help="Skip ETL transform, validation, and alert steps")
+    parser.add_argument(
+        "--since",
+        type=date.fromisoformat,
+        default=None,
+        help="Start date for incremental mode (YYYY-MM-DD)",
+    )
+    parser.add_argument(
+        "--pipeline",
+        choices=["ga4", "server_logs", "clickstream", "scraper"],
+        default=None,
+        help="Run only this pipeline (default: all)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate inputs without inserting any rows",
+    )
+    parser.add_argument(
+        "--skip-transforms",
+        action="store_true",
+        help="Skip ETL transform, validation, and alert steps",
+    )
     args = parser.parse_args()
 
     if args.mode == "incremental" and args.since is None:
@@ -133,20 +148,21 @@ def main() -> None:
     from ingestion.scraper import ingest as scraper_ingest
 
     all_pipelines = [
-        ("ga4",         ga4_ingest,         "raw_ga4_sessions"),
-        ("server_logs", server_ingest,       "raw_server_logs"),
-        ("clickstream", clickstream_ingest,  "raw_clickstream_events"),
-        ("scraper",     scraper_ingest,      "raw_scrape_pages"),
+        ("ga4", ga4_ingest, "raw_ga4_sessions"),
+        ("server_logs", server_ingest, "raw_server_logs"),
+        ("clickstream", clickstream_ingest, "raw_clickstream_events"),
+        ("scraper", scraper_ingest, "raw_scrape_pages"),
     ]
 
     # Filter to requested pipeline if --pipeline supplied
     pipelines = (
         [p for p in all_pipelines if p[0] == args.pipeline]
-        if args.pipeline else all_pipelines
+        if args.pipeline
+        else all_pipelines
     )
 
     if args.dry_run:
-        print(_yellow(f"\n  DRY RUN — no data will be inserted\n"))
+        print(_yellow("\n  DRY RUN -- no data will be inserted\n"))
 
     wall_start = time.perf_counter()
     results = []
@@ -155,7 +171,9 @@ def main() -> None:
     total = len(pipelines)
     for idx, (name, fn, table) in enumerate(pipelines, start=1):
         print(f"  [{idx}/{total}] Running {name}...", flush=True)
-        rows, elapsed, status = _run_pipeline(name, fn, args.mode, args.since, args.dry_run)
+        rows, elapsed, status = _run_pipeline(
+            name, fn, args.mode, args.since, args.dry_run
+        )
         db_count = _row_count(table) if not args.dry_run else None
         results.append((name, table, rows, elapsed, db_count, status))
 
@@ -170,8 +188,10 @@ def main() -> None:
         ok = status == "success"
         tag = _green("[OK]") if ok else _red("[ERR]")
         rows_str = str(rows) if rows is not None else "—"
-        db_str   = str(db_count) if db_count is not None else "—"
-        print(f"  {tag} {name:<14} {rows_str:>5} rows  {elapsed:>6.1f}s  |  {table}: {db_str} total")
+        db_str = str(db_count) if db_count is not None else "—"
+        print(
+            f"  {tag} {name:<14} {rows_str:>5} rows  {elapsed:>6.1f}s  |  {table}: {db_str} total"
+        )
     print("-" * 65)
     print(f"  Total wall time: {total_elapsed:.1f}s")
     print("=" * 65)
@@ -187,6 +207,7 @@ def main() -> None:
         print("=" * 65)
         try:
             from sql.run_all_transforms import run as run_transforms
+
             run_transforms(verbose=True)
         except Exception as exc:
             print(f"  [ERR] Transform step failed: {exc}")
@@ -198,6 +219,7 @@ def main() -> None:
         print("=" * 65)
         try:
             from utils.validate_data import run_validation, print_report
+
             val = run_validation()
             print_report(val)
         except Exception as exc:
@@ -210,8 +232,11 @@ def main() -> None:
         print("=" * 65)
         try:
             from ai.smart_alerts.run_alerts import run_pipeline
+
             summary = run_pipeline(save_to_db=True, verbose=True)
-            status_str = "ALL CLEAR" if summary.all_clear else f"{summary.total_alerts} alerts"
+            status_str = (
+                "ALL CLEAR" if summary.all_clear else f"{summary.total_alerts} alerts"
+            )
             print(f"\n  Alert check complete: {status_str}")
         except Exception as exc:
             print(f"  [ERR] Alert step failed: {exc}")

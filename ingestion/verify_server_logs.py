@@ -4,20 +4,20 @@ Verification script for raw_server_logs data quality.
 Usage:
     python ingestion/verify_server_logs.py
 """
+
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.db import query_df
-from sqlalchemy import text
 
 TABLE = "raw_server_logs"
 
 
 def run_verification() -> None:
     print(f"\n{'='*50}")
-    print(f"  raw_server_logs Verification Report")
+    print("  raw_server_logs Verification Report")
     print(f"{'='*50}")
 
     # Total row count

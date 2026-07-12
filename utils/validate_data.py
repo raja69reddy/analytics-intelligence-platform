@@ -4,6 +4,7 @@ Checks all 4 raw tables for expected columns, row counts, date ranges,
 null values, and duplicate primary keys. Prints PASS/FAIL for each check
 and returns an overall health score (0-100).
 """
+
 from __future__ import annotations
 
 import sys
@@ -14,57 +15,85 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from utils.db import query_df
+from utils.db import query_df  # noqa: E402
 
 # ── Expected schemas ──────────────────────────────────────────────────────────
 
 EXPECTED_COLUMNS = {
     "raw_ga4_sessions": [
-        "id", "session_date", "channel_grouping", "device_category",
-        "landing_page", "sessions", "new_users", "pageviews",
-        "bounce", "session_duration_s", "conversions", "revenue", "ingested_at",
+        "id",
+        "session_date",
+        "channel_grouping",
+        "device_category",
+        "landing_page",
+        "sessions",
+        "new_users",
+        "pageviews",
+        "bounce",
+        "session_duration_s",
+        "conversions",
+        "revenue",
+        "ingested_at",
     ],
     "raw_server_logs": [
-        "id", "log_time", "ip_address", "method", "url",
-        "status_code", "response_time_ms", "ingested_at",
+        "id",
+        "log_time",
+        "ip_address",
+        "method",
+        "url",
+        "status_code",
+        "response_time_ms",
+        "ingested_at",
     ],
     "raw_clickstream_events": [
-        "id", "event_time", "event_name", "page_url",
-        "scroll_depth_pct", "device_category", "ingested_at",
+        "id",
+        "event_time",
+        "event_name",
+        "page_url",
+        "scroll_depth_pct",
+        "device_category",
+        "ingested_at",
     ],
     "raw_scrape_pages": [
-        "id", "scraped_at", "url", "title", "word_count",
-        "load_time_ms", "http_status", "ingested_at",
+        "id",
+        "scraped_at",
+        "url",
+        "title",
+        "word_count",
+        "load_time_ms",
+        "http_status",
+        "ingested_at",
     ],
 }
 
 MIN_ROW_COUNTS = {
-    "raw_ga4_sessions":       100,
-    "raw_server_logs":        500,
+    "raw_ga4_sessions": 100,
+    "raw_server_logs": 500,
     "raw_clickstream_events": 500,
-    "raw_scrape_pages":        10,
+    "raw_scrape_pages": 10,
 }
 
 NOT_NULL_CHECKS = {
-    "raw_ga4_sessions":       ["session_date", "sessions", "channel_grouping"],
-    "raw_server_logs":        ["log_time", "url", "status_code"],
+    "raw_ga4_sessions": ["session_date", "sessions", "channel_grouping"],
+    "raw_server_logs": ["log_time", "url", "status_code"],
     "raw_clickstream_events": ["event_time", "event_name"],
-    "raw_scrape_pages":       ["url"],
+    "raw_scrape_pages": ["url"],
 }
 
 DATE_COLUMNS = {
-    "raw_ga4_sessions":       "session_date",
-    "raw_server_logs":        "log_time",
+    "raw_ga4_sessions": "session_date",
+    "raw_server_logs": "log_time",
     "raw_clickstream_events": "event_time",
-    "raw_scrape_pages":       "scraped_at",
+    "raw_scrape_pages": "scraped_at",
 }
 
 
 # ── Check runners ─────────────────────────────────────────────────────────────
 
+
 class CheckResult:
     def __init__(self, name: str, passed: bool, detail: str = ""):
-        self.name   = name
+        self.name = name
         self.passed = passed
         self.detail = detail
 
@@ -83,7 +112,9 @@ def _check_columns(table: str) -> list[CheckResult]:
             if col in actual:
                 results.append(CheckResult(f"{table}.{col} exists", True))
             else:
-                results.append(CheckResult(f"{table}.{col} exists", False, "column missing"))
+                results.append(
+                    CheckResult(f"{table}.{col} exists", False, "column missing")
+                )
     except Exception as exc:
         results.append(CheckResult(f"{table} column check", False, str(exc)))
     return results
@@ -92,7 +123,7 @@ def _check_columns(table: str) -> list[CheckResult]:
 def _check_row_count(table: str) -> CheckResult:
     try:
         df = query_df(f"SELECT COUNT(*) n FROM {table}")
-        n  = int(df["n"].iloc[0])
+        n = int(df["n"].iloc[0])
         mn = MIN_ROW_COUNTS[table]
         if n >= mn:
             return CheckResult(f"{table} row count >= {mn:,}", True, f"{n:,} rows")
@@ -109,14 +140,25 @@ def _check_date_range(table: str) -> list[CheckResult]:
         mn = df["mn"].iloc[0]
         mx = df["mx"].iloc[0]
         if mn is None or mx is None:
-            results.append(CheckResult(f"{table} date range not null", False, "min or max is NULL"))
+            results.append(
+                CheckResult(f"{table} date range not null", False, "min or max is NULL")
+            )
         else:
-            results.append(CheckResult(f"{table} date range not null", True, f"{mn} to {mx}"))
+            results.append(
+                CheckResult(f"{table} date range not null", True, f"{mn} to {mx}")
+            )
             if str(mn) <= str(mx):
-                results.append(CheckResult(f"{table} date range valid (min <= max)", True))
+                results.append(
+                    CheckResult(f"{table} date range valid (min <= max)", True)
+                )
             else:
-                results.append(CheckResult(f"{table} date range valid (min <= max)", False,
-                                           f"min {mn} > max {mx}"))
+                results.append(
+                    CheckResult(
+                        f"{table} date range valid (min <= max)",
+                        False,
+                        f"min {mn} > max {mx}",
+                    )
+                )
     except Exception as exc:
         results.append(CheckResult(f"{table} date range", False, str(exc)))
     return results
@@ -131,8 +173,11 @@ def _check_nulls(table: str) -> list[CheckResult]:
             if nulls == 0:
                 results.append(CheckResult(f"{table}.{col} no nulls", True))
             else:
-                results.append(CheckResult(f"{table}.{col} no nulls", False,
-                                           f"{nulls:,} null rows"))
+                results.append(
+                    CheckResult(
+                        f"{table}.{col} no nulls", False, f"{nulls:,} null rows"
+                    )
+                )
         except Exception as exc:
             results.append(CheckResult(f"{table}.{col} null check", False, str(exc)))
     return results
@@ -153,8 +198,12 @@ def _check_pk_duplicates(table: str) -> CheckResult:
 
 def _check_views_accessible() -> list[CheckResult]:
     VIEWS = [
-        "vw_daily_traffic", "vw_channel_performance", "vw_conversions",
-        "vw_top_pages", "vw_scroll_depth", "vw_engagement_events",
+        "vw_daily_traffic",
+        "vw_channel_performance",
+        "vw_conversions",
+        "vw_top_pages",
+        "vw_scroll_depth",
+        "vw_engagement_events",
     ]
     results = []
     for v in VIEWS:
@@ -179,6 +228,7 @@ def _check_dim_dates() -> CheckResult:
 
 # ── Main validation runner ────────────────────────────────────────────────────
 
+
 def run_validation() -> dict:
     all_checks: list[CheckResult] = []
     sections: dict[str, list[CheckResult]] = {}
@@ -201,16 +251,16 @@ def run_validation() -> dict:
     sections["dim_tables"] = [dim_check]
     all_checks.append(dim_check)
 
-    total  = len(all_checks)
+    total = len(all_checks)
     passed = sum(1 for c in all_checks if c.passed)
-    score  = round(passed / total * 100) if total else 0
+    score = round(passed / total * 100) if total else 0
 
     return {
-        "sections":     sections,
-        "all_checks":   all_checks,
+        "sections": sections,
+        "all_checks": all_checks,
         "total_checks": total,
-        "passed":       passed,
-        "failed":       total - passed,
+        "passed": passed,
+        "failed": total - passed,
         "health_score": score,
         "generated_at": datetime.now().isoformat(),
     }
@@ -232,7 +282,7 @@ def print_report(result: dict) -> None:
     print(sep)
     n_pass = result["passed"]
     n_fail = result["failed"]
-    score  = result["health_score"]
+    score = result["health_score"]
     print(f"  Total checks:  {result['total_checks']}")
     print(f"  Passed:        {n_pass}")
     print(f"  Failed:        {n_fail}")

@@ -2,15 +2,14 @@
 Tests for behavior page data: vw_top_pages, vw_scroll_depth,
 vw_engagement_events, and funnel stage data from raw_clickstream_events.
 """
+
 import sys
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from utils.db import query_df
+from utils.db import query_df  # noqa: E402
 
 
 class TestVwTopPagesBehavior:
@@ -73,9 +72,9 @@ class TestVwEngagementEventsTypes:
     def test_all_event_types_in_source(self):
         df = query_df("SELECT DISTINCT event_name FROM raw_clickstream_events")
         present = set(df["event_name"].tolist())
-        assert self.ALL_EVENT_TYPES.issubset(present), (
-            f"Expected event types {self.ALL_EVENT_TYPES} not all present; got {present}"
-        )
+        assert self.ALL_EVENT_TYPES.issubset(
+            present
+        ), f"Expected event types {self.ALL_EVENT_TYPES} not all present; got {present}"
 
     def test_event_columns_non_negative(self):
         df = query_df(
@@ -90,7 +89,9 @@ class TestVwEngagementEventsTypes:
             "SELECT * FROM vw_engagement_events "
             "WHERE total_events < click_events + scroll_events + pageview_events + form_submit_events"
         )
-        assert len(df) == 0, "total_events must be >= sum of individual event type columns"
+        assert (
+            len(df) == 0
+        ), "total_events must be >= sum of individual event type columns"
 
 
 class TestFunnelData:
@@ -143,4 +144,6 @@ SELECT
         df = self._funnel_df()
         purchase = int(df["purchase"].iloc[0])
         checkout = int(df["checkout"].iloc[0])
-        assert purchase <= checkout, f"Purchase {purchase} should be <= checkout {checkout}"
+        assert (
+            purchase <= checkout
+        ), f"Purchase {purchase} should be <= checkout {checkout}"

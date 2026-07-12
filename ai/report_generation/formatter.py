@@ -1,15 +1,17 @@
 """Report formatting utilities — markdown, HTML, and file output."""
-import os
+
 from datetime import datetime
 from pathlib import Path
 
-REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "processed" / "reports"
+REPORTS_DIR = (
+    Path(__file__).resolve().parent.parent.parent / "data" / "processed" / "reports"
+)
 
 
 def format_as_markdown(report: dict) -> str:
     """Format a report dict as a markdown document."""
     lines = [
-        f"# Analytics Intelligence Report",
+        "# Analytics Intelligence Report",
         f"**Generated:** {report.get('generated_at', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}",
         "",
         "---",
@@ -17,7 +19,14 @@ def format_as_markdown(report: dict) -> str:
     ]
 
     if report.get("executive_summary"):
-        lines += ["## Executive Summary", "", report["executive_summary"], "", "---", ""]
+        lines += [
+            "## Executive Summary",
+            "",
+            report["executive_summary"],
+            "",
+            "---",
+            "",
+        ]
 
     section_map = {
         "traffic": "## Traffic & Sessions",
@@ -59,9 +68,7 @@ def format_as_html(report: dict) -> str:
         f"<title>Analytics Report {generated}</title>"
         "<style>body{{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;line-height:1.6}}"
         "h1,h2{{color:#1a1a2e}}hr{{border:1px solid #eee}}</style>"
-        "</head><body>\n"
-        + "\n".join(body_lines)
-        + "\n</body></html>"
+        "</head><body>\n" + "\n".join(body_lines) + "\n</body></html>"
     )
 
 

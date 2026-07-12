@@ -1,4 +1,5 @@
 """Conversion Tracking — loads from vw_conversions and vw_funnel."""
+
 import os
 import sys
 
@@ -7,28 +8,27 @@ import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from dashboard.components.charts import bar_chart, line_chart, pie_chart
 from dashboard.components.filters import get_channel_filter, get_date_filter
 from dashboard.components.metrics import (
     display_kpi_row,
     format_number,
-    format_percentage,
 )
 from utils.query_runner import run_view
 
-st.set_page_config(
-    page_title="Conversion Tracking", page_icon="🎯", layout="wide"
-)
+st.set_page_config(page_title="Conversion Tracking", page_icon="🎯", layout="wide")
 st.title("🎯 Conversion Tracking")
+
 
 # ── Cached data loaders ────────────────────────────────────────────────────────
 @st.cache_data(ttl=300)
 def _load_conversions():
     return run_view("vw_conversions")
 
+
 @st.cache_data(ttl=300)
 def _load_funnel():
     return run_view("vw_funnel")
+
 
 # ── Sidebar filters ───────────────────────────────────────────────────────────
 with st.sidebar:
@@ -43,12 +43,12 @@ with st.sidebar:
 
 # Apply date and channel filters to vw_conversions
 from dashboard.components.filters import apply_filters  # noqa: E402
-import pandas as pd                                     # noqa: E402
+import pandas as pd  # noqa: E402
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 with st.spinner("Loading conversion data…"):
     try:
-        df_conv  = _load_conversions()
+        df_conv = _load_conversions()
         df_funnel = _load_funnel()
     except Exception as exc:
         st.error(f"Failed to load data from the database: {exc}")
@@ -57,24 +57,28 @@ with st.spinner("Loading conversion data…"):
 df_conv = apply_filters(df_conv, start_date, end_date, channels)
 
 with st.expander("Debug: data shapes", expanded=False):
-    st.write({
-        "vw_conversions": df_conv.shape,
-        "vw_funnel":      df_funnel.shape,
-    })
+    st.write(
+        {
+            "vw_conversions": df_conv.shape,
+            "vw_funnel": df_funnel.shape,
+        }
+    )
 
 # ── KPI cards ─────────────────────────────────────────────────────────────────
-total_sessions      = int(df_conv["sessions"].sum())        if not df_conv.empty else 0
-total_completions   = int(df_conv["goal_completions"].sum()) if not df_conv.empty else 0
-total_revenue       = float(df_conv["revenue"].sum())        if not df_conv.empty else 0.0
-overall_cvr         = (total_completions / total_sessions * 100) if total_sessions else 0.0
+total_sessions = int(df_conv["sessions"].sum()) if not df_conv.empty else 0
+total_completions = int(df_conv["goal_completions"].sum()) if not df_conv.empty else 0
+total_revenue = float(df_conv["revenue"].sum()) if not df_conv.empty else 0.0
+overall_cvr = (total_completions / total_sessions * 100) if total_sessions else 0.0
 avg_rev_per_session = (total_revenue / total_sessions) if total_sessions else 0.0
 
-display_kpi_row([
-    {"title": "Overall Conversion Rate", "value": f"{overall_cvr:.2f}%"},
-    {"title": "Total Goal Completions",  "value": format_number(total_completions)},
-    {"title": "Total Revenue",           "value": f"${total_revenue:,.2f}"},
-    {"title": "Avg Revenue Per Session", "value": f"${avg_rev_per_session:.2f}"},
-])
+display_kpi_row(
+    [
+        {"title": "Overall Conversion Rate", "value": f"{overall_cvr:.2f}%"},
+        {"title": "Total Goal Completions", "value": format_number(total_completions)},
+        {"title": "Total Revenue", "value": f"${total_revenue:,.2f}"},
+        {"title": "Avg Revenue Per Session", "value": f"${avg_rev_per_session:.2f}"},
+    ]
+)
 
 st.divider()
 
@@ -85,10 +89,14 @@ CVR_TARGET = 3.5  # target CVR % for reference line
 if not df_conv.empty:
     daily_cvr = (
         df_conv.groupby("session_date")
-        .apply(lambda g: pd.Series({
-            "sessions":        g["sessions"].sum(),
-            "goal_completions": g["goal_completions"].sum(),
-        }))
+        .apply(
+            lambda g: pd.Series(
+                {
+                    "sessions": g["sessions"].sum(),
+                    "goal_completions": g["goal_completions"].sum(),
+                }
+            )
+        )
         .reset_index()
     )
     daily_cvr["cvr_pct"] = (
@@ -96,10 +104,7 @@ if not df_conv.empty:
     ).round(4)
     daily_cvr = daily_cvr.sort_values("session_date")
     daily_cvr["cvr_7day_avg"] = (
-        daily_cvr["cvr_pct"]
-        .rolling(7, min_periods=1)
-        .mean()
-        .round(4)
+        daily_cvr["cvr_pct"].rolling(7, min_periods=1).mean().round(4)
     )
 
     fig_cvr = go.Figure()
@@ -108,28 +113,36 @@ if not df_conv.empty:
         "#2ca02c" if v >= CVR_TARGET else "#d62728"
         for v in daily_cvr["cvr_pct"].fillna(0)
     ]
-    fig_cvr.add_trace(go.Bar(
-        x=daily_cvr["session_date"],
-        y=daily_cvr["cvr_pct"],
-        name="Daily CVR",
-        marker_color=colors,
-        opacity=0.6,
-    ))
-    fig_cvr.add_trace(go.Scatter(
-        x=daily_cvr["session_date"],
-        y=daily_cvr["cvr_7day_avg"],
-        name="7-Day Avg",
-        line={"color": "#1f77b4", "width": 2},
-    ))
+    fig_cvr.add_trace(
+        go.Bar(
+            x=daily_cvr["session_date"],
+            y=daily_cvr["cvr_pct"],
+            name="Daily CVR",
+            marker_color=colors,
+            opacity=0.6,
+        )
+    )
+    fig_cvr.add_trace(
+        go.Scatter(
+            x=daily_cvr["session_date"],
+            y=daily_cvr["cvr_7day_avg"],
+            name="7-Day Avg",
+            line={"color": "#1f77b4", "width": 2},
+        )
+    )
     fig_cvr.add_hline(
-        y=CVR_TARGET, line_dash="dash", line_color="orange",
+        y=CVR_TARGET,
+        line_dash="dash",
+        line_color="orange",
         annotation_text=f"Target {CVR_TARGET}%",
         annotation_position="bottom right",
     )
     fig_cvr.update_layout(
         title="Conversion Rate % — Daily with 7-Day Rolling Average",
-        xaxis_title="Date", yaxis_title="CVR (%)",
-        template="plotly_white", legend=dict(orientation="h"),
+        xaxis_title="Date",
+        yaxis_title="CVR (%)",
+        template="plotly_white",
+        legend=dict(orientation="h"),
     )
     st.plotly_chart(fig_cvr, use_container_width=True)
 else:
@@ -150,12 +163,18 @@ if not df_conv.empty:
     df_src["source_medium"] = df_src["source"] + " / " + df_src["medium"]
 
     import plotly.express as px
+
     fig_src = px.bar(
-        df_src, x="source_medium", y="goal_completions",
+        df_src,
+        x="source_medium",
+        y="goal_completions",
         color="channel_grouping",
         title="Goal Completions by Source / Medium (Top 15)",
-        labels={"source_medium": "Source / Medium", "goal_completions": "Completions",
-                "channel_grouping": "Channel"},
+        labels={
+            "source_medium": "Source / Medium",
+            "goal_completions": "Completions",
+            "channel_grouping": "Channel",
+        },
         template="plotly_white",
     )
     fig_src.update_xaxes(tickangle=30)
@@ -174,14 +193,16 @@ if not df_conv.empty:
         .reset_index()
         .sort_values("revenue", ascending=True)
     )
-    fig_rev = go.Figure(go.Bar(
-        x=df_rev["revenue"],
-        y=df_rev["channel_grouping"],
-        orientation="h",
-        text=[f"${v:,.0f}" for v in df_rev["revenue"]],
-        textposition="outside",
-        marker_color="#636EFA",
-    ))
+    fig_rev = go.Figure(
+        go.Bar(
+            x=df_rev["revenue"],
+            y=df_rev["channel_grouping"],
+            orientation="h",
+            text=[f"${v:,.0f}" for v in df_rev["revenue"]],
+            textposition="outside",
+            marker_color="#636EFA",
+        )
+    )
     fig_rev.update_layout(
         title="Total Revenue by Channel",
         xaxis_title="Revenue ($)",
@@ -197,31 +218,35 @@ st.divider()
 # ── Drop-off waterfall chart ───────────────────────────────────────────────────
 st.subheader("Funnel Drop-off Analysis")
 if not df_funnel.empty:
-    stages   = df_funnel["stage_name"].tolist()
-    reached  = df_funnel["users_reached"].tolist()
+    stages = df_funnel["stage_name"].tolist()
+    reached = df_funnel["users_reached"].tolist()
     dropoffs = df_funnel["drop_off_count"].tolist()
 
     # Waterfall: first bar absolute (total), then each stage = -dropoff
-    wf_x       = [stages[0]] + stages[1:]
+    wf_x = [stages[0]] + stages[1:]
     wf_measure = ["absolute"] + ["relative"] * (len(stages) - 1)
-    wf_y       = [reached[0]] + [-d for d in dropoffs[:-1]] + [0]
-    wf_colors  = ["#636EFA"] + [
-        "#d62728" if d > 0 else "#2ca02c" for d in dropoffs[:-1]
-    ] + ["#2ca02c"]
+    wf_y = [reached[0]] + [-d for d in dropoffs[:-1]] + [0]
+    wf_colors = (
+        ["#636EFA"]
+        + ["#d62728" if d > 0 else "#2ca02c" for d in dropoffs[:-1]]
+        + ["#2ca02c"]
+    )
 
-    fig_wf = go.Figure(go.Waterfall(
-        name="Funnel",
-        orientation="v",
-        measure=wf_measure,
-        x=wf_x,
-        y=wf_y,
-        text=[f"{v:,}" for v in ([reached[0]] + [-d for d in dropoffs[:-1]] + [0])],
-        textposition="outside",
-        connector={"line": {"color": "rgba(63,63,63,0.3)"}},
-        increasing={"marker": {"color": "#2ca02c"}},
-        decreasing={"marker": {"color": "#d62728"}},
-        totals={"marker": {"color": "#636EFA"}},
-    ))
+    fig_wf = go.Figure(
+        go.Waterfall(
+            name="Funnel",
+            orientation="v",
+            measure=wf_measure,
+            x=wf_x,
+            y=wf_y,
+            text=[f"{v:,}" for v in ([reached[0]] + [-d for d in dropoffs[:-1]] + [0])],
+            textposition="outside",
+            connector={"line": {"color": "rgba(63,63,63,0.3)"}},
+            increasing={"marker": {"color": "#2ca02c"}},
+            decreasing={"marker": {"color": "#d62728"}},
+            totals={"marker": {"color": "#636EFA"}},
+        )
+    )
     fig_wf.update_layout(
         title="Users Entering vs Dropping Off at Each Stage",
         xaxis_title="Funnel Stage",
@@ -254,18 +279,20 @@ if not df_funnel.empty:
     colors = []
     for i, row in df_f.iterrows():
         if i == max_drop_idx:
-            colors.append("#d62728")   # red = biggest drop-off stage
+            colors.append("#d62728")  # red = biggest drop-off stage
         else:
             colors.append("#636EFA")
 
-    fig_funnel = go.Figure(go.Funnel(
-        y=df_f["stage_name"].tolist(),
-        x=df_f["users_reached"].tolist(),
-        text=df_f["label"].tolist(),
-        textinfo="text",
-        marker={"color": colors},
-        connector={"line": {"color": "rgba(100,100,100,0.3)", "width": 2}},
-    ))
+    fig_funnel = go.Figure(
+        go.Funnel(
+            y=df_f["stage_name"].tolist(),
+            x=df_f["users_reached"].tolist(),
+            text=df_f["label"].tolist(),
+            textinfo="text",
+            marker={"color": colors},
+            connector={"line": {"color": "rgba(100,100,100,0.3)", "width": 2}},
+        )
+    )
     biggest_stage = df_f.loc[max_drop_idx, "stage_name"]
     fig_funnel.update_layout(
         title=f"Funnel — Biggest drop-off at: {biggest_stage}",
@@ -294,13 +321,16 @@ if not df_conv.empty:
         df_ch["goal_completions"] / df_ch["sessions"].replace(0, None) * 100
     ).round(2)
     df_ch["revenue"] = df_ch["revenue"].round(2)
-    df_ch.rename(columns={
-        "channel_grouping": "Channel",
-        "sessions": "Sessions",
-        "goal_completions": "Conversions",
-        "cvr_pct": "CVR (%)",
-        "revenue": "Revenue ($)",
-    }, inplace=True)
+    df_ch.rename(
+        columns={
+            "channel_grouping": "Channel",
+            "sessions": "Sessions",
+            "goal_completions": "Conversions",
+            "cvr_pct": "CVR (%)",
+            "revenue": "Revenue ($)",
+        },
+        inplace=True,
+    )
 
     st.dataframe(df_ch, use_container_width=True, hide_index=True)
     st.download_button(
@@ -329,18 +359,17 @@ if not df_conv.empty:
         .sort_values("dow")
     )
     best_dow = int(dow_agg.loc[dow_agg["goal_completions"].idxmax(), "dow"])
-    dow_colors = [
-        "#2ca02c" if d == best_dow else "#636EFA"
-        for d in dow_agg["dow"]
-    ]
+    dow_colors = ["#2ca02c" if d == best_dow else "#636EFA" for d in dow_agg["dow"]]
 
-    fig_dow = go.Figure(go.Bar(
-        x=dow_agg["day_name"],
-        y=dow_agg["goal_completions"].round(1),
-        text=dow_agg["goal_completions"].round(1),
-        textposition="outside",
-        marker_color=dow_colors,
-    ))
+    fig_dow = go.Figure(
+        go.Bar(
+            x=dow_agg["day_name"],
+            y=dow_agg["goal_completions"].round(1),
+            text=dow_agg["goal_completions"].round(1),
+            textposition="outside",
+            marker_color=dow_colors,
+        )
+    )
     best_day_name = dow_agg.loc[dow_agg["dow"] == best_dow, "day_name"].iloc[0]
     fig_dow.update_layout(
         title=f"Avg Goal Completions by Day of Week — Best day: {best_day_name}",

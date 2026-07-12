@@ -1,4 +1,5 @@
 """Pipeline run logging, history, stats, and failure alerting."""
+
 import json
 import logging
 from datetime import datetime
@@ -24,22 +25,26 @@ def _load_history() -> list[dict]:
 
 
 def _save_history(history: list[dict]) -> None:
-    _HISTORY_FILE.write_text(json.dumps(history, indent=2, default=str), encoding="utf-8")
+    _HISTORY_FILE.write_text(
+        json.dumps(history, indent=2, default=str), encoding="utf-8"
+    )
 
 
 def log_pipeline_run(name: str, rows: int, duration: float, status: str) -> dict:
     """Append a pipeline run record and return it."""
     record = {
-        "name":       name,
-        "rows":       rows,
+        "name": name,
+        "rows": rows,
         "duration_s": round(duration, 2),
-        "status":     status,
-        "timestamp":  datetime.now().isoformat(),
+        "status": status,
+        "timestamp": datetime.now().isoformat(),
     }
     history = _load_history()
     history.append(record)
     _save_history(history)
-    logger.info(f"Logged pipeline run: {name} status={status} rows={rows} duration={duration:.1f}s")
+    logger.info(
+        f"Logged pipeline run: {name} status={status} rows={rows} duration={duration:.1f}s"
+    )
     return record
 
 
@@ -68,9 +73,9 @@ def get_pipeline_stats() -> dict[str, dict]:
     result = {}
     for name, s in stats.items():
         result[name] = {
-            "total_runs":       s["total_runs"],
+            "total_runs": s["total_runs"],
             "success_rate_pct": round(s["successes"] / s["total_runs"] * 100, 1),
-            "avg_duration_s":   round(s["total_duration_s"] / s["total_runs"], 2),
+            "avg_duration_s": round(s["total_duration_s"] / s["total_runs"], 2),
         }
     return result
 

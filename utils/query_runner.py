@@ -2,12 +2,13 @@
 Utility for running SQL files or query strings against the web_analytics database.
 Prints execution time and returns a DataFrame.
 """
+
 import time
 from pathlib import Path
 
 import pandas as pd
 
-from utils.db import get_engine, query_df
+from utils.db import query_df
 
 _PROCESSED_DIR = Path(__file__).resolve().parent.parent / "data" / "processed"
 

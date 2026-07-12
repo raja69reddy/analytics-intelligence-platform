@@ -1,4 +1,5 @@
 """In-memory query cache for NLQ results."""
+
 import time
 from typing import Any, Optional
 

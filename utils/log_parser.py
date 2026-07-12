@@ -8,6 +8,7 @@ Functions:
     parse_response_size   - convert response bytes to kilobytes
     extract_page_from_url - extract the clean path component from a URL
 """
+
 import ipaddress
 from datetime import datetime
 from urllib.parse import urlparse
@@ -47,6 +48,7 @@ def parse_timestamp(ts: str | datetime) -> datetime | None:
     if not ts:
         return None
     import pandas as pd
+
     parsed = pd.to_datetime(ts, errors="coerce")
     return None if parsed is pd.NaT else parsed.to_pydatetime()
 
@@ -111,4 +113,4 @@ def extract_page_from_url(url: str) -> str:
 
 
 # ── module-level type alias used by callers ────────────────────────────────
-StatusCategory = str   # '2xx Success' | '3xx Redirect' | '4xx Client Error' | '5xx Server Error' | 'Unknown'
+StatusCategory = str  # '2xx Success' | '3xx Redirect' | '4xx Client Error' | '5xx Server Error' | 'Unknown'

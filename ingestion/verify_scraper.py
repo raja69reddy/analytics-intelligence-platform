@@ -4,6 +4,7 @@ Verification script for raw_scrape_pages data quality.
 Usage:
     python ingestion/verify_scraper.py
 """
+
 import sys
 from pathlib import Path
 
@@ -16,7 +17,7 @@ TABLE = "raw_scrape_pages"
 
 def run_verification() -> None:
     print(f"\n{'='*50}")
-    print(f"  raw_scrape_pages Verification Report")
+    print("  raw_scrape_pages Verification Report")
     print(f"{'='*50}")
 
     # Total row count
@@ -24,7 +25,9 @@ def run_verification() -> None:
     print(f"\nTotal rows: {total:,}")
 
     # Average word count
-    df_avg = query_df(f"SELECT ROUND(AVG(word_count)) AS avg_wc, MIN(word_count) AS min_wc, MAX(word_count) AS max_wc FROM {TABLE}")
+    df_avg = query_df(
+        f"SELECT ROUND(AVG(word_count)) AS avg_wc, MIN(word_count) AS min_wc, MAX(word_count) AS max_wc FROM {TABLE}"
+    )
     r = df_avg.iloc[0]
     print(f"Word count — avg: {r['avg_wc']}  min: {r['min_wc']}  max: {r['max_wc']}")
 
@@ -58,14 +61,21 @@ def run_verification() -> None:
     print("\nNull value check:")
     found_nulls = False
     for col in key_cols:
-        n_null = int(query_df(f"SELECT COUNT(*) AS n FROM {TABLE} WHERE {col} IS NULL")["n"].iloc[0])
+        n_null = int(
+            query_df(f"SELECT COUNT(*) AS n FROM {TABLE} WHERE {col} IS NULL")[
+                "n"
+            ].iloc[0]
+        )
         status = "OK" if n_null == 0 else f"WARN: {n_null} nulls"
         print(f"  {col:<25} {status}")
         if n_null > 0:
             found_nulls = True
 
     print(f"\n{'='*50}")
-    print("Result:", "WARNING - nulls found" if found_nulls else "PASS - all checks passed")
+    print(
+        "Result:",
+        "WARNING - nulls found" if found_nulls else "PASS - all checks passed",
+    )
     print(f"{'='*50}\n")
 
 

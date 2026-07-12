@@ -1,15 +1,14 @@
 """
 Tests for all SQL views: existence, non-empty results, correct columns, date range.
 """
+
 import sys
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from utils.db import query_df
+from utils.db import query_df  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -18,8 +17,16 @@ from utils.db import query_df
 class TestVwTraffic:
     VIEW = "vw_traffic"
     REQUIRED_COLS = {
-        "session_date", "year", "month", "channel_grouping", "source", "medium",
-        "total_sessions", "new_users", "total_pageviews", "avg_bounce_rate",
+        "session_date",
+        "year",
+        "month",
+        "channel_grouping",
+        "source",
+        "medium",
+        "total_sessions",
+        "new_users",
+        "total_pageviews",
+        "avg_bounce_rate",
         "avg_session_duration",
     }
 
@@ -37,7 +44,9 @@ class TestVwTraffic:
         assert not missing, f"Missing columns in {self.VIEW}: {missing}"
 
     def test_date_range_is_valid(self):
-        df = query_df(f"SELECT MIN(session_date) AS mn, MAX(session_date) AS mx FROM {self.VIEW}")
+        df = query_df(
+            f"SELECT MIN(session_date) AS mn, MAX(session_date) AS mx FROM {self.VIEW}"
+        )
         assert df["mn"].iloc[0] <= df["mx"].iloc[0]
 
 
@@ -47,8 +56,13 @@ class TestVwTraffic:
 class TestVwDailyTraffic:
     VIEW = "vw_daily_traffic"
     REQUIRED_COLS = {
-        "session_date", "total_sessions", "new_users", "total_pageviews",
-        "bounce_rate_pct", "avg_session_duration", "sessions_7day_avg",
+        "session_date",
+        "total_sessions",
+        "new_users",
+        "total_pageviews",
+        "bounce_rate_pct",
+        "avg_session_duration",
+        "sessions_7day_avg",
     }
 
     def test_view_exists(self):
@@ -75,8 +89,13 @@ class TestVwDailyTraffic:
 class TestVwChannelPerformance:
     VIEW = "vw_channel_performance"
     REQUIRED_COLS = {
-        "channel_grouping", "total_sessions", "total_new_users", "total_pageviews",
-        "avg_session_duration", "bounce_rate_pct", "channel_share_pct",
+        "channel_grouping",
+        "total_sessions",
+        "total_new_users",
+        "total_pageviews",
+        "avg_session_duration",
+        "bounce_rate_pct",
+        "channel_share_pct",
     }
 
     def test_view_exists(self):
@@ -104,8 +123,12 @@ class TestVwChannelPerformance:
 class TestVwNewVsReturning:
     VIEW = "vw_new_vs_returning"
     REQUIRED_COLS = {
-        "session_date", "total_sessions", "new_user_sessions",
-        "returning_user_sessions", "new_user_pct", "returning_user_pct",
+        "session_date",
+        "total_sessions",
+        "new_user_sessions",
+        "returning_user_sessions",
+        "new_user_pct",
+        "returning_user_pct",
     }
 
     def test_view_exists(self):
@@ -134,7 +157,10 @@ class TestVwNewVsReturning:
 class TestVwDeviceBreakdown:
     VIEW = "vw_device_breakdown"
     REQUIRED_COLS = {
-        "device_category", "total_sessions", "bounce_rate_pct", "device_share_pct",
+        "device_category",
+        "total_sessions",
+        "bounce_rate_pct",
+        "device_share_pct",
     }
 
     def test_view_exists(self):
@@ -163,7 +189,10 @@ class TestVwDeviceBreakdown:
 class TestVwGeoPerformance:
     VIEW = "vw_geo_performance"
     REQUIRED_COLS = {
-        "country", "total_sessions", "bounce_rate_pct", "country_share_pct",
+        "country",
+        "total_sessions",
+        "bounce_rate_pct",
+        "country_share_pct",
     }
 
     def test_view_exists(self):
@@ -181,4 +210,6 @@ class TestVwGeoPerformance:
 
     def test_max_10_rows(self):
         df = query_df(f"SELECT COUNT(*) AS n FROM {self.VIEW}")
-        assert int(df["n"].iloc[0]) <= 10, "vw_geo_performance returned more than 10 rows"
+        assert (
+            int(df["n"].iloc[0]) <= 10
+        ), "vw_geo_performance returned more than 10 rows"

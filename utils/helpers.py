@@ -5,8 +5,7 @@ Functions cover three areas:
   - URL parsing     : parse_url, parse_url_parts, clean_url
   - UA parsing      : clean_user_agent
 """
-import os
-import re
+
 from datetime import date, timedelta
 from typing import Any
 from urllib.parse import urlparse, parse_qs
@@ -44,23 +43,26 @@ def populate_dim_dates(start: date, end: date) -> None:
     dates = pd.date_range(start, end, freq="D")
     rows = []
     for d in dates:
-        rows.append({
-            "date_id":        int(d.strftime("%Y%m%d")),
-            "full_date":      d.date(),
-            "year":           d.year,
-            "quarter":        d.quarter,
-            "month":          d.month,
-            "month_name":     d.strftime("%B"),
-            "week":           int(d.strftime("%V")),
-            "day_of_week":    d.isoweekday(),
-            "day_name":       d.strftime("%A"),
-            "is_weekend":     d.isoweekday() >= 6,
-            "is_month_start": d.day == 1,
-            "is_month_end":   (d + timedelta(days=1)).month != d.month,
-        })
+        rows.append(
+            {
+                "date_id": int(d.strftime("%Y%m%d")),
+                "full_date": d.date(),
+                "year": d.year,
+                "quarter": d.quarter,
+                "month": d.month,
+                "month_name": d.strftime("%B"),
+                "week": int(d.strftime("%V")),
+                "day_of_week": d.isoweekday(),
+                "day_name": d.strftime("%A"),
+                "is_weekend": d.isoweekday() >= 6,
+                "is_month_start": d.day == 1,
+                "is_month_end": (d + timedelta(days=1)).month != d.month,
+            }
+        )
     df = pd.DataFrame(rows)
     engine = get_engine()
     from sqlalchemy import text
+
     with engine.begin() as conn:
         for row in df.itertuples(index=False):
             conn.execute(

@@ -1,8 +1,8 @@
 """End-to-end anomaly detection pipeline — loads model, runs detection, saves results."""
+
 from __future__ import annotations
 
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -17,7 +17,9 @@ from ai.anomaly_detection.utils import load_traffic_data
 
 logger = logging.getLogger(__name__)
 
-_OUTPUT_PATH = Path(__file__).resolve().parents[2] / "data" / "processed" / "anomalies.csv"
+_OUTPUT_PATH = (
+    Path(__file__).resolve().parents[2] / "data" / "processed" / "anomalies.csv"
+)
 
 
 def run_detection() -> pd.DataFrame:
@@ -33,6 +35,7 @@ def run_detection() -> pd.DataFrame:
     except FileNotFoundError:
         logger.warning("No saved model found — training a new one on the fly.")
         from ai.anomaly_detection.train import train_traffic_model, save_model
+
         model = train_traffic_model()
         save_model(model)
 
@@ -74,7 +77,9 @@ def _print_summary(summary, annotated: pd.DataFrame) -> None:
         for d in summary.anomaly_dates[:10]:
             row = annotated[annotated["session_date"].astype(str) == d]
             sev = row["severity"].values[0] if len(row) else "unknown"
-            badge = {"high": "[HIGH]", "medium": "[MED] ", "low": "[LOW] "}.get(sev, "[???] ")
+            badge = {"high": "[HIGH]", "medium": "[MED] ", "low": "[LOW] "}.get(
+                sev, "[???] "
+            )
             print(f"    {badge} {d}")
         if len(summary.anomaly_dates) > 10:
             print(f"    ... and {len(summary.anomaly_dates) - 10} more")

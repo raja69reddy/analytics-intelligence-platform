@@ -1,4 +1,5 @@
 """NLQ Engine — converts plain-English questions to SQL using the OpenAI API."""
+
 import os
 import time
 import pandas as pd
@@ -23,7 +24,9 @@ class NLQEngine:
             try:
                 from openai import OpenAI
             except ImportError:
-                raise ImportError("openai package not installed. Run: pip install openai")
+                raise ImportError(
+                    "openai package not installed. Run: pip install openai"
+                )
             api_key = os.environ.get("OPENAI_API_KEY")
             if not api_key:
                 raise EnvironmentError(
@@ -36,6 +39,7 @@ class NLQEngine:
     def cache(self):
         if self._cache is None:
             from ai.nlq.cache import QueryCache
+
             self._cache = QueryCache()
         return self._cache
 
@@ -61,7 +65,10 @@ class NLQEngine:
                 model="gpt-3.5-turbo",
                 messages=[
                     {"role": "system", "content": SQL_SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Convert this question to SQL: {question}"},
+                    {
+                        "role": "user",
+                        "content": f"Convert this question to SQL: {question}",
+                    },
                 ],
                 temperature=0,
                 max_tokens=500,
@@ -80,11 +87,13 @@ class NLQEngine:
     def validate_sql(self, sql: str) -> bool:
         """Return True if sql passes the safety check (SELECT-only, no dangerous keywords)."""
         from ai.nlq.safety import is_safe_query
+
         return is_safe_query(sql)
 
     def execute_query(self, sql: str) -> pd.DataFrame:
         """Run sql against the database and return the results as a DataFrame."""
         from utils.db import query_df
+
         return query_df(sql)
 
     def format_response(self, df: pd.DataFrame, question: str) -> str:
@@ -130,14 +139,16 @@ class NLQEngine:
             # ── translate ────────────────────────────────────────────────────
             try:
                 sql = self.translate_to_sql(question)
-            except (EnvironmentError, RuntimeError) as exc:
+            except (EnvironmentError, RuntimeError):
                 # Try cache as fallback when API is unavailable
                 cached = self.cache.get_cached_query(question)
                 if cached:
                     result["sql"] = cached["sql"]
                     result["data"] = cached["result"]
                     result["from_cache"] = True
-                    result["response"] = self.format_response(cached["result"], question)
+                    result["response"] = self.format_response(
+                        cached["result"], question
+                    )
                     result["execution_time_s"] = round(time.time() - start, 3)
                     return result
                 raise
@@ -154,7 +165,9 @@ class NLQEngine:
             df = self.execute_query(sql)
 
             if df is None or df.empty:
-                result["response"] = f"The query ran successfully but returned no data for: {question}"
+                result["response"] = (
+                    f"The query ran successfully but returned no data for: {question}"
+                )
             else:
                 result["data"] = df
                 result["response"] = self.format_response(df, question)
@@ -185,7 +198,9 @@ class NLQEngine:
                 result["response"] = self.format_response(cached["result"], question)
                 result["error"] = None
             else:
-                result["response"] = f"API error: {exc}\nNo cached result available for fallback."
+                result["response"] = (
+                    f"API error: {exc}\nNo cached result available for fallback."
+                )
         except Exception as exc:
             error_type = type(exc).__name__
             # Give a friendlier message for common DB connectivity errors

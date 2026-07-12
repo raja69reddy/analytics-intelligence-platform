@@ -1,4 +1,5 @@
 """SEO & Content Performance dashboard page."""
+
 import os
 import sys
 
@@ -19,7 +20,7 @@ with st.sidebar:
     page_search = get_page_filter()
 
 start_str = start_date.isoformat()
-end_str   = end_date.isoformat()
+end_str = end_date.isoformat()
 
 # ── DB connectivity guard ─────────────────────────────────────────────────────
 try:
@@ -32,6 +33,7 @@ except Exception as _db_exc:
     st.stop()
 
 # ── KPI cards ─────────────────────────────────────────────────────────────────
+
 
 @st.cache_data(ttl=300)
 def _load_kpis():
@@ -46,6 +48,7 @@ def _load_kpis():
     )
     return organic, load_time
 
+
 with st.spinner("Loading KPIs..."):
     try:
         _organic_kpi, _load_kpi = _load_kpis()
@@ -56,9 +59,12 @@ with st.spinner("Loading KPIs..."):
 
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Total Organic Sessions", f"{total_organic:,}")
-        col2.metric("Avg Page Load Time", f"{avg_load_ms:,} ms",
-                    delta=None,
-                    help="Average load time across all crawled pages (200 status only)")
+        col2.metric(
+            "Avg Page Load Time",
+            f"{avg_load_ms:,} ms",
+            delta=None,
+            help="Average load time across all crawled pages (200 status only)",
+        )
         col3.metric("Pages Missing Meta Description", f"{missing_meta}")
         col4.metric("Avg Word Count per Page", f"{avg_word_count:,}")
     except Exception as exc:
@@ -68,6 +74,7 @@ st.divider()
 
 # ── Word count vs engagement scatter ─────────────────────────────────────────
 st.subheader("Word Count vs Engagement")
+
 
 @st.cache_data(ttl=300)
 def _load_wc_scatter():
@@ -80,16 +87,16 @@ def _load_wc_scatter():
         "WHERE s.word_count IS NOT NULL AND s.word_count > 0"
     )
 
+
 with st.spinner("Loading scatter data..."):
     try:
         import plotly.express as px
-        import numpy as np
 
         _wc_df = _load_wc_scatter()
         if _wc_df.empty:
             st.info("No data available for scatter plot.")
         else:
-            _wc_df["bubble_size"] = (_wc_df["pageviews"].fillna(1).clip(lower=1))
+            _wc_df["bubble_size"] = _wc_df["pageviews"].fillna(1).clip(lower=1)
 
             fig_scatter = px.scatter(
                 _wc_df,
@@ -98,7 +105,11 @@ with st.spinner("Loading scatter data..."):
                 size="bubble_size",
                 color="bounce_rate_pct",
                 hover_name="url",
-                hover_data={"word_count": True, "organic_sessions": True, "bubble_size": False},
+                hover_data={
+                    "word_count": True,
+                    "organic_sessions": True,
+                    "bubble_size": False,
+                },
                 labels={
                     "word_count": "Word Count",
                     "avg_session_duration_s": "Avg Session Duration (s)",
@@ -110,7 +121,9 @@ with st.spinner("Loading scatter data..."):
             )
             fig_scatter.update_layout(height=450)
             st.plotly_chart(fig_scatter, use_container_width=True)
-            st.caption("Trend line shows relationship between content length and user engagement.")
+            st.caption(
+                "Trend line shows relationship between content length and user engagement."
+            )
     except Exception as exc:
         st.error(f"Could not render scatter plot: {exc}")
 
@@ -118,6 +131,7 @@ st.divider()
 
 # ── Top organic landing pages ─────────────────────────────────────────────────
 st.subheader("Top Organic Landing Pages")
+
 
 @st.cache_data(ttl=300)
 def _load_organic_pages(page_filter: str):
@@ -132,6 +146,7 @@ def _load_organic_pages(page_filter: str):
     )
     return query_df(sql)
 
+
 _search = st.text_input("Search pages", value=page_search, placeholder="/blog/")
 
 with st.spinner("Loading organic pages..."):
@@ -140,6 +155,7 @@ with st.spinner("Loading organic pages..."):
         if _pages_df.empty:
             st.info("No organic landing pages found with the current filter.")
         else:
+
             def _highlight_top3(row):
                 color = "background-color: #d4edda" if row.name < 3 else ""
                 return [color] * len(row)
@@ -155,6 +171,7 @@ st.divider()
 # ── Content health table ──────────────────────────────────────────────────────
 st.subheader("Content Health")
 
+
 @st.cache_data(ttl=300)
 def _load_health():
     return query_df(
@@ -162,6 +179,7 @@ def _load_health():
         "load_time_ms, internal_links, external_links, http_status "
         "FROM raw_scrape_pages ORDER BY url, scraped_at DESC"
     )
+
 
 def _health_score(row) -> str:
     issues = []
@@ -177,11 +195,14 @@ def _health_score(row) -> str:
         return "issues"
     return "needs work"
 
+
 with st.spinner("Loading content health..."):
     try:
         _health_df = _load_health()
         if _health_df.empty:
-            st.info("No scrape data available. Run gen_scrape.py --mode full to populate.")
+            st.info(
+                "No scrape data available. Run gen_scrape.py --mode full to populate."
+            )
         else:
             _health_df["health"] = _health_df.apply(_health_score, axis=1)
 
@@ -215,11 +236,13 @@ st.divider()
 # ── Page load time distribution ───────────────────────────────────────────────
 st.subheader("Page Load Time Distribution")
 
+
 @st.cache_data(ttl=300)
 def _load_times():
     return query_df(
         "SELECT load_time_ms FROM raw_scrape_pages WHERE http_status = 200 AND load_time_ms IS NOT NULL"
     )
+
 
 with st.spinner("Loading load time data..."):
     try:
@@ -229,6 +252,7 @@ with st.spinner("Loading load time data..."):
         if _lt_df.empty:
             st.info("No load time data available.")
         else:
+
             def _bucket(ms):
                 if ms <= 500:
                     return "Fast (≤500ms)"
@@ -239,16 +263,29 @@ with st.spinner("Loading load time data..."):
                 return "Very Slow (>2000ms)"
 
             _lt_df["bucket"] = _lt_df["load_time_ms"].apply(_bucket)
-            _bucket_order = ["Fast (≤500ms)", "OK (501–1000ms)", "Slow (1001–2000ms)", "Very Slow (>2000ms)"]
-            _bucket_colors = {"Fast (≤500ms)": "#28a745", "OK (501–1000ms)": "#ffc107",
-                              "Slow (1001–2000ms)": "#fd7e14", "Very Slow (>2000ms)": "#dc3545"}
-            _counts = _lt_df["bucket"].value_counts().reindex(_bucket_order, fill_value=0)
+            _bucket_order = [
+                "Fast (≤500ms)",
+                "OK (501–1000ms)",
+                "Slow (1001–2000ms)",
+                "Very Slow (>2000ms)",
+            ]
+            _bucket_colors = {
+                "Fast (≤500ms)": "#28a745",
+                "OK (501–1000ms)": "#ffc107",
+                "Slow (1001–2000ms)": "#fd7e14",
+                "Very Slow (>2000ms)": "#dc3545",
+            }
+            _counts = (
+                _lt_df["bucket"].value_counts().reindex(_bucket_order, fill_value=0)
+            )
 
-            fig_load = go.Figure(go.Bar(
-                x=_counts.index.tolist(),
-                y=_counts.values.tolist(),
-                marker_color=[_bucket_colors[b] for b in _counts.index],
-            ))
+            fig_load = go.Figure(
+                go.Bar(
+                    x=_counts.index.tolist(),
+                    y=_counts.values.tolist(),
+                    marker_color=[_bucket_colors[b] for b in _counts.index],
+                )
+            )
             fig_load.update_layout(
                 title="Page Load Time Distribution",
                 xaxis_title="Load Time Bucket",
@@ -257,13 +294,23 @@ with st.spinner("Loading load time data..."):
                 showlegend=False,
             )
             # Reference lines at 1000ms and 2000ms
-            fig_load.add_vline(x=1.5, line_dash="dash", line_color="orange",
-                               annotation_text="1000ms (good threshold)")
-            fig_load.add_vline(x=2.5, line_dash="dash", line_color="red",
-                               annotation_text="2000ms (poor threshold)")
+            fig_load.add_vline(
+                x=1.5,
+                line_dash="dash",
+                line_color="orange",
+                annotation_text="1000ms (good threshold)",
+            )
+            fig_load.add_vline(
+                x=2.5,
+                line_dash="dash",
+                line_color="red",
+                annotation_text="2000ms (poor threshold)",
+            )
             st.plotly_chart(fig_load, use_container_width=True)
-            st.caption(f"Total pages: {len(_lt_df)} | Avg: {int(_lt_df['load_time_ms'].mean())}ms | "
-                       f"Max: {int(_lt_df['load_time_ms'].max())}ms")
+            st.caption(
+                f"Total pages: {len(_lt_df)} | Avg: {int(_lt_df['load_time_ms'].mean())}ms | "
+                f"Max: {int(_lt_df['load_time_ms'].max())}ms"
+            )
     except Exception as exc:
         st.error(f"Could not render load time chart: {exc}")
 
@@ -272,12 +319,14 @@ st.divider()
 # ── Internal vs external links analysis ──────────────────────────────────────
 st.subheader("Internal & External Links Analysis")
 
+
 @st.cache_data(ttl=300)
 def _load_links():
     return query_df(
         "SELECT DISTINCT ON (url) url, internal_links, external_links "
         "FROM raw_scrape_pages WHERE http_status = 200 ORDER BY url, scraped_at DESC"
     )
+
 
 with st.spinner("Loading links data..."):
     try:
@@ -296,7 +345,10 @@ with st.spinner("Loading links data..."):
                 x=["Avg Internal Links", "Avg External Links"],
                 y=[_avg_int, _avg_ext],
                 color=["Avg Internal Links", "Avg External Links"],
-                color_discrete_map={"Avg Internal Links": "#007bff", "Avg External Links": "#fd7e14"},
+                color_discrete_map={
+                    "Avg Internal Links": "#007bff",
+                    "Avg External Links": "#fd7e14",
+                },
                 title="Average Links per Page",
                 labels={"x": "Link Type", "y": "Average Count"},
             )
@@ -308,13 +360,17 @@ with st.spinner("Loading links data..."):
             col_a.metric("Orphan Pages (0 internal links)", len(_orphans))
             if not _orphans.empty:
                 with col_a.expander(f"View {len(_orphans)} orphan page(s)"):
-                    st.dataframe(_orphans[["url", "internal_links", "external_links"]],
-                                 hide_index=True)
+                    st.dataframe(
+                        _orphans[["url", "internal_links", "external_links"]],
+                        hide_index=True,
+                    )
 
             # Pages with many external links (>10)
             _heavy_ext = _links_df[_links_df["external_links"] > 10]
             fig_ext = px.histogram(
-                _links_df, x="external_links", nbins=15,
+                _links_df,
+                x="external_links",
+                nbins=15,
                 title="Distribution of External Links per Page",
                 labels={"external_links": "External Links", "count": "Pages"},
                 color_discrete_sequence=["#fd7e14"],
@@ -323,11 +379,13 @@ with st.spinner("Loading links data..."):
             col_b.plotly_chart(fig_ext, use_container_width=True)
             col_b.metric("Pages with >10 External Links", len(_heavy_ext))
             if not _heavy_ext.empty:
-                with col_b.expander(f"View {len(_heavy_ext)} page(s) with many external links"):
+                with col_b.expander(
+                    f"View {len(_heavy_ext)} page(s) with many external links"
+                ):
                     st.dataframe(
-                        _heavy_ext[["url", "internal_links", "external_links"]].sort_values(
-                            "external_links", ascending=False
-                        ),
+                        _heavy_ext[
+                            ["url", "internal_links", "external_links"]
+                        ].sort_values("external_links", ascending=False),
                         hide_index=True,
                     )
     except Exception as exc:

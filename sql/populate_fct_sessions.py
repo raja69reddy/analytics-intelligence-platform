@@ -5,6 +5,7 @@ and inserts into fct_sessions.
 Truncates first for idempotent reruns; ON CONFLICT not applicable
 to BIGSERIAL PKs, so TRUNCATE + INSERT is the correct pattern.
 """
+
 from __future__ import annotations
 
 import sys
@@ -14,8 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from sqlalchemy import text
-from utils.db import get_engine, query_df
+from sqlalchemy import text  # noqa: E402
+from utils.db import get_engine, query_df  # noqa: E402
 
 
 def run(verbose: bool = True) -> int:
@@ -97,7 +98,9 @@ if __name__ == "__main__":
         ORDER BY dd.full_date DESC
         LIMIT 1
     """)
-    print(f"\nDate range: {df_range['full_date'].iloc[0]} to {df_range2['full_date'].iloc[0]}")
+    print(
+        f"\nDate range: {df_range['full_date'].iloc[0]} to {df_range2['full_date'].iloc[0]}"
+    )
 
     # Verify FK integrity
     df_fk = query_df("""
@@ -106,5 +109,7 @@ if __name__ == "__main__":
             COUNT(*) FILTER (WHERE page_id IS NULL) AS null_page_fk
         FROM fct_sessions
     """)
-    print(f"\nFK check: null date_id={df_fk['null_date_fk'].iloc[0]}, "
-          f"null page_id={df_fk['null_page_fk'].iloc[0]}")
+    print(
+        f"\nFK check: null date_id={df_fk['null_date_fk'].iloc[0]}, "
+        f"null page_id={df_fk['null_page_fk'].iloc[0]}"
+    )

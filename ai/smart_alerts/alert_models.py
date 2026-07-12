@@ -2,6 +2,7 @@
 Data models for the Smart Alerts system.
 Alert and AlertSummary are plain dataclasses — no DB dependency.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -13,8 +14,8 @@ from typing import Optional
 
 class Severity(str, Enum):
     CRITICAL = "CRITICAL"
-    WARNING  = "WARNING"
-    OK       = "OK"
+    WARNING = "WARNING"
+    OK = "OK"
 
 
 @dataclass
@@ -34,27 +35,28 @@ class Alert:
     threshold_value  : The baseline / threshold the metric was compared against.
     detected_at      : Timestamp when the alert was generated.
     """
-    alert_type:          str
-    severity:            Severity
-    title:               str
-    message:             str
-    recommended_action:  str
-    metric_value:        Optional[float] = None
-    threshold_value:     Optional[float] = None
-    alert_id:            str             = field(default_factory=lambda: str(uuid.uuid4()))
-    detected_at:         datetime        = field(default_factory=datetime.now)
+
+    alert_type: str
+    severity: Severity
+    title: str
+    message: str
+    recommended_action: str
+    metric_value: Optional[float] = None
+    threshold_value: Optional[float] = None
+    alert_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    detected_at: datetime = field(default_factory=datetime.now)
 
     def to_dict(self) -> dict:
         return {
-            "alert_id":           self.alert_id,
-            "alert_type":         self.alert_type,
-            "severity":           self.severity.value,
-            "title":              self.title,
-            "message":            self.message,
+            "alert_id": self.alert_id,
+            "alert_type": self.alert_type,
+            "severity": self.severity.value,
+            "title": self.title,
+            "message": self.message,
             "recommended_action": self.recommended_action,
-            "metric_value":       self.metric_value,
-            "threshold_value":    self.threshold_value,
-            "detected_at":        self.detected_at.isoformat(),
+            "metric_value": self.metric_value,
+            "threshold_value": self.threshold_value,
+            "detected_at": self.detected_at.isoformat(),
         }
 
     def __repr__(self) -> str:
@@ -78,18 +80,19 @@ class AlertSummary:
     alerts        : The full list of Alert objects.
     generated_at  : Timestamp of this summary.
     """
-    total_alerts:   int
+
+    total_alerts: int
     critical_count: int
-    warning_count:  int
-    ok_count:       int
-    alerts:         list[Alert]  = field(default_factory=list)
-    generated_at:   datetime     = field(default_factory=datetime.now)
+    warning_count: int
+    ok_count: int
+    alerts: list[Alert] = field(default_factory=list)
+    generated_at: datetime = field(default_factory=datetime.now)
 
     @classmethod
     def from_alerts(cls, alerts: list[Alert]) -> "AlertSummary":
         critical = sum(1 for a in alerts if a.severity == Severity.CRITICAL)
-        warning  = sum(1 for a in alerts if a.severity == Severity.WARNING)
-        ok       = sum(1 for a in alerts if a.severity == Severity.OK)
+        warning = sum(1 for a in alerts if a.severity == Severity.WARNING)
+        ok = sum(1 for a in alerts if a.severity == Severity.OK)
         return cls(
             total_alerts=len(alerts),
             critical_count=critical,
@@ -104,13 +107,13 @@ class AlertSummary:
 
     def to_dict(self) -> dict:
         return {
-            "total_alerts":   self.total_alerts,
+            "total_alerts": self.total_alerts,
             "critical_count": self.critical_count,
-            "warning_count":  self.warning_count,
-            "ok_count":       self.ok_count,
-            "all_clear":      self.all_clear,
-            "generated_at":   self.generated_at.isoformat(),
-            "alerts":         [a.to_dict() for a in self.alerts],
+            "warning_count": self.warning_count,
+            "ok_count": self.ok_count,
+            "all_clear": self.all_clear,
+            "generated_at": self.generated_at.isoformat(),
+            "alerts": [a.to_dict() for a in self.alerts],
         }
 
     def __repr__(self) -> str:

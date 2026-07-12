@@ -3,6 +3,7 @@
 Usage:
     python ai/nlq/run_nlq.py "What are the top 5 channels by sessions?"
 """
+
 import sys
 import os
 
@@ -12,14 +13,17 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 def run_nlq(question: str) -> dict:
     """Run a question through the NLQ engine and return the result dict."""
     from ai.nlq.nlq_engine import NLQEngine
+
     engine = NLQEngine()
     return engine.ask(question)
 
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python ai/nlq/run_nlq.py \"<question>\"")
-        print('Example: python ai/nlq/run_nlq.py "What are the top 5 channels by sessions?"')
+        print('Usage: python ai/nlq/run_nlq.py "<question>"')
+        print(
+            'Example: python ai/nlq/run_nlq.py "What are the top 5 channels by sessions?"'
+        )
         sys.exit(1)
 
     question = " ".join(sys.argv[1:])
@@ -28,14 +32,14 @@ def main():
 
     result = run_nlq(question)
 
-    print(f"\nGenerated SQL:")
+    print("\nGenerated SQL:")
     print("-" * 40)
     if result["sql"]:
         print(result["sql"])
     else:
         print("(no SQL generated)")
 
-    print(f"\nResults:")
+    print("\nResults:")
     print("-" * 40)
     if result["data"] is not None and not result["data"].empty:
         print(result["data"].to_string(index=False))

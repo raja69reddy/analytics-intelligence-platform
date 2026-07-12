@@ -1,14 +1,15 @@
 """Unit tests for utils/helpers.py — parse_url, get_date_id, clean_user_agent."""
+
 import sys
 import os
 from datetime import date
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from utils.helpers import parse_url, get_date_id, clean_user_agent
-
+from utils.helpers import parse_url, get_date_id, clean_user_agent  # noqa: E402
 
 # ── parse_url ──────────────────────────────────────────────────────────────
+
 
 def test_parse_url_basic():
     result = parse_url("https://example.com/blog/post-1/")
@@ -34,6 +35,7 @@ def test_parse_url_root_path():
 
 # ── get_date_id ────────────────────────────────────────────────────────────
 
+
 def test_get_date_id_regular():
     assert get_date_id(date(2024, 3, 15)) == 20240315
 
@@ -47,6 +49,7 @@ def test_get_date_id_end_of_year():
 
 
 # ── clean_user_agent ───────────────────────────────────────────────────────
+
 
 def test_clean_user_agent_chrome_windows():
     ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"

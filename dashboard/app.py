@@ -4,6 +4,7 @@ Analytics Intelligence Platform — main Streamlit entry point.
 Run:
     streamlit run dashboard/app.py
 """
+
 import os
 import sys
 
@@ -13,9 +14,9 @@ from datetime import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from ai.anomaly_detection.detector import AnomalyDetector  # noqa: E402
-from ai.anomaly_detection.train import load_model           # noqa: E402
-from ai.anomaly_detection.utils import load_traffic_data    # noqa: E402
-from dashboard.components.filters import (                  # noqa: E402
+from ai.anomaly_detection.train import load_model  # noqa: E402
+from ai.anomaly_detection.utils import load_traffic_data  # noqa: E402
+from dashboard.components.filters import (  # noqa: E402
     get_channel_filter,
     get_date_filter,
     get_device_filter,
@@ -36,10 +37,10 @@ with st.sidebar:
     st.divider()
 
     st.subheader("Navigation")
-    st.page_link("pages/1_traffic.py",     label="Traffic & Sessions",  icon="📈")
-    st.page_link("pages/2_behavior.py",    label="User Behavior",       icon="🖱️")
-    st.page_link("pages/3_conversions.py", label="Conversions",         icon="🎯")
-    st.page_link("pages/4_seo.py",         label="SEO & Content",       icon="🔍")
+    st.page_link("pages/1_traffic.py", label="Traffic & Sessions", icon="📈")
+    st.page_link("pages/2_behavior.py", label="User Behavior", icon="🖱️")
+    st.page_link("pages/3_conversions.py", label="Conversions", icon="🎯")
+    st.page_link("pages/4_seo.py", label="SEO & Content", icon="🔍")
     st.divider()
 
     # ── AI Anomaly Alerts ─────────────────────────────────────────────────────
@@ -64,8 +65,8 @@ with st.sidebar:
         st.caption("Model not trained yet.")
     else:
         total = alert_summary.total_anomalies
-        high  = alert_summary.severity_counts.get("high", 0)
-        med   = alert_summary.severity_counts.get("medium", 0)
+        high = alert_summary.severity_counts.get("high", 0)
+        med = alert_summary.severity_counts.get("medium", 0)
 
         st.metric("Anomalies Detected", total)
 
@@ -73,9 +74,13 @@ with st.sidebar:
             most_recent = alert_summary.anomaly_dates[-1]
             # find severity of most recent
             recent_df = None
-            if alert_summary.anomalies_df is not None and not alert_summary.anomalies_df.empty:
+            if (
+                alert_summary.anomalies_df is not None
+                and not alert_summary.anomalies_df.empty
+            ):
                 row = alert_summary.anomalies_df[
-                    alert_summary.anomalies_df["session_date"].astype(str) == most_recent
+                    alert_summary.anomalies_df["session_date"].astype(str)
+                    == most_recent
                 ]
                 recent_sev = row["severity"].values[0] if len(row) else "low"
             else:
@@ -97,12 +102,20 @@ with st.sidebar:
     # ── AI Report Generation ──────────────────────────────────────────────────
     st.subheader("📋 AI Reports")
     from pathlib import Path as _Path
-    _reports_dir = _Path(__file__).resolve().parent.parent / "data" / "processed" / "reports"
-    _report_files = sorted(_reports_dir.glob("report_*.md"), reverse=True) if _reports_dir.exists() else []
+
+    _reports_dir = (
+        _Path(__file__).resolve().parent.parent / "data" / "processed" / "reports"
+    )
+    _report_files = (
+        sorted(_reports_dir.glob("report_*.md"), reverse=True)
+        if _reports_dir.exists()
+        else []
+    )
 
     if _report_files:
         _latest = _report_files[0]
         from datetime import datetime as _dt
+
         _mtime = _dt.fromtimestamp(_latest.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
         st.caption(f"Last report: {_mtime}")
         st.success("Report ready")
@@ -124,9 +137,11 @@ with st.sidebar:
     if st.button("Ask AI", key="sidebar_nlq_btn"):
         if nlq_question.strip():
             import time as _time
+
             _t0 = _time.time()
             try:
                 from ai.nlq.nlq_engine import NLQEngine
+
                 _engine = NLQEngine()
                 _result = _engine.ask(nlq_question)
                 if _result["error"]:
@@ -170,7 +185,7 @@ with st.sidebar:
             summary = cf.get_forecast_summary(fc_c, days=7)
 
             return pred_sessions_7d, summary["avg_cvr_pct"]
-        except Exception as exc:
+        except Exception:
             return None, None
 
     _pred_7d, _pred_cvr_7d = _sidebar_forecast()
@@ -193,6 +208,7 @@ with st.sidebar:
     def _sidebar_alerts():
         try:
             from utils.alerts import run_all_checks
+
             return run_all_checks()
         except Exception as exc:
             return [{"check": "system", "status": "error", "message": str(exc)}]
@@ -225,11 +241,12 @@ with st.sidebar:
     @st.cache_data(ttl=60)
     def _sidebar_pipeline_status():
         from utils.db import query_df as _qdf
+
         tables = {
-            "GA4":         "raw_ga4_sessions",
+            "GA4": "raw_ga4_sessions",
             "Server Logs": "raw_server_logs",
             "Clickstream": "raw_clickstream_events",
-            "Scraper":     "raw_scrape_pages",
+            "Scraper": "raw_scrape_pages",
         }
         total_rows = 0
         last_ingest = None
@@ -250,7 +267,12 @@ with st.sidebar:
 
     if _last_ingest:
         from datetime import datetime as _dtt
-        _last_dt = _last_ingest if hasattr(_last_ingest, "strftime") else _dtt.fromisoformat(str(_last_ingest))
+
+        _last_dt = (
+            _last_ingest
+            if hasattr(_last_ingest, "strftime")
+            else _dtt.fromisoformat(str(_last_ingest))
+        )
         _age_h = (_dtt.now() - _last_dt).total_seconds() / 3600
         _ts_str = _last_dt.strftime("%Y-%m-%d %H:%M")
         st.caption(f"Last ingest: {_ts_str}")
@@ -271,9 +293,9 @@ with st.sidebar:
 
     st.subheader("Global Filters")
     start_date, end_date = get_date_filter()
-    channels   = get_channel_filter()
+    channels = get_channel_filter()
     page_search = get_page_filter()
-    devices    = get_device_filter()
+    devices = get_device_filter()
 
     st.divider()
     active = sum([bool(channels), bool(page_search), bool(devices)])
@@ -311,7 +333,9 @@ with col3:
     st.metric("Clickstream Events", f"{n:,}")
 
 with col4:
-    df = query_df("SELECT MIN(session_date) AS mn, MAX(session_date) AS mx FROM raw_ga4_sessions")
+    df = query_df(
+        "SELECT MIN(session_date) AS mn, MAX(session_date) AS mx FROM raw_ga4_sessions"
+    )
     mn, mx = str(df["mn"].iloc[0])[:10], str(df["mx"].iloc[0])[:10]
     st.metric("Data Range", f"{mn} → {mx}")
 
@@ -319,7 +343,9 @@ st.divider()
 
 st.subheader("Dashboard Pages")
 c1, c2, c3, c4 = st.columns(4)
-c1.info("📈 **Traffic & Sessions**\nSessions over time, channels, new vs returning, device split")
+c1.info(
+    "📈 **Traffic & Sessions**\nSessions over time, channels, new vs returning, device split"
+)
 c2.info("🖱️ **User Behavior**\nTop pages, scroll depth, event types, response times")
 c3.info("🎯 **Conversions**\nFunnel, form submissions, bounce rates by channel")
 c4.info("🔍 **SEO & Content**\nOrganic pages, word count vs engagement, content health")
@@ -333,7 +359,12 @@ st.subheader("Project Metrics")
 @st.cache_data(ttl=300)
 def _load_project_metrics():
     total_dp = 0
-    for table in ("raw_ga4_sessions", "raw_server_logs", "raw_clickstream_events", "raw_scrape_pages"):
+    for table in (
+        "raw_ga4_sessions",
+        "raw_server_logs",
+        "raw_clickstream_events",
+        "raw_scrape_pages",
+    ):
         try:
             n = int(query_df(f"SELECT COUNT(*) AS n FROM {table}")["n"].iloc[0])
             total_dp += n
@@ -355,8 +386,8 @@ def _load_project_metrics():
 
 try:
     _total_dp, _sql_views = _load_project_metrics()
-    _ai_features = 3   # anomaly detection, NLQ, report generation
-    _dash_pages  = 7   # 1_traffic through 7_pipeline
+    _ai_features = 3  # anomaly detection, NLQ, report generation
+    _dash_pages = 7  # 1_traffic through 7_pipeline
     _last_updated = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     # System health score: weighted sum

@@ -1,11 +1,9 @@
 """AnomalyDetector — IsolationForest-based anomaly detection for traffic data."""
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
-
-import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 
@@ -59,11 +57,11 @@ class AnomalyDetector:
             model.fit(X)
 
         raw_scores = model.decision_function(X)
-        predictions = model.predict(X)          # -1 = anomaly, 1 = normal
+        predictions = model.predict(X)  # -1 = anomaly, 1 = normal
 
         result = df.copy()
         result["is_anomaly"] = predictions == -1
-        result["anomaly_score"] = -raw_scores   # higher → more anomalous
+        result["anomaly_score"] = -raw_scores  # higher → more anomalous
         result["severity"] = result["anomaly_score"].apply(score_anomaly)
         return result
 
@@ -113,11 +111,14 @@ class AnomalyDetector:
         annotated = self.detect_traffic_anomalies(df)
         anomalies = annotated[annotated["is_anomaly"]]
 
-        date_col = "session_date" if "session_date" in annotated.columns else annotated.index.name
+        date_col = (
+            "session_date"
+            if "session_date" in annotated.columns
+            else annotated.index.name
+        )
         if date_col and date_col in annotated.columns:
             anomaly_dates = (
-                anomalies[date_col].astype(str).tolist()
-                if not anomalies.empty else []
+                anomalies[date_col].astype(str).tolist() if not anomalies.empty else []
             )
         else:
             anomaly_dates = []
@@ -141,16 +142,25 @@ class AnomalyDetector:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _build_recommended_actions(severity_counts: dict[str, int], total: int) -> list[str]:
+
+def _build_recommended_actions(
+    severity_counts: dict[str, int], total: int
+) -> list[str]:
     actions: list[str] = []
     if total == 0:
         actions.append("No anomalies detected — traffic looks healthy.")
         return actions
     if severity_counts.get("high", 0) > 0:
-        actions.append("Investigate high-severity anomaly dates immediately — possible bot traffic or outage.")
+        actions.append(
+            "Investigate high-severity anomaly dates immediately — possible bot traffic or outage."
+        )
     if severity_counts.get("medium", 0) > 0:
-        actions.append("Review medium-severity dates for campaign spikes or tracking issues.")
+        actions.append(
+            "Review medium-severity dates for campaign spikes or tracking issues."
+        )
     if severity_counts.get("low", 0) > 0:
         actions.append("Monitor low-severity anomalies over the next 7 days.")
-    actions.append("Cross-reference anomaly dates with marketing calendar and deployment logs.")
+    actions.append(
+        "Cross-reference anomaly dates with marketing calendar and deployment logs."
+    )
     return actions

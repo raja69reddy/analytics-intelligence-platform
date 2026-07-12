@@ -4,6 +4,7 @@ Verification script for raw_clickstream_events data quality.
 Usage:
     python ingestion/verify_clickstream.py
 """
+
 import sys
 from pathlib import Path
 
@@ -16,7 +17,7 @@ TABLE = "raw_clickstream_events"
 
 def run_verification() -> None:
     print(f"\n{'='*52}")
-    print(f"  raw_clickstream_events Verification Report")
+    print("  raw_clickstream_events Verification Report")
     print(f"{'='*52}")
 
     # Total row count
@@ -55,7 +56,7 @@ def run_verification() -> None:
         WHERE scroll_depth_pct IS NOT NULL
     """)
     r = df_scroll.iloc[0]
-    print(f"\nScroll depth (0-100 pct):")
+    print("\nScroll depth (0-100 pct):")
     print(f"  min={r['min_pct']}  max={r['max_pct']}  avg={r['avg_pct']}")
 
     # Null value check
@@ -63,14 +64,21 @@ def run_verification() -> None:
     print("\nNull value check:")
     found_nulls = False
     for col in key_cols:
-        n_null = int(query_df(f"SELECT COUNT(*) AS n FROM {TABLE} WHERE {col} IS NULL")["n"].iloc[0])
+        n_null = int(
+            query_df(f"SELECT COUNT(*) AS n FROM {TABLE} WHERE {col} IS NULL")[
+                "n"
+            ].iloc[0]
+        )
         status = "OK" if n_null == 0 else f"WARN: {n_null} nulls"
         print(f"  {col:<25} {status}")
         if n_null > 0:
             found_nulls = True
 
     print(f"\n{'='*52}")
-    print("Result:", "WARNING - nulls found" if found_nulls else "PASS - all checks passed")
+    print(
+        "Result:",
+        "WARNING - nulls found" if found_nulls else "PASS - all checks passed",
+    )
     print(f"{'='*52}\n")
 
 

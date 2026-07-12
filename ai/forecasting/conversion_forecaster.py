@@ -1,4 +1,5 @@
 """Conversion rate forecasting using Facebook Prophet."""
+
 import logging
 import pickle
 from pathlib import Path
@@ -6,12 +7,12 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-MODELS_DIR  = ROOT / "ai" / "models"
+MODELS_DIR = ROOT / "ai" / "models"
 OUTPUTS_DIR = ROOT / "data" / "processed"
 MODELS_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
-MODEL_PATH   = MODELS_DIR / "conversion_forecast_model.pkl"
+MODEL_PATH = MODELS_DIR / "conversion_forecast_model.pkl"
 FORECAST_CSV = OUTPUTS_DIR / "conversion_forecast.csv"
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ class ConversionForecaster:
     def load_conversion_data(self) -> pd.DataFrame:
         """Load daily CVR (0-100 scale) from DB."""
         from utils.db import query_df
+
         df = query_df("""
             SELECT
                 session_date AS ds,
@@ -35,7 +37,7 @@ class ConversionForecaster:
             ORDER BY session_date
         """)
         df["ds"] = pd.to_datetime(df["ds"])
-        df["y"]  = df["y"].astype(float).fillna(0.0)
+        df["y"] = df["y"].astype(float).fillna(0.0)
         logger.info(f"Loaded {len(df)} days of CVR data")
         return df
 
@@ -70,26 +72,31 @@ class ConversionForecaster:
         forecast_df = self._model.predict(future)
 
         # Clip CVR to valid range (0-100)
-        forecast_df["yhat"]       = forecast_df["yhat"].clip(lower=0, upper=100)
+        forecast_df["yhat"] = forecast_df["yhat"].clip(lower=0, upper=100)
         forecast_df["yhat_lower"] = forecast_df["yhat_lower"].clip(lower=0, upper=100)
         forecast_df["yhat_upper"] = forecast_df["yhat_upper"].clip(lower=0, upper=100)
         return forecast_df
 
-    def get_forecast_summary(self, forecast_df: pd.DataFrame | None = None, days: int = 30) -> dict:
+    def get_forecast_summary(
+        self, forecast_df: pd.DataFrame | None = None, days: int = 30
+    ) -> dict:
         """Return high/low/avg CVR for the forecast period."""
         if forecast_df is None:
             forecast_df = self.forecast(days=days)
 
         # Take only future rows (beyond history)
         from utils.db import query_df
-        max_hist = query_df("SELECT MAX(session_date) AS mx FROM raw_ga4_sessions")["mx"].iloc[0]
+
+        max_hist = query_df("SELECT MAX(session_date) AS mx FROM raw_ga4_sessions")[
+            "mx"
+        ].iloc[0]
         future_mask = forecast_df["ds"] > pd.Timestamp(max_hist)
         fc = forecast_df[future_mask]
 
         return {
-            "avg_cvr_pct":  round(float(fc["yhat"].mean()), 4),
+            "avg_cvr_pct": round(float(fc["yhat"].mean()), 4),
             "high_cvr_pct": round(float(fc["yhat"].max()), 4),
-            "low_cvr_pct":  round(float(fc["yhat"].min()), 4),
+            "low_cvr_pct": round(float(fc["yhat"].min()), 4),
             "forecast_days": int(future_mask.sum()),
         }
 

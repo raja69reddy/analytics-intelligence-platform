@@ -3,6 +3,7 @@ Sidebar filter components for the Web Analytics Dashboard.
 Each function renders its own widget and returns the selected value(s).
 apply_filters() applies all active filters to a pandas DataFrame.
 """
+
 from datetime import date, timedelta
 
 import pandas as pd
@@ -28,7 +29,14 @@ def get_channel_filter() -> list[str]:
     """Render a multiselect for traffic channels. Returns list of selected channels (empty = all)."""
     return st.sidebar.multiselect(
         "Channel",
-        options=["Direct", "Email", "Organic Search", "Paid Search", "Referral", "Social"],
+        options=[
+            "Direct",
+            "Email",
+            "Organic Search",
+            "Paid Search",
+            "Referral",
+            "Social",
+        ],
         default=[],
         placeholder="All channels",
     )
@@ -80,7 +88,9 @@ def apply_filters(
     if page_search:
         for col in ("page_url", "url"):
             if col in df.columns:
-                mask &= df[col].fillna("").str.contains(page_search, case=False, na=False)
+                mask &= (
+                    df[col].fillna("").str.contains(page_search, case=False, na=False)
+                )
                 break
 
     if devices:
@@ -95,9 +105,9 @@ def render_filters(include_channel: bool = True, include_page: bool = True) -> d
     start_date, end_date = get_date_filter()
     filters: dict = {
         "start_date": start_date.isoformat(),
-        "end_date":   end_date.isoformat(),
-        "start_id":   int(start_date.strftime("%Y%m%d")),
-        "end_id":     int(end_date.strftime("%Y%m%d")),
+        "end_date": end_date.isoformat(),
+        "start_id": int(start_date.strftime("%Y%m%d")),
+        "end_id": int(end_date.strftime("%Y%m%d")),
     }
     if include_channel:
         sel = get_channel_filter()
