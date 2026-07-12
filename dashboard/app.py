@@ -14,10 +14,12 @@ import streamlit as st
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from dashboard.components.filters import (  # noqa: E402
+    FILTER_KEYS,
     get_channel_filter,
     get_date_filter,
     get_device_filter,
     get_page_filter,
+    show_active_filters,
 )
 
 st.set_page_config(
@@ -52,11 +54,19 @@ with st.sidebar:
     page_search = get_page_filter()
     devices = get_device_filter()
 
+    # Filter count badge
     active = sum([bool(channels), bool(page_search), bool(devices)])
     if active:
         st.success(f"{active} filter(s) active")
     else:
         st.caption("No filters active — showing all data")
+
+    # Reset all filters back to defaults
+    if st.button("Reset Filters", key="reset_filters_btn"):
+        for _fk in FILTER_KEYS.values():
+            if _fk in st.session_state:
+                del st.session_state[_fk]
+        st.rerun()
 
     st.divider()
 

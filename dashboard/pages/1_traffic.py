@@ -18,6 +18,7 @@ from dashboard.components.filters import (
     get_date_filter,
     get_device_filter,
     get_page_filter,
+    show_active_filters,
 )
 from dashboard.components.metrics import (
     display_kpi_row,
@@ -29,6 +30,7 @@ from utils.query_runner import run_view
 
 st.set_page_config(page_title="Traffic & Sessions", page_icon="📈", layout="wide")
 st.title("📈 Traffic & Sessions Overview")
+show_active_filters()
 
 
 # ── Cached data loaders (TTL = 5 minutes) ─────────────────────────────────────
