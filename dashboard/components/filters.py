@@ -11,12 +11,21 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
+DARK_MODE_KEY = "dark_mode"
+
 FILTER_KEYS = {
     "date_range": "gf_date_range",
     "channels": "gf_channels",
     "page_search": "gf_page_search",
     "devices": "gf_devices",
 }
+
+
+def get_plotly_template() -> str:
+    """Return the Plotly chart template matching the current dark mode preference."""
+    if st.session_state.get(DARK_MODE_KEY, False):
+        return "plotly_dark"
+    return "plotly_white"
 
 
 def get_date_filter() -> tuple[date, date]:

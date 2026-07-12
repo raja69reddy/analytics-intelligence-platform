@@ -49,6 +49,14 @@ with st.sidebar:
 
     # ── Global Filters ────────────────────────────────────────────────────────
     st.subheader("🔎 Global Filters")
+
+    # Dark mode toggle — preference stored in session state
+    st.toggle(
+        "Dark Mode",
+        value=st.session_state.get("dark_mode", False),
+        key="dark_mode",
+    )
+
     start_date, end_date = get_date_filter()
     channels = get_channel_filter()
     page_search = get_page_filter()

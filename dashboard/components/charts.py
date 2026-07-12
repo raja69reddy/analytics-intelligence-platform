@@ -1,6 +1,7 @@
 """
-Reusable Plotly chart components for the Web Analytics Dashboard.
+Reusable Plotly chart components for the Analytics Intelligence Platform.
 Each function returns a Plotly figure that can be passed to st.plotly_chart().
+Pass template=get_plotly_template() from filters.py to apply dark/light theming.
 """
 
 import pandas as pd
@@ -15,6 +16,7 @@ def line_chart(
     title: str = "",
     labels: dict | None = None,
     color: str | None = None,
+    template: str = "plotly_white",
 ) -> go.Figure:
     """Plotly line chart. y can be a single column name or a list for multi-line."""
     return px.line(
@@ -24,7 +26,7 @@ def line_chart(
         title=title,
         labels=labels or {},
         color=color,
-        template="plotly_white",
+        template=template,
     )
 
 
@@ -36,6 +38,7 @@ def bar_chart(
     orientation: str = "v",
     labels: dict | None = None,
     color: str | None = None,
+    template: str = "plotly_white",
 ) -> go.Figure:
     """Plotly bar chart. orientation='h' for horizontal."""
     return px.bar(
@@ -46,7 +49,7 @@ def bar_chart(
         orientation=orientation,
         labels=labels or {},
         color=color,
-        template="plotly_white",
+        template=template,
     )
 
 
@@ -56,6 +59,7 @@ def pie_chart(
     values: str,
     title: str = "",
     hole: float = 0.35,
+    template: str = "plotly_white",
 ) -> go.Figure:
     """Plotly donut/pie chart. hole=0 for pie, hole>0 for donut."""
     return px.pie(
@@ -64,7 +68,7 @@ def pie_chart(
         values=values,
         title=title,
         hole=hole,
-        template="plotly_white",
+        template=template,
     )
 
 
@@ -72,6 +76,7 @@ def funnel_chart(
     stages: list[str],
     values: list[int | float],
     title: str = "",
+    template: str = "plotly_white",
 ) -> go.Figure:
     """Plotly funnel chart."""
     fig = go.Figure(
@@ -81,7 +86,7 @@ def funnel_chart(
             textinfo="value+percent initial",
         )
     )
-    fig.update_layout(title=title, template="plotly_white")
+    fig.update_layout(title=title, template=template)
     return fig
 
 
@@ -94,6 +99,7 @@ def scatter_chart(
     size: str | None = None,
     hover_name: str | None = None,
     labels: dict | None = None,
+    template: str = "plotly_white",
 ) -> go.Figure:
     """Plotly scatter chart with optional color, size, and hover label."""
     return px.scatter(
@@ -105,5 +111,5 @@ def scatter_chart(
         size=size,
         hover_name=hover_name,
         labels=labels or {},
-        template="plotly_white",
+        template=template,
     )

@@ -18,6 +18,7 @@ from dashboard.components.filters import (
     get_date_filter,
     get_device_filter,
     get_page_filter,
+    get_plotly_template,
     show_active_filters,
 )
 from dashboard.components.metrics import (
@@ -31,6 +32,8 @@ from utils.query_runner import run_view
 st.set_page_config(page_title="Traffic & Sessions", page_icon="📈", layout="wide")
 st.title("📈 Traffic & Sessions Overview")
 show_active_filters()
+
+_plotly_tpl = get_plotly_template()
 
 
 # ── Cached data loaders (TTL = 5 minutes) ─────────────────────────────────────
@@ -183,6 +186,7 @@ if not df_daily.empty:
         y=["total_sessions", "sessions_7day_avg"],
         title="Daily Sessions with 7-Day Rolling Average",
         labels={"value": "Sessions", "session_date": "Date", "variable": "Metric"},
+        template=_plotly_tpl,
     )
     fig.update_traces(
         selector={"name": "sessions_7day_avg"}, line={"dash": "dot", "width": 2}
@@ -231,6 +235,7 @@ else:
             y=["total_sessions", "sessions_7day_avg"],
             title="Sessions Over Time with Anomaly Markers",
             labels={"value": "Sessions", "session_date": "Date", "variable": "Metric"},
+            template=_plotly_tpl,
         )
         fig_a.update_traces(
             selector={"name": "sessions_7day_avg"}, line={"dash": "dot", "width": 2}
@@ -256,6 +261,7 @@ else:
             y=["total_sessions", "sessions_7day_avg"],
             title="Sessions Over Time (no anomalies detected)",
             labels={"value": "Sessions", "session_date": "Date", "variable": "Metric"},
+            template=_plotly_tpl,
         )
         st.plotly_chart(fig_a, use_container_width=True)
 
@@ -301,6 +307,7 @@ with col_left:
             title="Sessions by Channel (Descending)",
             orientation="h",
             labels={"channel_grouping": "Channel", "total_sessions": "Sessions"},
+            template=_plotly_tpl,
         )
         st.plotly_chart(fig_ch, use_container_width=True)
 
@@ -311,6 +318,7 @@ with col_right:
             names="channel_grouping",
             values="total_sessions",
             title="Channel Distribution",
+            template=_plotly_tpl,
         )
         st.plotly_chart(fig_ch_pie, use_container_width=True)
 
@@ -340,7 +348,7 @@ if not df_newret.empty:
         title="New vs Returning Users Over Time",
         xaxis_title="Date",
         yaxis_title="Sessions",
-        template="plotly_white",
+        template=_plotly_tpl,
     )
     st.plotly_chart(fig_nr, use_container_width=True)
 else:
@@ -357,6 +365,7 @@ if not df_devices.empty:
             names="device_category",
             values="total_sessions",
             title="Sessions by Device",
+            template=_plotly_tpl,
         )
         st.plotly_chart(fig_dev_pie, use_container_width=True)
     with col_dev2:
@@ -366,6 +375,7 @@ if not df_devices.empty:
             y="avg_bounce_rate",
             title="Avg Bounce Rate by Device",
             labels={"device_category": "Device", "avg_bounce_rate": "Bounce Rate (%)"},
+            template=_plotly_tpl,
         )
         st.plotly_chart(fig_dev_bounce, use_container_width=True)
 else:
@@ -393,6 +403,7 @@ if not df_geo.empty:
             title="Top Countries by Sessions",
             orientation="h",
             labels={"country": "Country", "total_sessions": "Sessions"},
+            template=_plotly_tpl,
         )
         st.plotly_chart(fig_geo, use_container_width=True)
 else:
