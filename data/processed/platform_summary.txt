@@ -3,13 +3,13 @@
 ============================================================
 
 -- TRAFFIC --------------------------------------------------
-  GA4 Date Range:        2026-03-22 to 2026-06-19
-  Total Sessions:              50,561
-  Total New Users:             13,142
-  Total Pageviews:            228,286
-  Avg Bounce Rate:              1.94%
-  Avg Session Duration:        315.5s
-  Top Channel:           Email (9,935 sessions)
+  GA4 Date Range:        2026-04-13 to 2026-07-11
+  Total Sessions:              50,566
+  Total New Users:             13,244
+  Total Pageviews:            221,894
+  Avg Bounce Rate:              2.03%
+  Avg Session Duration:        311.3s
+  Top Channel:           Social (8,882 sessions)
 
 -- CONVERSIONS -----------------------------------------------
   Total Goal Completions:           0

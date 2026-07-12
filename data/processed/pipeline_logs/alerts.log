@@ -41,3 +41,8 @@
 [2026-07-10T14:49:08.980250] [CRITICAL] Data is 110.4h old (threshold: 24h)
 [2026-07-10T14:49:08.999138] [WARNING] 5 traffic anomaly(s) detected by AI model (0 high-severity)
 [2026-07-10T14:49:09.003184] [CRITICAL] Data is 110.4h old (threshold: 24h)
+[2026-07-11T19:58:41.151253] [WARNING] 5 traffic anomaly(s) detected by AI model (0 high-severity)
+[2026-07-11T19:58:41.177523] [CRITICAL] Error rate is 13.7% (threshold: 5%)
+[2026-07-11T19:59:04.627214] [CRITICAL] Error rate is 13.7% (threshold: 5%)
+[2026-07-11T19:59:04.644506] [WARNING] 5 traffic anomaly(s) detected by AI model (0 high-severity)
+[2026-07-11T19:59:04.652906] [CRITICAL] Error rate is 13.7% (threshold: 5%)
