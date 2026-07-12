@@ -1,13 +1,22 @@
 """
-Sidebar filter components for the Web Analytics Dashboard.
-Each function renders its own widget and returns the selected value(s).
-apply_filters() applies all active filters to a pandas DataFrame.
+Sidebar filter components for the Analytics Intelligence Platform.
+
+Each get_*_filter() function renders its widget and returns the selected value(s).
+Filter values are stored in st.session_state under the keys in FILTER_KEYS so
+they persist across page navigation within the same Streamlit session.
 """
 
 from datetime import date, timedelta
 
 import pandas as pd
 import streamlit as st
+
+FILTER_KEYS = {
+    "date_range": "gf_date_range",
+    "channels": "gf_channels",
+    "page_search": "gf_page_search",
+    "devices": "gf_devices",
+}
 
 
 def get_date_filter() -> tuple[date, date]:
@@ -19,6 +28,7 @@ def get_date_filter() -> tuple[date, date]:
         value=(default_start, today),
         min_value=date(2020, 1, 1),
         max_value=today,
+        key=FILTER_KEYS["date_range"],
     )
     if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
         return date_range[0], date_range[1]
@@ -39,6 +49,7 @@ def get_channel_filter() -> list[str]:
         ],
         default=[],
         placeholder="All channels",
+        key=FILTER_KEYS["channels"],
     )
 
 
@@ -48,6 +59,7 @@ def get_page_filter() -> str:
         "Page URL contains",
         value="",
         placeholder="/blog/",
+        key=FILTER_KEYS["page_search"],
     ).strip()
 
 
@@ -58,7 +70,56 @@ def get_device_filter() -> list[str]:
         options=["desktop", "mobile", "tablet"],
         default=[],
         placeholder="All devices",
+        key=FILTER_KEYS["devices"],
     )
+
+
+def apply_date_filter(
+    df: pd.DataFrame,
+    start_date: date | None,
+    end_date: date | None,
+) -> pd.DataFrame:
+    """Apply only the date range filter to a DataFrame."""
+    return apply_filters(df, start_date=start_date, end_date=end_date)
+
+
+def apply_all_filters(df: pd.DataFrame) -> pd.DataFrame:
+    """Apply all active filters from st.session_state to a DataFrame."""
+    dr = st.session_state.get(FILTER_KEYS["date_range"])
+    if isinstance(dr, (tuple, list)) and len(dr) == 2:
+        start, end = dr[0], dr[1]
+    else:
+        start = end = None
+
+    channels = list(st.session_state.get(FILTER_KEYS["channels"], []))
+    page_search = str(st.session_state.get(FILTER_KEYS["page_search"], "")).strip()
+    devices = list(st.session_state.get(FILTER_KEYS["devices"], []))
+
+    return apply_filters(df, start, end, channels, page_search, devices)
+
+
+def show_active_filters() -> None:
+    """Render an info box summarising every active filter."""
+    parts = []
+
+    dr = st.session_state.get(FILTER_KEYS["date_range"])
+    if isinstance(dr, (tuple, list)) and len(dr) == 2:
+        parts.append(f"Date: {dr[0]} to {dr[1]}")
+
+    channels = list(st.session_state.get(FILTER_KEYS["channels"], []))
+    if channels:
+        parts.append(f"Channel: {', '.join(channels)}")
+
+    page_search = str(st.session_state.get(FILTER_KEYS["page_search"], "")).strip()
+    if page_search:
+        parts.append(f"Page: *{page_search}*")
+
+    devices = list(st.session_state.get(FILTER_KEYS["devices"], []))
+    if devices:
+        parts.append(f"Device: {', '.join(devices)}")
+
+    if parts:
+        st.info("**Active filters:** " + " | ".join(parts))
 
 
 def apply_filters(
@@ -88,9 +149,7 @@ def apply_filters(
     if page_search:
         for col in ("page_url", "url"):
             if col in df.columns:
-                mask &= (
-                    df[col].fillna("").str.contains(page_search, case=False, na=False)
-                )
+                mask &= df[col].fillna("").str.contains(page_search, case=False, na=False)
                 break
 
     if devices:
