@@ -51,3 +51,8 @@
 [2026-07-11T20:23:39.465629] [CRITICAL] Error rate is 14.3% (threshold: 5%)
 [2026-07-11T20:23:39.484082] [WARNING] 1 traffic anomaly(s) detected by AI model (0 high-severity)
 [2026-07-11T20:23:39.490975] [CRITICAL] Error rate is 14.3% (threshold: 5%)
+[2026-07-11T20:31:08.865756] [WARNING] 1 traffic anomaly(s) detected by AI model (0 high-severity)
+[2026-07-11T20:31:08.880428] [CRITICAL] Error rate is 14.3% (threshold: 5%)
+[2026-07-11T20:31:29.176720] [CRITICAL] Error rate is 14.3% (threshold: 5%)
+[2026-07-11T20:31:29.194059] [WARNING] 1 traffic anomaly(s) detected by AI model (0 high-severity)
+[2026-07-11T20:31:29.200901] [CRITICAL] Error rate is 14.3% (threshold: 5%)
