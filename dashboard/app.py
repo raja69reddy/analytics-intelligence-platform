@@ -297,56 +297,19 @@ with st.sidebar:
 # ── Main page ─────────────────────────────────────────────────────────────────
 from utils.db import query_df  # noqa: E402
 
-st.title("Welcome to Analytics Intelligence Platform")
-st.markdown("""
-A production-grade analytics platform powered by **PostgreSQL**, **Python**, **Streamlit**, and **AI/ML**.
-
-Use the **sidebar** to filter by date range, channel, and page URL.
-Use the **navigation links** to explore each section.
-""")
-
-st.divider()
-
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    n = int(query_df("SELECT COUNT(*) AS n FROM raw_ga4_sessions")["n"].iloc[0])
-    st.metric("GA4 Sessions", f"{n:,}")
-
-with col2:
-    n = int(query_df("SELECT COUNT(*) AS n FROM raw_server_logs")["n"].iloc[0])
-    st.metric("Server Log Entries", f"{n:,}")
-
-with col3:
-    n = int(query_df("SELECT COUNT(*) AS n FROM raw_clickstream_events")["n"].iloc[0])
-    st.metric("Clickstream Events", f"{n:,}")
-
-with col4:
-    df = query_df(
-        "SELECT MIN(session_date) AS mn, MAX(session_date) AS mx FROM raw_ga4_sessions"
-    )
-    mn, mx = str(df["mn"].iloc[0])[:10], str(df["mx"].iloc[0])[:10]
-    st.metric("Data Range", f"{mn} to {mx}")
-
-st.divider()
-
-st.subheader("Dashboard Pages")
-c1, c2, c3, c4 = st.columns(4)
-c1.info(
-    "📈 **Traffic & Sessions**\nSessions over time, channels, new vs returning, device split"
+st.title("📊 Analytics Intelligence Platform")
+st.markdown(
+    "Production-grade analytics powered by **PostgreSQL**, **Python**, **Streamlit**, and **AI/ML**. "
+    "Use the sidebar to filter data globally and navigate between the 8 dashboard pages."
 )
-c2.info("🖱️ **User Behavior**\nTop pages, scroll depth, event types, response times")
-c3.info("🎯 **Conversions**\nFunnel, form submissions, bounce rates by channel")
-c4.info("🔍 **SEO & Content**\nOrganic pages, word count vs engagement, content health")
-
 st.divider()
 
-# ── Project Metrics ───────────────────────────────────────────────────────────
-st.subheader("Project Metrics")
+# ── Platform Stats ────────────────────────────────────────────────────────────
+st.subheader("Platform Stats")
 
 
 @st.cache_data(ttl=300)
-def _load_project_metrics():
+def _load_platform_stats():
     total_dp = 0
     for table in (
         "raw_ga4_sessions",
@@ -361,38 +324,144 @@ def _load_project_metrics():
             pass
 
     try:
-        views_df = query_df(
-            "SELECT COUNT(*) AS n FROM information_schema.views "
-            "WHERE table_schema = 'public'"
+        sql_views = int(
+            query_df(
+                "SELECT COUNT(*) AS n FROM information_schema.views "
+                "WHERE table_schema = 'public'"
+            )["n"].iloc[0]
         )
-        sql_views = int(views_df["n"].iloc[0])
     except Exception:
         sql_views = 17
 
-    return total_dp, sql_views
+    try:
+        ts_df = query_df(
+            "SELECT MAX(ts) AS ts FROM ("
+            "  SELECT MAX(ingested_at) AS ts FROM raw_ga4_sessions"
+            "  UNION ALL SELECT MAX(ingested_at) FROM raw_server_logs"
+            "  UNION ALL SELECT MAX(ingested_at) FROM raw_clickstream_events"
+            "  UNION ALL SELECT MAX(ingested_at) FROM raw_scrape_pages"
+            ") sub"
+        )
+        last_run = ts_df["ts"].iloc[0]
+        last_run_str = str(last_run)[:16] if last_run else "N/A"
+    except Exception:
+        last_run_str = "N/A"
+
+    return total_dp, sql_views, last_run_str
 
 
 try:
-    _total_dp, _sql_views = _load_project_metrics()
-    _ai_features = 5
+    _total_dp, _sql_views, _last_run = _load_platform_stats()
+    _ai_features = 5  # anomaly detection, NLQ, report generation, forecasting, smart alerts
     _dash_pages = 8
-    _last_updated = datetime.now().strftime("%Y-%m-%d %H:%M")
-    _health = min(100, 40 + (_sql_views * 2) + (_ai_features * 4) + (_dash_pages * 2))
 
-    pm1, pm2, pm3, pm4, pm5, pm6 = st.columns(6)
-    pm1.metric("Total Data Points", f"{_total_dp:,}")
-    pm2.metric("SQL Views", f"{_sql_views}")
-    pm3.metric("AI Features Active", f"{_ai_features} / 5")
-    pm4.metric("Dashboard Pages", f"{_dash_pages}")
-    pm5.metric("Last Updated", _last_updated)
-    pm6.metric("System Health Score", f"{_health} / 100")
-
-    if _health >= 80:
-        st.success(f"System health: GOOD ({_health}/100) -- all core features active")
-    elif _health >= 60:
-        st.warning(f"System health: FAIR ({_health}/100)")
-    else:
-        st.error(f"System health: POOR ({_health}/100)")
-
+    s1, s2, s3, s4, s5 = st.columns(5)
+    s1.metric("Total Data Points", f"{_total_dp:,}")
+    s2.metric("SQL Views", f"{_sql_views}")
+    s3.metric("AI Features Active", f"{_ai_features}")
+    s4.metric("Dashboard Pages", f"{_dash_pages}")
+    s5.metric("Last Pipeline Run", _last_run)
 except Exception as _exc:
-    st.warning(f"Could not load project metrics: {_exc}")
+    st.warning(f"Could not load platform stats: {_exc}")
+
+st.divider()
+
+# ── System Status ─────────────────────────────────────────────────────────────
+st.subheader("System Status")
+
+
+@st.cache_data(ttl=60)
+def _check_db_ok():
+    try:
+        query_df("SELECT 1 AS ok")
+        return True
+    except Exception:
+        return False
+
+
+@st.cache_data(ttl=60)
+def _check_views_ok():
+    try:
+        query_df("SELECT * FROM vw_traffic LIMIT 1")
+        return True
+    except Exception:
+        return False
+
+
+@st.cache_data(ttl=60)
+def _check_ai_ok():
+    model_path = os.path.join(
+        os.path.dirname(__file__), "..", "ai", "models", "traffic_anomaly_model.pkl"
+    )
+    return os.path.exists(model_path)
+
+
+@st.cache_data(ttl=60)
+def _check_data_ok():
+    try:
+        return int(query_df("SELECT COUNT(*) AS n FROM raw_ga4_sessions")["n"].iloc[0]) > 0
+    except Exception:
+        return False
+
+
+_db_ok = _check_db_ok()
+_views_ok = _check_views_ok()
+_ai_ok = _check_ai_ok()
+_data_ok = _check_data_ok()
+
+sc1, sc2, sc3, sc4 = st.columns(4)
+with sc1:
+    if _db_ok:
+        st.success("PostgreSQL: Connected")
+    else:
+        st.error("PostgreSQL: Down")
+with sc2:
+    if _views_ok:
+        st.success("SQL Views: Active")
+    else:
+        st.error("SQL Views: Error")
+with sc3:
+    if _ai_ok:
+        st.success("AI Models: Loaded")
+    else:
+        st.warning("AI Models: Not trained")
+with sc4:
+    if _data_ok:
+        st.success("Data: Available")
+    else:
+        st.error("Data: Empty")
+
+st.divider()
+
+# ── Quick Navigation ──────────────────────────────────────────────────────────
+st.subheader("Quick Navigation")
+
+nav1, nav2, nav3, nav4 = st.columns(4)
+with nav1:
+    st.info(
+        "📈 **Traffic & Sessions**\nSessions over time, channels, new vs returning, device split"
+    )
+    st.page_link("pages/1_traffic.py", label="Open Traffic", icon="📈")
+with nav2:
+    st.info("🖱️ **User Behavior**\nTop pages, scroll depth, event types, session duration")
+    st.page_link("pages/2_behavior.py", label="Open Behavior", icon="🖱️")
+with nav3:
+    st.info("🎯 **Conversions**\nFunnel, CVR by channel, goal completions, revenue")
+    st.page_link("pages/3_conversions.py", label="Open Conversions", icon="🎯")
+with nav4:
+    st.info("🔍 **SEO & Content**\nOrganic pages, word count vs engagement, content health")
+    st.page_link("pages/4_seo.py", label="Open SEO", icon="🔍")
+
+nav5, nav6, nav7, nav8 = st.columns(4)
+with nav5:
+    st.info("💬 **Ask Your Data**\nNatural language queries powered by OpenAI GPT-3.5")
+    st.page_link("pages/5_nlq.py", label="Open NLQ", icon="💬")
+with nav6:
+    st.info("📋 **AI Reports**\nAuto-generated executive summaries and actionable insights")
+    st.page_link("pages/6_reports.py", label="Open Reports", icon="📋")
+with nav7:
+    st.info("⚙️ **Pipeline Monitor**\nIngestion status, smart alerts, data quality health")
+    st.page_link("pages/7_pipeline.py", label="Open Pipeline", icon="⚙️")
+with nav8:
+    st.info("🔮 **Forecasting**\nProphet-based session and conversion rate forecasts")
+    st.page_link("pages/8_forecasting.py", label="Open Forecast", icon="🔮")
