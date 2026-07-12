@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 31 - Phase 2 Started - Dashboard Polish
+- Cleaned up dashboard/app.py: reorganized sidebar (Global Filters moved above AI sections), added all 8 page navigation links, renamed Pipeline Status to Data Freshness, removed duplicate datetime imports
+- Updated filters.py with 7 filter functions: added apply_date_filter, apply_all_filters, show_active_filters; added FILTER_KEYS and DARK_MODE_KEY constants; added get_plotly_template for theme switching
+- Updated home page with platform stats (5 metrics), system status indicators (PostgreSQL, SQL views, AI models, data), and quick navigation cards for all 8 dashboard pages
+- Wired all global filters to st.session_state via consistent FILTER_KEYS; values persist across page navigation; added Reset Filters button and filter count badge; wired show_active_filters to traffic page
+- Added dark mode toggle to sidebar with preference stored in st.session_state; added get_plotly_template() to filters.py; updated charts.py chart helpers to accept template parameter; traffic page charts now respect dark/light theme
+
 ## Day 30 - Phase 1 Review Complete (v1.0.0)
 - Ran full pipeline end-to-end: ingest → transform → validate → alerts (all stages successful)
 - Verified all 17 SQL views returning correct data (traffic, channel, behavior, conversions, SEO, funnel, device, pages, top pages, date range, hourly, weekly, anomaly scores, conversion funnel, channel conversions, device conversions, geo performance)
