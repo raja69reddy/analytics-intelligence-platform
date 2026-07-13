@@ -1363,4 +1363,24 @@ python -m pytest tests/ -v
 
 - Phase 2 dashboard polish has begun!
 
+✅ **Day 32 — Global Filters Wired to PostgreSQL**
+
+
+- Filters now load options dynamically from DB
+
+
+- Date range filter wired to all dashboard queries
+
+
+- Channel filter wired to all dashboard queries
+
+
+- Device filter wired to behavior page queries
+
+
+- Added filter summary with active filter count badge
+
+
+- Reset All Filters button clears all selections
+
 
