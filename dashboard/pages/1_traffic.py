@@ -41,8 +41,8 @@ _plotly_tpl = get_plotly_template()
 # ── Cached data loaders (TTL = 5 minutes) — date-filtered at DB level ─────────
 
 @st.cache_data(ttl=300)
-def _load_traffic(start_date=None, end_date=None):
-    where, params = build_where_clause(start_date, end_date)
+def _load_traffic(start_date=None, end_date=None, channels: tuple = ()):
+    where, params = build_where_clause(start_date, end_date, channels=list(channels) or None)
     return query_df(f"SELECT * FROM vw_traffic {where}", params=params or None)
 
 
@@ -53,8 +53,8 @@ def _load_daily(start_date=None, end_date=None):
 
 
 @st.cache_data(ttl=300)
-def _load_channels(start_date=None, end_date=None):
-    where, params = build_where_clause(start_date, end_date)
+def _load_channels(start_date=None, end_date=None, channels: tuple = ()):
+    where, params = build_where_clause(start_date, end_date, channels=list(channels) or None)
     return query_df(f"""
 WITH channel_totals AS (
     SELECT channel_grouping,
@@ -153,9 +153,10 @@ with st.sidebar:
 # ── Load data — date range filtered at DB level ───────────────────────────────
 try:
     with st.spinner("Loading traffic data from PostgreSQL…"):
-        df_traffic = _load_traffic(start_date, end_date)
+        _ch = tuple(channels)
+        df_traffic = _load_traffic(start_date, end_date, _ch)
         df_daily = _load_daily(start_date, end_date)
-        df_channels = _load_channels(start_date, end_date)
+        df_channels = _load_channels(start_date, end_date, _ch)
         df_devices = _load_devices(start_date, end_date)
         df_newret = _load_newret(start_date, end_date)
         df_geo = _load_geo(start_date, end_date)
@@ -178,15 +179,14 @@ with st.expander("Debug: data shapes", expanded=False):
         }
     )
 
-# Channel filter applied at Python level (DB-level channel filter added in next task)
-df_traffic = apply_filters(df_traffic, channels=channels)
+# Channel filter now applied at DB level via _load_traffic / _load_channels
 
 # ── KPI cards with % change vs previous period ────────────────────────────────
 period_days = (end_date - start_date).days + 1
 prev_start = start_date - timedelta(days=period_days)
 prev_end = start_date - timedelta(days=1)
 
-df_prev = apply_filters(_load_traffic(prev_start, prev_end), channels=channels)
+df_prev = _load_traffic(prev_start, prev_end, tuple(channels))
 
 
 def _delta(curr: float, prev: float) -> str | None:

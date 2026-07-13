@@ -22,8 +22,8 @@ st.title("🎯 Conversion Tracking")
 
 # ── Cached data loaders — date-filtered at DB level ───────────────────────────
 @st.cache_data(ttl=300)
-def _load_conversions(start_date=None, end_date=None):
-    where, params = build_where_clause(start_date, end_date)
+def _load_conversions(start_date=None, end_date=None, channels: tuple = ()):
+    where, params = build_where_clause(start_date, end_date, channels=list(channels) or None)
     return query_df(f"SELECT * FROM vw_conversions {where}", params=params or None)
 
 
@@ -50,14 +50,13 @@ import pandas as pd  # noqa: E402
 # ── Load data ─────────────────────────────────────────────────────────────────
 with st.spinner("Loading conversion data…"):
     try:
-        df_conv = _load_conversions(start_date, end_date)
+        df_conv = _load_conversions(start_date, end_date, tuple(channels))
         df_funnel = _load_funnel()
     except Exception as exc:
         st.error(f"Failed to load data from the database: {exc}")
         st.stop()
 
-# Date already filtered at DB; apply channel filter at Python level (DB wired in next task)
-df_conv = apply_filters(df_conv, channels=channels)
+# Date and channel filters applied at DB level
 
 with st.expander("Debug: data shapes", expanded=False):
     st.write(
