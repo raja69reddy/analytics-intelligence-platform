@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 32 - Global Filters Wired to DB
+- filters.py loads options dynamically from PostgreSQL: get_available_channels, get_available_devices, get_available_pages, get_date_range — all cached 600s; added build_where_clause helper for safe parameterized SQL WHERE clauses
+- Date range filter wired to all DB queries in traffic page (vw_traffic, vw_daily_traffic, channel/device/geo custom queries, vw_new_vs_returning) and conversions page (vw_conversions) — date params passed as @st.cache_data keys
+- Channel filter wired to all DB queries: _load_traffic and _load_channels accept channels tuple; vw_traffic and custom channel aggregation query both apply channel IN clause at DB level
+- Device filter wired to behavior page: _load_avg_time, _load_duration, _load_retention, _load_session_quality all accept devices tuple and apply WHERE device_category IN at DB level; show_active_filters added to behavior page
+- Added enhanced filter summary in sidebar: active filter count badge, date range display, channel tags, device tags, page search tag, Reset All Filters button
+
 ## Day 31 - Phase 2 Started - Dashboard Polish
 - Cleaned up dashboard/app.py: reorganized sidebar (Global Filters moved above AI sections), added all 8 page navigation links, renamed Pipeline Status to Data Freshness, removed duplicate datetime imports
 - Updated filters.py with 7 filter functions: added apply_date_filter, apply_all_filters, show_active_filters; added FILTER_KEYS and DARK_MODE_KEY constants; added get_plotly_template for theme switching
