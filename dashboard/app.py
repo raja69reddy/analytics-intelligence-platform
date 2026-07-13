@@ -19,6 +19,8 @@ from dashboard.components.filters import (  # noqa: E402
     get_date_filter,
     get_device_filter,
     get_page_filter,
+    get_available_channels,
+    get_available_devices,
     show_active_filters,
 )
 
@@ -62,15 +64,27 @@ with st.sidebar:
     page_search = get_page_filter()
     devices = get_device_filter()
 
-    # Filter count badge
-    active = sum([bool(channels), bool(page_search), bool(devices)])
-    if active:
-        st.success(f"{active} filter(s) active")
+    # ── Filter summary display ────────────────────────────────────────────────
+    _active_count = sum([bool(channels), bool(page_search), bool(devices)])
+    if _active_count:
+        st.success(f"Filters active: {_active_count}")
+        # Date range
+        st.caption(f"Date: {start_date} to {end_date}")
+        # Channel tags
+        if channels:
+            st.caption("Channels: " + " | ".join(f"`{c}`" for c in channels))
+        # Device tags
+        if devices:
+            st.caption("Devices: " + " | ".join(f"`{d}`" for d in devices))
+        # Page search
+        if page_search:
+            st.caption(f"Page search: `{page_search}`")
     else:
-        st.caption("No filters active — showing all data")
+        st.caption(f"Date: {start_date} to {end_date}")
+        st.caption("No channel, device, or page filters active")
 
-    # Reset all filters back to defaults
-    if st.button("Reset Filters", key="reset_filters_btn"):
+    # Reset All Filters button
+    if st.button("Reset All Filters", key="reset_filters_btn"):
         for _fk in FILTER_KEYS.values():
             if _fk in st.session_state:
                 del st.session_state[_fk]
