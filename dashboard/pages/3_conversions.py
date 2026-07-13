@@ -8,21 +8,23 @@ import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from dashboard.components.filters import get_channel_filter, get_date_filter
+from dashboard.components.filters import build_where_clause, get_channel_filter, get_date_filter
 from dashboard.components.metrics import (
     display_kpi_row,
     format_number,
 )
+from utils.db import query_df
 from utils.query_runner import run_view
 
 st.set_page_config(page_title="Conversion Tracking", page_icon="🎯", layout="wide")
 st.title("🎯 Conversion Tracking")
 
 
-# ── Cached data loaders ────────────────────────────────────────────────────────
+# ── Cached data loaders — date-filtered at DB level ───────────────────────────
 @st.cache_data(ttl=300)
-def _load_conversions():
-    return run_view("vw_conversions")
+def _load_conversions(start_date=None, end_date=None):
+    where, params = build_where_clause(start_date, end_date)
+    return query_df(f"SELECT * FROM vw_conversions {where}", params=params or None)
 
 
 @st.cache_data(ttl=300)
@@ -48,13 +50,14 @@ import pandas as pd  # noqa: E402
 # ── Load data ─────────────────────────────────────────────────────────────────
 with st.spinner("Loading conversion data…"):
     try:
-        df_conv = _load_conversions()
+        df_conv = _load_conversions(start_date, end_date)
         df_funnel = _load_funnel()
     except Exception as exc:
         st.error(f"Failed to load data from the database: {exc}")
         st.stop()
 
-df_conv = apply_filters(df_conv, start_date, end_date, channels)
+# Date already filtered at DB; apply channel filter at Python level (DB wired in next task)
+df_conv = apply_filters(df_conv, channels=channels)
 
 with st.expander("Debug: data shapes", expanded=False):
     st.write(

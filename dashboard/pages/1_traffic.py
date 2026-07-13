@@ -14,6 +14,7 @@ from ai.anomaly_detection.utils import load_traffic_data
 from dashboard.components.charts import bar_chart, line_chart, pie_chart
 from dashboard.components.filters import (
     apply_filters,
+    build_where_clause,
     get_channel_filter,
     get_date_filter,
     get_device_filter,
@@ -27,6 +28,7 @@ from dashboard.components.metrics import (
     format_number,
     format_percentage,
 )
+from utils.db import query_df
 from utils.query_runner import run_view
 
 st.set_page_config(page_title="Traffic & Sessions", page_icon="📈", layout="wide")
@@ -36,35 +38,100 @@ show_active_filters()
 _plotly_tpl = get_plotly_template()
 
 
-# ── Cached data loaders (TTL = 5 minutes) ─────────────────────────────────────
-@st.cache_data(ttl=300)
-def _load_traffic():
-    return run_view("vw_traffic")
-
+# ── Cached data loaders (TTL = 5 minutes) — date-filtered at DB level ─────────
 
 @st.cache_data(ttl=300)
-def _load_daily():
-    return run_view("vw_daily_traffic")
+def _load_traffic(start_date=None, end_date=None):
+    where, params = build_where_clause(start_date, end_date)
+    return query_df(f"SELECT * FROM vw_traffic {where}", params=params or None)
 
 
 @st.cache_data(ttl=300)
-def _load_channels():
-    return run_view("vw_channel_performance")
+def _load_daily(start_date=None, end_date=None):
+    where, params = build_where_clause(start_date, end_date)
+    return query_df(f"SELECT * FROM vw_daily_traffic {where}", params=params or None)
 
 
 @st.cache_data(ttl=300)
-def _load_devices():
-    return run_view("vw_device_breakdown")
+def _load_channels(start_date=None, end_date=None):
+    where, params = build_where_clause(start_date, end_date)
+    return query_df(f"""
+WITH channel_totals AS (
+    SELECT channel_grouping,
+           SUM(sessions)                                                AS total_sessions,
+           SUM(new_users)                                               AS total_new_users,
+           SUM(pageviews)                                               AS total_pageviews,
+           ROUND(AVG(session_duration_s)::numeric, 2)                   AS avg_session_duration,
+           ROUND(100.0 * SUM(CASE WHEN bounce THEN sessions ELSE 0 END)
+               / NULLIF(SUM(sessions), 0), 2)                          AS bounce_rate_pct,
+           COUNT(DISTINCT session_date)                                  AS active_days
+    FROM raw_ga4_sessions {where}
+    GROUP BY channel_grouping
+),
+grand_total AS (SELECT SUM(total_sessions) AS grand_sessions FROM channel_totals)
+SELECT c.channel_grouping, c.total_sessions, c.total_new_users, c.total_pageviews,
+       c.avg_session_duration, c.bounce_rate_pct, c.active_days,
+       ROUND(100.0 * c.total_sessions / NULLIF(g.grand_sessions, 0), 2) AS channel_share_pct
+FROM channel_totals c CROSS JOIN grand_total g
+ORDER BY c.total_sessions DESC
+""", params=params or None)
 
 
 @st.cache_data(ttl=300)
-def _load_newret():
-    return run_view("vw_new_vs_returning")
+def _load_devices(start_date=None, end_date=None):
+    date_where, params = build_where_clause(start_date, end_date)
+    where = (date_where + " AND device_category IS NOT NULL") if date_where else "WHERE device_category IS NOT NULL"
+    return query_df(f"""
+WITH device_totals AS (
+    SELECT device_category,
+           SUM(sessions)                                                AS total_sessions,
+           SUM(new_users)                                               AS total_new_users,
+           SUM(pageviews)                                               AS total_pageviews,
+           ROUND(AVG(session_duration_s)::numeric, 2)                   AS avg_session_duration,
+           ROUND(100.0 * SUM(CASE WHEN bounce THEN sessions ELSE 0 END)
+               / NULLIF(SUM(sessions), 0), 2)                          AS bounce_rate_pct
+    FROM raw_ga4_sessions {where}
+    GROUP BY device_category
+),
+grand_total AS (SELECT SUM(total_sessions) AS grand_sessions FROM device_totals)
+SELECT d.device_category, d.total_sessions, d.total_new_users, d.total_pageviews,
+       d.avg_session_duration, d.bounce_rate_pct,
+       ROUND(100.0 * d.total_sessions / NULLIF(g.grand_sessions, 0), 2) AS device_share_pct
+FROM device_totals d CROSS JOIN grand_total g
+ORDER BY d.total_sessions DESC
+""", params=params or None)
 
 
 @st.cache_data(ttl=300)
-def _load_geo():
-    return run_view("vw_geo_performance")
+def _load_newret(start_date=None, end_date=None):
+    where, params = build_where_clause(start_date, end_date)
+    return query_df(f"SELECT * FROM vw_new_vs_returning {where}", params=params or None)
+
+
+@st.cache_data(ttl=300)
+def _load_geo(start_date=None, end_date=None):
+    date_where, params = build_where_clause(start_date, end_date)
+    where = (date_where + " AND country IS NOT NULL") if date_where else "WHERE country IS NOT NULL"
+    return query_df(f"""
+WITH country_totals AS (
+    SELECT country,
+           SUM(sessions)                                                AS total_sessions,
+           SUM(new_users)                                               AS total_new_users,
+           SUM(pageviews)                                               AS total_pageviews,
+           ROUND(AVG(session_duration_s)::numeric, 2)                   AS avg_session_duration,
+           ROUND(100.0 * SUM(CASE WHEN bounce THEN sessions ELSE 0 END)
+               / NULLIF(SUM(sessions), 0), 2)                          AS bounce_rate_pct
+    FROM raw_ga4_sessions {where}
+    GROUP BY country
+),
+grand_total AS (SELECT SUM(total_sessions) AS grand_sessions FROM country_totals)
+SELECT c.country, c.total_sessions, c.total_new_users, c.total_pageviews,
+       c.avg_session_duration, c.bounce_rate_pct,
+       ROUND(100.0 * c.total_sessions / NULLIF(g.grand_sessions, 0), 2) AS country_share_pct
+FROM country_totals c CROSS JOIN grand_total g
+ORDER BY c.total_sessions DESC
+LIMIT 10
+""", params=params or None)
 
 
 # ── Sidebar filters ───────────────────────────────────────────────────────────
@@ -83,15 +150,15 @@ with st.sidebar:
     if active:
         st.success(f"Filters applied: {active}")
 
-# ── Load data ─────────────────────────────────────────────────────────────────
+# ── Load data — date range filtered at DB level ───────────────────────────────
 try:
     with st.spinner("Loading traffic data from PostgreSQL…"):
-        df_traffic = _load_traffic()
-        df_daily = _load_daily()
-        df_channels = _load_channels()
-        df_devices = _load_devices()
-        df_newret = _load_newret()
-        df_geo = _load_geo()
+        df_traffic = _load_traffic(start_date, end_date)
+        df_daily = _load_daily(start_date, end_date)
+        df_channels = _load_channels(start_date, end_date)
+        df_devices = _load_devices(start_date, end_date)
+        df_newret = _load_newret(start_date, end_date)
+        df_geo = _load_geo(start_date, end_date)
 except Exception as exc:
     st.error(
         f"Could not load data from the database. "
@@ -99,29 +166,27 @@ except Exception as exc:
     )
     st.stop()
 
-# Debug: verify each view returned rows
 with st.expander("Debug: data shapes", expanded=False):
     st.write(
         {
-            "vw_traffic": df_traffic.shape,
-            "vw_daily_traffic": df_daily.shape,
-            "vw_channel_performance": df_channels.shape,
-            "vw_device_breakdown": df_devices.shape,
-            "vw_new_vs_returning": df_newret.shape,
-            "vw_geo_performance": df_geo.shape,
+            "vw_traffic (filtered)": df_traffic.shape,
+            "vw_daily_traffic (filtered)": df_daily.shape,
+            "channel_performance (filtered)": df_channels.shape,
+            "device_breakdown (filtered)": df_devices.shape,
+            "vw_new_vs_returning (filtered)": df_newret.shape,
+            "geo_performance (filtered)": df_geo.shape,
         }
     )
 
-# Apply date / channel filters
-df_traffic = apply_filters(df_traffic, start_date, end_date, channels)
-df_daily = apply_filters(df_daily, start_date, end_date)
+# Channel filter applied at Python level (DB-level channel filter added in next task)
+df_traffic = apply_filters(df_traffic, channels=channels)
 
 # ── KPI cards with % change vs previous period ────────────────────────────────
 period_days = (end_date - start_date).days + 1
 prev_start = start_date - timedelta(days=period_days)
 prev_end = start_date - timedelta(days=1)
 
-df_prev = apply_filters(_load_traffic(), prev_start, prev_end, channels)
+df_prev = apply_filters(_load_traffic(prev_start, prev_end), channels=channels)
 
 
 def _delta(curr: float, prev: float) -> str | None:
