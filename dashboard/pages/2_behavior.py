@@ -10,7 +10,13 @@ import streamlit as st
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from dashboard.components.charts import bar_chart, line_chart
-from dashboard.components.filters import get_date_filter, get_page_filter
+from dashboard.components.filters import (
+    build_where_clause,
+    get_date_filter,
+    get_device_filter,
+    get_page_filter,
+    show_active_filters,
+)
 from dashboard.components.metrics import (
     display_kpi_row,
     format_duration,
@@ -22,6 +28,7 @@ from utils.query_runner import run_view
 
 st.set_page_config(page_title="User Behavior & Funnels", page_icon="🖱️", layout="wide")
 st.title("🖱️ User Behavior & Funnels")
+show_active_filters()
 
 
 # ── Cached loaders (TTL = 5 minutes) ─────────────────────────────────────────
@@ -46,9 +53,11 @@ def _load_engagement():
 
 
 @st.cache_data(ttl=300)
-def _load_avg_time():
+def _load_avg_time(start_date=None, end_date=None, devices: tuple = ()):
+    where, params = build_where_clause(start_date, end_date, devices=list(devices) or None)
     return query_df(
-        "SELECT ROUND(AVG(session_duration_s)::numeric, 1) AS avg_s FROM raw_ga4_sessions"
+        f"SELECT ROUND(AVG(session_duration_s)::numeric, 1) AS avg_s FROM raw_ga4_sessions {where}",
+        params=params or None,
     )
 
 
@@ -81,16 +90,18 @@ SELECT
 
 
 @st.cache_data(ttl=300)
-def _load_duration():
-    return query_df("""
+def _load_duration(start_date=None, end_date=None, devices: tuple = ()):
+    date_where, params = build_where_clause(start_date, end_date, devices=list(devices) or None)
+    base_cond = date_where + " AND session_duration_s IS NOT NULL" if date_where else "WHERE session_duration_s IS NOT NULL"
+    return query_df(f"""
 SELECT
-    COUNT(CASE WHEN session_duration_s < 30                                   THEN 1 END) AS "0–30s",
-    COUNT(CASE WHEN session_duration_s >= 30  AND session_duration_s < 120    THEN 1 END) AS "30s–2m",
-    COUNT(CASE WHEN session_duration_s >= 120 AND session_duration_s < 300    THEN 1 END) AS "2m–5m",
-    COUNT(CASE WHEN session_duration_s >= 300 AND session_duration_s < 600    THEN 1 END) AS "5m–10m",
+    COUNT(CASE WHEN session_duration_s < 30                                   THEN 1 END) AS "0-30s",
+    COUNT(CASE WHEN session_duration_s >= 30  AND session_duration_s < 120    THEN 1 END) AS "30s-2m",
+    COUNT(CASE WHEN session_duration_s >= 120 AND session_duration_s < 300    THEN 1 END) AS "2m-5m",
+    COUNT(CASE WHEN session_duration_s >= 300 AND session_duration_s < 600    THEN 1 END) AS "5m-10m",
     COUNT(CASE WHEN session_duration_s >= 600                                 THEN 1 END) AS "10m+"
-FROM raw_ga4_sessions WHERE session_duration_s IS NOT NULL
-""")
+FROM raw_ga4_sessions {base_cond}
+""", params=params or None)
 
 
 @st.cache_data(ttl=300)
@@ -104,37 +115,40 @@ FROM raw_server_logs GROUP BY 1, 2 ORDER BY 1, 2
 
 
 @st.cache_data(ttl=300)
-def _load_retention():
-    return query_df("""
+def _load_retention(start_date=None, end_date=None, devices: tuple = ()):
+    where, params = build_where_clause(start_date, end_date, devices=list(devices) or None)
+    return query_df(f"""
         SELECT
             DATE_TRUNC('week', session_date)::DATE AS week_start,
             SUM(sessions)  AS weekly_sessions,
             SUM(new_users) AS new_users,
             SUM(sessions) - SUM(new_users) AS returning_users,
-            ROUND((SUM(sessions) - SUM(new_users))::NUMERIC / NULLIF(SUM(sessions), 0) * 100, 2) AS retention_rate_pct
-        FROM raw_ga4_sessions
+            ROUND((SUM(sessions) - SUM(new_users))::NUMERIC / NULLIF(SUM(sessions), 0) * 100, 2)
+                AS retention_rate_pct
+        FROM raw_ga4_sessions {where}
         GROUP BY week_start
         ORDER BY week_start
-    """)
+    """, params=params or None)
 
 
 @st.cache_data(ttl=300)
-def _load_session_quality():
-    return query_df("""
+def _load_session_quality(start_date=None, end_date=None, devices: tuple = ()):
+    where, params = build_where_clause(start_date, end_date, devices=list(devices) or None)
+    return query_df(f"""
         WITH quality AS (
             SELECT
                 channel_grouping,
                 COUNT(*) AS total_sessions,
                 COUNT(CASE WHEN session_duration_s > 180 AND NOT bounce THEN 1 END) AS high_quality,
                 COUNT(CASE WHEN session_duration_s < 30 OR bounce THEN 1 END) AS low_quality
-            FROM raw_ga4_sessions
+            FROM raw_ga4_sessions {where}
             GROUP BY channel_grouping
         )
         SELECT channel_grouping, total_sessions, high_quality, low_quality,
                ROUND(high_quality::NUMERIC / NULLIF(total_sessions, 0) * 100, 2) AS high_quality_pct,
                ROUND(low_quality::NUMERIC  / NULLIF(total_sessions, 0) * 100, 2) AS low_quality_pct
         FROM quality ORDER BY high_quality_pct DESC
-    """)
+    """, params=params or None)
 
 
 @st.cache_data(ttl=300)
@@ -170,16 +184,19 @@ def _load_dau_mau():
 with st.sidebar:
     st.header("Filters")
     start_date, end_date = get_date_filter()
+    devices = get_device_filter()
     page_search = get_page_filter()
     st.divider()
+    active = sum([bool(devices), bool(page_search)])
+    if active:
+        st.success(f"{active} filter(s) active")
     if st.button("Clear data cache"):
         st.cache_data.clear()
         st.success("Cache cleared — reloading…")
     st.caption("Cache TTL: 5 min")
-    if page_search:
-        st.success("Page filter applied")
 
-# ── Load data ─────────────────────────────────────────────────────────────────
+# ── Load data — device filter applied at DB level for session queries ──────────
+_dev = tuple(devices)
 try:
     with st.spinner("Loading behavior data from PostgreSQL…"):
         df_behavior = _load_behavior()
@@ -223,7 +240,7 @@ total_pageviews = (
     int(df_top_pages["total_requests"].sum()) if not df_top_pages.empty else 0
 )
 
-_time_row = _load_avg_time()
+_time_row = _load_avg_time(start_date, end_date, _dev)
 avg_time_s = float(_time_row["avg_s"].iloc[0]) if not _time_row.empty else 0.0
 
 avg_scroll = (
@@ -386,7 +403,7 @@ st.divider()
 
 # ── Session duration distribution ─────────────────────────────────────────────
 st.subheader("Session Duration Distribution")
-df_dur = _load_duration()
+df_dur = _load_duration(start_date, end_date, _dev)
 if not df_dur.empty:
     import pandas as pd
 
@@ -484,7 +501,7 @@ st.subheader("Retention Analysis")
 import pandas as pd
 
 df_dau_mau = _load_dau_mau()
-df_retention = _load_retention()
+df_retention = _load_retention(start_date, end_date, _dev)
 
 # KPI cards: DAU, WAU, MAU, stickiness
 if not df_retention.empty:
@@ -568,7 +585,7 @@ st.divider()
 # ── Session Quality ───────────────────────────────────────────────────────────
 st.subheader("Session Quality")
 
-df_sq = _load_session_quality()
+df_sq = _load_session_quality(start_date, end_date, _dev)
 
 if not df_sq.empty:
     total_all = int(df_sq["total_sessions"].sum())
