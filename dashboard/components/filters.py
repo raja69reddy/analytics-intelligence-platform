@@ -4,6 +4,9 @@ Sidebar filter components for the Analytics Intelligence Platform.
 Each get_*_filter() function renders its widget and returns the selected value(s).
 Filter values are stored in st.session_state under the keys in FILTER_KEYS so
 they persist across page navigation within the same Streamlit session.
+
+DB-option loaders (get_available_*, get_date_range) are cached for 10 minutes so
+filter widgets always show real data without hammering the database on every render.
 """
 
 from datetime import date, timedelta
@@ -28,14 +31,123 @@ def get_plotly_template() -> str:
     return "plotly_white"
 
 
+# ── DB option loaders — TTL 600s ──────────────────────────────────────────────
+
+@st.cache_data(ttl=600)
+def get_date_range() -> tuple[date, date]:
+    """Load min and max session dates from PostgreSQL. Cached 10 minutes."""
+    from utils.db import query_df as _qdf
+
+    try:
+        df = _qdf(
+            "SELECT MIN(session_date)::date AS mn, MAX(session_date)::date AS mx "
+            "FROM raw_ga4_sessions"
+        )
+        mn, mx = df["mn"].iloc[0], df["mx"].iloc[0]
+        if mn is not None and mx is not None:
+            mn_d = mn.date() if hasattr(mn, "date") else date.fromisoformat(str(mn)[:10])
+            mx_d = mx.date() if hasattr(mx, "date") else date.fromisoformat(str(mx)[:10])
+            return mn_d, mx_d
+    except Exception:
+        pass
+    return date(2020, 1, 1), date.today()
+
+
+@st.cache_data(ttl=600)
+def get_available_channels() -> list[str]:
+    """Load distinct channel names from PostgreSQL. Cached 10 minutes."""
+    from utils.db import query_df as _qdf
+
+    try:
+        df = _qdf(
+            "SELECT DISTINCT channel_grouping FROM raw_ga4_sessions "
+            "WHERE channel_grouping IS NOT NULL ORDER BY 1"
+        )
+        return list(df["channel_grouping"])
+    except Exception:
+        return ["Direct", "Email", "Organic Search", "Paid Search", "Referral", "Social"]
+
+
+@st.cache_data(ttl=600)
+def get_available_devices() -> list[str]:
+    """Load distinct device types from PostgreSQL. Cached 10 minutes."""
+    from utils.db import query_df as _qdf
+
+    try:
+        df = _qdf(
+            "SELECT DISTINCT device_category FROM raw_ga4_sessions "
+            "WHERE device_category IS NOT NULL ORDER BY 1"
+        )
+        return list(df["device_category"])
+    except Exception:
+        return ["desktop", "mobile", "tablet"]
+
+
+@st.cache_data(ttl=600)
+def get_available_pages() -> list[str]:
+    """Load top 50 page URLs from PostgreSQL. Cached 10 minutes."""
+    from utils.db import query_df as _qdf
+
+    try:
+        df = _qdf("SELECT url FROM vw_top_pages LIMIT 50")
+        return list(df["url"])
+    except Exception:
+        return []
+
+
+# ── SQL WHERE clause builder ──────────────────────────────────────────────────
+
+def build_where_clause(
+    start_date=None,
+    end_date=None,
+    channels: list[str] | None = None,
+    devices: list[str] | None = None,
+    date_col: str = "session_date",
+    channel_col: str = "channel_grouping",
+    device_col: str = "device_category",
+) -> tuple[str, dict]:
+    """
+    Build a SQL WHERE clause string and named-params dict for DB-level filtering.
+
+    Returns (where_str, params_dict). where_str is "" when no filters are active.
+    Use :filter_start / :filter_end for dates, :ch0 / :ch1 … for channels,
+    :dev0 / :dev1 … for devices — all bound safely via SQLAlchemy text().
+    """
+    clauses: list[str] = []
+    params: dict = {}
+
+    if start_date:
+        clauses.append(f"{date_col} >= :filter_start")
+        params["filter_start"] = str(start_date)
+    if end_date:
+        clauses.append(f"{date_col} <= :filter_end")
+        params["filter_end"] = str(end_date)
+
+    if channels:
+        phs = ", ".join(f":ch{i}" for i in range(len(channels)))
+        clauses.append(f"{channel_col} IN ({phs})")
+        params.update({f"ch{i}": ch for i, ch in enumerate(channels)})
+
+    if devices:
+        phs = ", ".join(f":dev{i}" for i in range(len(devices)))
+        clauses.append(f"{device_col} IN ({phs})")
+        params.update({f"dev{i}": dev for i, dev in enumerate(devices)})
+
+    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+    return where, params
+
+
+# ── Filter widgets ────────────────────────────────────────────────────────────
+
 def get_date_filter() -> tuple[date, date]:
-    """Render a date range picker. Returns (start_date, end_date)."""
+    """Render a date range picker bounded by actual DB dates. Returns (start_date, end_date)."""
     today = date.today()
     default_start = today - timedelta(days=29)
+    db_min, _db_max = get_date_range()
     date_range = st.sidebar.date_input(
         "Date range",
         value=(default_start, today),
-        min_value=date(2020, 1, 1),
+        min_value=db_min,
         max_value=today,
         key=FILTER_KEYS["date_range"],
     )
@@ -45,17 +157,10 @@ def get_date_filter() -> tuple[date, date]:
 
 
 def get_channel_filter() -> list[str]:
-    """Render a multiselect for traffic channels. Returns list of selected channels (empty = all)."""
+    """Render a multiselect with channels loaded from DB. Returns selected channels (empty = all)."""
     return st.sidebar.multiselect(
         "Channel",
-        options=[
-            "Direct",
-            "Email",
-            "Organic Search",
-            "Paid Search",
-            "Referral",
-            "Social",
-        ],
+        options=get_available_channels(),
         default=[],
         placeholder="All channels",
         key=FILTER_KEYS["channels"],
@@ -73,15 +178,17 @@ def get_page_filter() -> str:
 
 
 def get_device_filter() -> list[str]:
-    """Render a multiselect for device types. Returns list of selected devices (empty = all)."""
+    """Render a multiselect with device types loaded from DB. Returns selected devices (empty = all)."""
     return st.sidebar.multiselect(
         "Device",
-        options=["desktop", "mobile", "tablet"],
+        options=get_available_devices(),
         default=[],
         placeholder="All devices",
         key=FILTER_KEYS["devices"],
     )
 
+
+# ── DataFrame-level filtering ─────────────────────────────────────────────────
 
 def apply_date_filter(
     df: pd.DataFrame,
@@ -105,30 +212,6 @@ def apply_all_filters(df: pd.DataFrame) -> pd.DataFrame:
     devices = list(st.session_state.get(FILTER_KEYS["devices"], []))
 
     return apply_filters(df, start, end, channels, page_search, devices)
-
-
-def show_active_filters() -> None:
-    """Render an info box summarising every active filter."""
-    parts = []
-
-    dr = st.session_state.get(FILTER_KEYS["date_range"])
-    if isinstance(dr, (tuple, list)) and len(dr) == 2:
-        parts.append(f"Date: {dr[0]} to {dr[1]}")
-
-    channels = list(st.session_state.get(FILTER_KEYS["channels"], []))
-    if channels:
-        parts.append(f"Channel: {', '.join(channels)}")
-
-    page_search = str(st.session_state.get(FILTER_KEYS["page_search"], "")).strip()
-    if page_search:
-        parts.append(f"Page: *{page_search}*")
-
-    devices = list(st.session_state.get(FILTER_KEYS["devices"], []))
-    if devices:
-        parts.append(f"Device: {', '.join(devices)}")
-
-    if parts:
-        st.info("**Active filters:** " + " | ".join(parts))
 
 
 def apply_filters(
@@ -168,7 +251,34 @@ def apply_filters(
     return df[mask].reset_index(drop=True)
 
 
-# Legacy helpers kept for backward compatibility with existing page files
+# ── Active filter display ─────────────────────────────────────────────────────
+
+def show_active_filters() -> None:
+    """Render an info box summarising every active filter."""
+    parts = []
+
+    dr = st.session_state.get(FILTER_KEYS["date_range"])
+    if isinstance(dr, (tuple, list)) and len(dr) == 2:
+        parts.append(f"Date: {dr[0]} to {dr[1]}")
+
+    channels = list(st.session_state.get(FILTER_KEYS["channels"], []))
+    if channels:
+        parts.append(f"Channel: {', '.join(channels)}")
+
+    page_search = str(st.session_state.get(FILTER_KEYS["page_search"], "")).strip()
+    if page_search:
+        parts.append(f"Page: *{page_search}*")
+
+    devices = list(st.session_state.get(FILTER_KEYS["devices"], []))
+    if devices:
+        parts.append(f"Device: {', '.join(devices)}")
+
+    if parts:
+        st.info("**Active filters:** " + " | ".join(parts))
+
+
+# ── Legacy helpers (backward compatibility) ───────────────────────────────────
+
 def render_filters(include_channel: bool = True, include_page: bool = True) -> dict:
     start_date, end_date = get_date_filter()
     filters: dict = {
