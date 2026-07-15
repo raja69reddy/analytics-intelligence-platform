@@ -2,6 +2,7 @@
 
 import os
 import sys
+from datetime import timedelta
 
 import plotly.graph_objects as go
 import streamlit as st
@@ -10,8 +11,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from dashboard.components.filters import build_where_clause, get_channel_filter, get_date_filter
 from dashboard.components.metrics import (
-    display_kpi_row,
-    format_number,
+    calculate_period_change,
+    display_4_kpi_row,
+    format_currency,
+    format_large_number,
 )
 from utils.db import query_df
 from utils.query_runner import run_view
@@ -66,20 +69,54 @@ with st.expander("Debug: data shapes", expanded=False):
         }
     )
 
-# ── KPI cards ─────────────────────────────────────────────────────────────────
+# ── KPI cards — 4 metrics with % change vs previous period ───────────────────
+_cv_period_days = (end_date - start_date).days + 1
+_cv_prev_start = start_date - timedelta(days=_cv_period_days)
+_cv_prev_end = start_date - timedelta(days=1)
+
+df_prev_conv = _load_conversions(_cv_prev_start, _cv_prev_end, tuple(channels))
+
 total_sessions = int(df_conv["sessions"].sum()) if not df_conv.empty else 0
 total_completions = int(df_conv["goal_completions"].sum()) if not df_conv.empty else 0
 total_revenue = float(df_conv["revenue"].sum()) if not df_conv.empty else 0.0
 overall_cvr = (total_completions / total_sessions * 100) if total_sessions else 0.0
 avg_rev_per_session = (total_revenue / total_sessions) if total_sessions else 0.0
 
-display_kpi_row(
-    [
-        {"title": "Overall Conversion Rate", "value": f"{overall_cvr:.2f}%"},
-        {"title": "Total Goal Completions", "value": format_number(total_completions)},
-        {"title": "Total Revenue", "value": f"${total_revenue:,.2f}"},
-        {"title": "Avg Revenue Per Session", "value": f"${avg_rev_per_session:.2f}"},
-    ]
+prev_sessions = int(df_prev_conv["sessions"].sum()) if not df_prev_conv.empty else 0
+prev_completions = int(df_prev_conv["goal_completions"].sum()) if not df_prev_conv.empty else 0
+prev_revenue = float(df_prev_conv["revenue"].sum()) if not df_prev_conv.empty else 0.0
+prev_cvr = (prev_completions / prev_sessions * 100) if prev_sessions else 0.0
+prev_avg_rev = (prev_revenue / prev_sessions) if prev_sessions else 0.0
+
+display_4_kpi_row(
+    {
+        "title": "Overall CVR",
+        "value": f"{overall_cvr:.2f}%",
+        "delta": calculate_period_change(overall_cvr, prev_cvr),
+        "icon": "🎯",
+    },
+    {
+        "title": "Total Goal Completions",
+        "value": format_large_number(total_completions),
+        "delta": calculate_period_change(total_completions, prev_completions),
+        "icon": "✅",
+    },
+    {
+        "title": "Total Revenue",
+        "value": format_currency(total_revenue),
+        "delta": calculate_period_change(total_revenue, prev_revenue),
+        "icon": "💰",
+    },
+    {
+        "title": "Avg Revenue Per Session",
+        "value": format_currency(avg_rev_per_session),
+        "delta": calculate_period_change(avg_rev_per_session, prev_avg_rev),
+        "icon": "💵",
+    },
+)
+st.caption(
+    f"Period: {start_date} to {end_date} vs {_cv_prev_start} to {_cv_prev_end}. "
+    "Green = improved performance."
 )
 
 st.divider()
