@@ -661,35 +661,119 @@ with sc4:
 
 st.divider()
 
-# ── Quick Navigation ──────────────────────────────────────────────────────────
-st.subheader("Quick Navigation")
+# ── Navigation Cards with Key Metrics ────────────────────────────────────────
+st.subheader("Dashboard Pages")
+
+
+@st.cache_data(ttl=300)
+def _load_nav_metrics():
+    from datetime import date as _date, timedelta as _td
+
+    try:
+        max_row = query_df(
+            "SELECT MAX(session_date)::date AS d FROM raw_ga4_sessions"
+        )
+        max_d_raw = max_row["d"].iloc[0]
+        if max_d_raw is None:
+            return 0, 0.0, "", 0, 0
+        max_d = (
+            max_d_raw
+            if isinstance(max_d_raw, _date)
+            else _date.fromisoformat(str(max_d_raw)[:10])
+        )
+        p = {"s": str(max_d - _td(days=30)), "e": str(max_d)}
+        sess = int(
+            query_df(
+                "SELECT COALESCE(SUM(sessions), 0) AS n FROM raw_ga4_sessions "
+                "WHERE session_date BETWEEN :s AND :e",
+                params=p,
+            )["n"].iloc[0]
+            or 0
+        )
+        cvr = float(
+            query_df(
+                "SELECT ROUND(100.0 * SUM(goal_completions) / NULLIF(SUM(sessions), 0), 2) AS v "
+                "FROM vw_conversions WHERE session_date BETWEEN :s AND :e",
+                params=p,
+            )["v"].iloc[0]
+            or 0.0
+        )
+        top_page = ""
+        try:
+            tp = query_df("SELECT url FROM vw_top_pages LIMIT 1")
+            top_page = str(tp["url"].iloc[0]) if not tp.empty else ""
+        except Exception:
+            pass
+        n_al = int(
+            query_df("SELECT COUNT(*) AS n FROM alerts WHERE NOT is_resolved")[
+                "n"
+            ].iloc[0]
+            or 0
+        )
+        n_reports = 0
+        try:
+            from pathlib import Path as _Path
+
+            _rd = _Path(__file__).resolve().parent.parent / "data" / "processed" / "reports"
+            n_reports = len(list(_rd.glob("report_*.md"))) if _rd.exists() else 0
+        except Exception:
+            pass
+        return sess, cvr, top_page, n_al, n_reports
+    except Exception:
+        return 0, 0.0, "", 0, 0
+
+
+_nav_sess, _nav_cvr, _nav_top_page, _nav_alerts, _nav_reports = _load_nav_metrics()
+_nav_pred = f"{_pred_7d:,}" if _pred_7d is not None else "N/A"
 
 nav1, nav2, nav3, nav4 = st.columns(4)
 with nav1:
     st.info(
-        "📈 **Traffic & Sessions**\nSessions over time, channels, new vs returning, device split"
+        f"📈 **Traffic & Sessions**\nSessions over time, channels, new vs returning, device split"
+        f"\n\n**30d Sessions:** {format_large_number(_nav_sess)}"
     )
     st.page_link("pages/1_traffic.py", label="Open Traffic", icon="📈")
 with nav2:
-    st.info("🖱️ **User Behavior**\nTop pages, scroll depth, event types, session duration")
+    st.info(
+        "🖱️ **User Behavior**\nTop pages, scroll depth, event types, session duration"
+        f"\n\n**Top Page:** {_nav_top_page[:30] + '...' if len(_nav_top_page) > 30 else _nav_top_page or 'N/A'}"
+    )
     st.page_link("pages/2_behavior.py", label="Open Behavior", icon="🖱️")
 with nav3:
-    st.info("🎯 **Conversions**\nFunnel, CVR by channel, goal completions, revenue")
+    st.info(
+        f"🎯 **Conversions**\nFunnel, CVR by channel, goal completions, revenue"
+        f"\n\n**30d CVR:** {_nav_cvr:.2f}%"
+    )
     st.page_link("pages/3_conversions.py", label="Open Conversions", icon="🎯")
 with nav4:
-    st.info("🔍 **SEO & Content**\nOrganic pages, word count vs engagement, content health")
+    st.info(
+        "🔍 **SEO & Content**\nOrganic pages, word count vs engagement, content health"
+        f"\n\n**SQL Views:** {_sql_views}"
+    )
     st.page_link("pages/4_seo.py", label="Open SEO", icon="🔍")
 
 nav5, nav6, nav7, nav8 = st.columns(4)
 with nav5:
-    st.info("💬 **Ask Your Data**\nNatural language queries powered by OpenAI GPT-3.5")
+    st.info(
+        "💬 **Ask Your Data**\nNatural language queries powered by OpenAI GPT-3.5"
+        f"\n\n**Data Points:** {format_large_number(_total_dp)}"
+    )
     st.page_link("pages/5_nlq.py", label="Open NLQ", icon="💬")
 with nav6:
-    st.info("📋 **AI Reports**\nAuto-generated executive summaries and actionable insights")
+    st.info(
+        "📋 **AI Reports**\nAuto-generated executive summaries and actionable insights"
+        f"\n\n**Reports Generated:** {_nav_reports}"
+    )
     st.page_link("pages/6_reports.py", label="Open Reports", icon="📋")
 with nav7:
-    st.info("⚙️ **Pipeline Monitor**\nIngestion status, smart alerts, data quality health")
+    st.info(
+        "⚙️ **Pipeline Monitor**\nIngestion status, smart alerts, data quality health"
+        f"\n\n**Active Alerts:** {_nav_alerts}"
+    )
     st.page_link("pages/7_pipeline.py", label="Open Pipeline", icon="⚙️")
 with nav8:
-    st.info("🔮 **Forecasting**\nProphet-based session and conversion rate forecasts")
+    st.info(
+        "🔮 **Forecasting**\nProphet-based session and conversion rate forecasts"
+        f"\n\n**Predicted Sessions (7d):** {_nav_pred}"
+    )
     st.page_link("pages/8_forecasting.py", label="Open Forecast", icon="🔮")
