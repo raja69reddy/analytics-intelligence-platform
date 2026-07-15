@@ -3,6 +3,7 @@ vw_scroll_depth, and vw_engagement_events."""
 
 import os
 import sys
+from datetime import timedelta
 
 import plotly.graph_objects as go
 import streamlit as st
@@ -18,9 +19,10 @@ from dashboard.components.filters import (
     show_active_filters,
 )
 from dashboard.components.metrics import (
-    display_kpi_row,
+    calculate_period_change,
+    display_4_kpi_row,
     format_duration,
-    format_number,
+    format_large_number,
     format_percentage,
 )
 from utils.db import query_df
@@ -59,6 +61,38 @@ def _load_avg_time(start_date=None, end_date=None, devices: tuple = ()):
         f"SELECT ROUND(AVG(session_duration_s)::numeric, 1) AS avg_s FROM raw_ga4_sessions {where}",
         params=params or None,
     )
+
+
+@st.cache_data(ttl=300)
+def _load_behavior_kpis_period(start_date=None, end_date=None, devices: tuple = ()):
+    """Load the 4 behavior KPI metrics for a given date period."""
+    where, params = build_where_clause(start_date, end_date, devices=list(devices) or None)
+    df_sess = query_df(
+        f"""SELECT COALESCE(SUM(pageviews), 0) AS total_pageviews,
+                   ROUND(AVG(session_duration_s)::numeric, 1) AS avg_duration_s
+            FROM raw_ga4_sessions {where}""",
+        params=params or None,
+    )
+    if start_date and end_date:
+        df_ev = query_df(
+            """SELECT ROUND(AVG(scroll_depth_pct)::numeric, 1) AS avg_scroll,
+                      COUNT(*) AS total_events
+               FROM raw_clickstream_events
+               WHERE DATE(timestamp) BETWEEN :s AND :e""",
+            params={"s": str(start_date), "e": str(end_date)},
+        )
+    else:
+        df_ev = query_df(
+            """SELECT ROUND(AVG(scroll_depth_pct)::numeric, 1) AS avg_scroll,
+                      COUNT(*) AS total_events
+               FROM raw_clickstream_events"""
+        )
+    return {
+        "pageviews": int(df_sess["total_pageviews"].iloc[0] or 0),
+        "avg_duration_s": float(df_sess["avg_duration_s"].iloc[0] or 0),
+        "avg_scroll": float(df_ev["avg_scroll"].iloc[0] or 0),
+        "total_events": int(df_ev["total_events"].iloc[0] or 0),
+    }
 
 
 @st.cache_data(ttl=300)
@@ -235,29 +269,47 @@ with st.expander("Debug: data shapes", expanded=False):
         }
     )
 
-# ── KPI cards ─────────────────────────────────────────────────────────────────
-total_pageviews = (
-    int(df_top_pages["total_requests"].sum()) if not df_top_pages.empty else 0
+# ── KPI cards — 4 metrics with % change vs previous period ───────────────────
+_period_days = (end_date - start_date).days + 1
+_prev_start = start_date - timedelta(days=_period_days)
+_prev_end = start_date - timedelta(days=1)
+
+_curr_kpis = _load_behavior_kpis_period(start_date, end_date, _dev)
+_prev_kpis = _load_behavior_kpis_period(_prev_start, _prev_end, _dev)
+
+display_4_kpi_row(
+    {
+        "title": "Total Page Views",
+        "value": format_large_number(_curr_kpis["pageviews"]),
+        "delta": calculate_period_change(_curr_kpis["pageviews"], _prev_kpis["pageviews"]),
+        "icon": "📄",
+    },
+    {
+        "title": "Avg Time on Page",
+        "value": format_duration(_curr_kpis["avg_duration_s"]),
+        "delta": calculate_period_change(
+            _curr_kpis["avg_duration_s"], _prev_kpis["avg_duration_s"]
+        ),
+        "icon": "⏱️",
+    },
+    {
+        "title": "Avg Scroll Depth",
+        "value": format_percentage(_curr_kpis["avg_scroll"]),
+        "delta": calculate_period_change(_curr_kpis["avg_scroll"], _prev_kpis["avg_scroll"]),
+        "icon": "📜",
+    },
+    {
+        "title": "Total Events Tracked",
+        "value": format_large_number(_curr_kpis["total_events"]),
+        "delta": calculate_period_change(
+            _curr_kpis["total_events"], _prev_kpis["total_events"]
+        ),
+        "icon": "🖱️",
+    },
 )
-
-_time_row = _load_avg_time(start_date, end_date, _dev)
-avg_time_s = float(_time_row["avg_s"].iloc[0]) if not _time_row.empty else 0.0
-
-avg_scroll = (
-    float(df_scroll["avg_scroll_depth_pct"].mean()) if not df_scroll.empty else 0.0
-)
-
-total_events = (
-    int(df_engagement["total_events"].sum()) if not df_engagement.empty else 0
-)
-
-display_kpi_row(
-    [
-        {"title": "Total Page Views", "value": format_number(total_pageviews)},
-        {"title": "Avg Time on Page", "value": format_duration(avg_time_s)},
-        {"title": "Avg Scroll Depth", "value": format_percentage(avg_scroll)},
-        {"title": "Total Events Tracked", "value": format_number(total_events)},
-    ]
+st.caption(
+    f"Period: {start_date} to {end_date} vs {_prev_start} to {_prev_end}. "
+    "Green = improved performance."
 )
 
 st.divider()
