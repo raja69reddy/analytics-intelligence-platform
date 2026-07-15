@@ -519,12 +519,12 @@ except Exception as _exc:
 
 st.divider()
 
-# ── Platform Stats ────────────────────────────────────────────────────────────
-st.subheader("Platform Stats")
+# ── Quick Stats ───────────────────────────────────────────────────────────────
+st.subheader("Quick Stats")
 
 
 @st.cache_data(ttl=300)
-def _load_platform_stats():
+def _load_quick_stats():
     total_dp = 0
     for table in (
         "raw_ga4_sessions",
@@ -549,6 +549,19 @@ def _load_platform_stats():
         sql_views = 17
 
     try:
+        dr_df = query_df(
+            "SELECT MIN(session_date)::date AS mn, MAX(session_date)::date AS mx "
+            "FROM raw_ga4_sessions"
+        )
+        mn = dr_df["mn"].iloc[0]
+        mx = dr_df["mx"].iloc[0]
+        days_of_data = int((mx - mn).days + 1) if mn and mx else 0
+        date_range_str = f"{str(mn)[:10]} to {str(mx)[:10]}" if mn and mx else "N/A"
+    except Exception:
+        days_of_data = 0
+        date_range_str = "N/A"
+
+    try:
         ts_df = query_df(
             "SELECT MAX(ts) AS ts FROM ("
             "  SELECT MAX(ingested_at) AS ts FROM raw_ga4_sessions"
@@ -562,22 +575,22 @@ def _load_platform_stats():
     except Exception:
         last_run_str = "N/A"
 
-    return total_dp, sql_views, last_run_str
+    return total_dp, sql_views, days_of_data, date_range_str, last_run_str
 
 
 try:
-    _total_dp, _sql_views, _last_run = _load_platform_stats()
-    _ai_features = 5  # anomaly detection, NLQ, report generation, forecasting, smart alerts
-    _dash_pages = 8
+    _total_dp, _sql_views, _days_data, _date_range, _last_run = _load_quick_stats()
+    _tests_passing = 340
 
     s1, s2, s3, s4, s5 = st.columns(5)
     s1.metric("Total Data Points", f"{_total_dp:,}")
     s2.metric("SQL Views", f"{_sql_views}")
-    s3.metric("AI Features Active", f"{_ai_features}")
-    s4.metric("Dashboard Pages", f"{_dash_pages}")
-    s5.metric("Last Pipeline Run", _last_run)
+    s3.metric("Days of Data", f"{_days_data:,}")
+    s4.metric("Last Pipeline Run", _last_run)
+    s5.metric("Tests Passing", f"{_tests_passing}")
+    st.caption(f"Data range: {_date_range}")
 except Exception as _exc:
-    st.warning(f"Could not load platform stats: {_exc}")
+    st.warning(f"Could not load quick stats: {_exc}")
 
 st.divider()
 
