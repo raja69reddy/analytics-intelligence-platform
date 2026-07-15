@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 33 - KPI Cards + Home Page Polish
+- Updated dashboard/components/metrics.py with 6 new functions: format_large_number (K/M suffix), format_currency ($1,234), calculate_period_change (+12.5% delta string), display_trend_indicator (UP/DOWN/FLAT vs threshold), display_metric_card (icon + color params), display_4_kpi_row (4 positional metric dicts in one row)
+- Added real-time KPI cards to home page: Total Sessions, Total Users, Overall CVR, Avg Bounce Rate — each showing last 30 days of data vs previous 30 days with green/red delta; bounce rate uses inverse color (lower = green)
+- Added AI Insights Summary section to home page: Active Alerts count, Anomalies Detected count, Predicted Sessions (7d) from sidebar forecast, System Health Score (25pts per passing check)
+- Replaced Platform Stats with enhanced Quick Stats section: Total Data Points, SQL Views, Days of Data (count), Last Pipeline Run timestamp, Tests Passing (340)
+- Enhanced Quick Navigation to Dashboard Pages with per-card key metrics: Traffic shows 30d sessions, Behavior shows top page URL, Conversions shows 30d CVR, SEO shows SQL views count, NLQ shows total data points, Reports shows reports generated count, Pipeline shows active alerts count, Forecasting shows predicted 7d sessions
+
 ## Day 32 - Global Filters Wired to DB
 - filters.py loads options dynamically from PostgreSQL: get_available_channels, get_available_devices, get_available_pages, get_date_range — all cached 600s; added build_where_clause helper for safe parameterized SQL WHERE clauses
 - Date range filter wired to all DB queries in traffic page (vw_traffic, vw_daily_traffic, channel/device/geo custom queries, vw_new_vs_returning) and conversions page (vw_conversions) — date params passed as @st.cache_data keys
