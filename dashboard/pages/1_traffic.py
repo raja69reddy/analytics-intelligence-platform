@@ -23,9 +23,10 @@ from dashboard.components.filters import (
     show_active_filters,
 )
 from dashboard.components.metrics import (
-    display_kpi_row,
+    calculate_period_change,
+    display_4_kpi_row,
     format_duration,
-    format_number,
+    format_large_number,
     format_percentage,
 )
 from utils.db import query_df
@@ -181,63 +182,53 @@ with st.expander("Debug: data shapes", expanded=False):
 
 # Channel filter now applied at DB level via _load_traffic / _load_channels
 
-# ── KPI cards with % change vs previous period ────────────────────────────────
+# ── KPI cards — 4 core metrics with % change vs previous period ────────────────
 period_days = (end_date - start_date).days + 1
 prev_start = start_date - timedelta(days=period_days)
 prev_end = start_date - timedelta(days=1)
 
 df_prev = _load_traffic(prev_start, prev_end, tuple(channels))
 
-
-def _delta(curr: float, prev: float) -> str | None:
-    if prev == 0:
-        return None
-    return f"{((curr - prev) / prev * 100):+.1f}%"
-
-
 curr_sessions = int(df_traffic["total_sessions"].sum())
 curr_users = int(df_traffic["total_users"].sum())
-curr_pageviews = int(df_traffic["total_pageviews"].sum())
 curr_bounce = float(df_traffic["avg_bounce_rate"].mean()) if len(df_traffic) else 0.0
-curr_duration = (
-    float(df_traffic["avg_session_duration"].mean()) if len(df_traffic) else 0.0
-)
+curr_duration = float(df_traffic["avg_session_duration"].mean()) if len(df_traffic) else 0.0
 
 prev_sessions = int(df_prev["total_sessions"].sum())
 prev_users = int(df_prev["total_users"].sum())
-prev_pageviews = int(df_prev["total_pageviews"].sum())
 prev_bounce = float(df_prev["avg_bounce_rate"].mean()) if len(df_prev) else 0.0
 prev_duration = float(df_prev["avg_session_duration"].mean()) if len(df_prev) else 0.0
 
-display_kpi_row(
-    [
-        {
-            "title": "Total Sessions",
-            "value": format_number(curr_sessions),
-            "delta": _delta(curr_sessions, prev_sessions),
-        },
-        {
-            "title": "Total Users",
-            "value": format_number(curr_users),
-            "delta": _delta(curr_users, prev_users),
-        },
-        {
-            "title": "Total Pageviews",
-            "value": format_number(curr_pageviews),
-            "delta": _delta(curr_pageviews, prev_pageviews),
-        },
-        {
-            "title": "Avg Bounce Rate",
-            "value": format_percentage(curr_bounce),
-            "delta": _delta(curr_bounce, prev_bounce),
-            "delta_color": "inverse",
-        },
-        {
-            "title": "Avg Session Duration",
-            "value": format_duration(curr_duration),
-            "delta": _delta(curr_duration, prev_duration),
-        },
-    ]
+display_4_kpi_row(
+    {
+        "title": "Total Sessions",
+        "value": format_large_number(curr_sessions),
+        "delta": calculate_period_change(curr_sessions, prev_sessions),
+        "icon": "📈",
+    },
+    {
+        "title": "Total Users",
+        "value": format_large_number(curr_users),
+        "delta": calculate_period_change(curr_users, prev_users),
+        "icon": "👥",
+    },
+    {
+        "title": "Avg Bounce Rate",
+        "value": format_percentage(curr_bounce),
+        "delta": calculate_period_change(curr_bounce, prev_bounce),
+        "color": "inverse",
+        "icon": "⬇️",
+    },
+    {
+        "title": "Avg Session Duration",
+        "value": format_duration(curr_duration),
+        "delta": calculate_period_change(curr_duration, prev_duration),
+        "icon": "⏱️",
+    },
+)
+st.caption(
+    f"Period: {start_date} to {end_date} vs {prev_start} to {prev_end}. "
+    "Green = improved performance."
 )
 
 st.divider()
