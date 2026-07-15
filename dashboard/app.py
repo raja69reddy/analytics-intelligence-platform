@@ -327,6 +327,11 @@ with st.sidebar:
 
 
 # ── Main page ─────────────────────────────────────────────────────────────────
+from dashboard.components.metrics import (  # noqa: E402
+    calculate_period_change,
+    display_4_kpi_row,
+    format_large_number,
+)
 from utils.db import query_df  # noqa: E402
 
 st.title("📊 Analytics Intelligence Platform")
@@ -334,6 +339,135 @@ st.markdown(
     "Production-grade analytics powered by **PostgreSQL**, **Python**, **Streamlit**, and **AI/ML**. "
     "Use the sidebar to filter data globally and navigate between the 8 dashboard pages."
 )
+st.divider()
+
+# ── Live KPI Cards ────────────────────────────────────────────────────────────
+st.subheader("Live Performance — Last 30 Days")
+
+
+@st.cache_data(ttl=300)
+def _load_live_kpis():
+    from datetime import date as _date, timedelta as _td
+
+    max_row = query_df("SELECT MAX(session_date)::date AS d FROM raw_ga4_sessions")
+    max_d_raw = max_row["d"].iloc[0]
+    if max_d_raw is None:
+        return None
+    max_d = (
+        max_d_raw
+        if isinstance(max_d_raw, _date)
+        else _date.fromisoformat(str(max_d_raw)[:10])
+    )
+    curr_start = str(max_d - _td(days=30))
+    curr_end = str(max_d)
+    prev_start = str(max_d - _td(days=60))
+    prev_end = str(max_d - _td(days=31))
+    p = {"cs": curr_start, "ce": curr_end, "ps": prev_start, "pe": prev_end}
+
+    sess_df = query_df(
+        """
+        SELECT
+            COALESCE(SUM(CASE WHEN session_date BETWEEN :cs AND :ce
+                THEN sessions END), 0) AS curr_s,
+            COALESCE(SUM(CASE WHEN session_date BETWEEN :cs AND :ce
+                THEN new_users END), 0) AS curr_u,
+            COALESCE(SUM(CASE WHEN session_date BETWEEN :ps AND :pe
+                THEN sessions END), 0) AS prev_s,
+            COALESCE(SUM(CASE WHEN session_date BETWEEN :ps AND :pe
+                THEN new_users END), 0) AS prev_u,
+            ROUND(100.0
+                * COALESCE(SUM(CASE WHEN session_date BETWEEN :cs AND :ce AND bounce
+                    THEN sessions END), 0)
+                / NULLIF(SUM(CASE WHEN session_date BETWEEN :cs AND :ce
+                    THEN sessions END), 0), 2) AS curr_bounce,
+            ROUND(100.0
+                * COALESCE(SUM(CASE WHEN session_date BETWEEN :ps AND :pe AND bounce
+                    THEN sessions END), 0)
+                / NULLIF(SUM(CASE WHEN session_date BETWEEN :ps AND :pe
+                    THEN sessions END), 0), 2) AS prev_bounce
+        FROM raw_ga4_sessions
+        WHERE session_date BETWEEN :ps AND :ce
+        """,
+        params=p,
+    )
+    cvr_df = query_df(
+        """
+        SELECT
+            ROUND(100.0
+                * COALESCE(SUM(CASE WHEN session_date BETWEEN :cs AND :ce
+                    THEN goal_completions END), 0)
+                / NULLIF(SUM(CASE WHEN session_date BETWEEN :cs AND :ce
+                    THEN sessions END), 0), 2) AS curr_cvr,
+            ROUND(100.0
+                * COALESCE(SUM(CASE WHEN session_date BETWEEN :ps AND :pe
+                    THEN goal_completions END), 0)
+                / NULLIF(SUM(CASE WHEN session_date BETWEEN :ps AND :pe
+                    THEN sessions END), 0), 2) AS prev_cvr
+        FROM vw_conversions
+        WHERE session_date BETWEEN :ps AND :ce
+        """,
+        params=p,
+    )
+    return {
+        "curr_sessions": int(sess_df["curr_s"].iloc[0] or 0),
+        "prev_sessions": int(sess_df["prev_s"].iloc[0] or 0),
+        "curr_users": int(sess_df["curr_u"].iloc[0] or 0),
+        "prev_users": int(sess_df["prev_u"].iloc[0] or 0),
+        "curr_cvr": float(cvr_df["curr_cvr"].iloc[0] or 0),
+        "prev_cvr": float(cvr_df["prev_cvr"].iloc[0] or 0),
+        "curr_bounce": float(sess_df["curr_bounce"].iloc[0] or 0),
+        "prev_bounce": float(sess_df["prev_bounce"].iloc[0] or 0),
+        "period_end": str(max_d),
+    }
+
+
+try:
+    _kpis = _load_live_kpis()
+    if _kpis:
+        display_4_kpi_row(
+            {
+                "title": "Total Sessions",
+                "value": format_large_number(_kpis["curr_sessions"]),
+                "delta": calculate_period_change(
+                    _kpis["curr_sessions"], _kpis["prev_sessions"]
+                ),
+                "icon": "📈",
+            },
+            {
+                "title": "Total Users",
+                "value": format_large_number(_kpis["curr_users"]),
+                "delta": calculate_period_change(
+                    _kpis["curr_users"], _kpis["prev_users"]
+                ),
+                "icon": "👥",
+            },
+            {
+                "title": "Overall CVR",
+                "value": f"{_kpis['curr_cvr']:.2f}%",
+                "delta": calculate_period_change(
+                    _kpis["curr_cvr"], _kpis["prev_cvr"]
+                ),
+                "icon": "🎯",
+            },
+            {
+                "title": "Avg Bounce Rate",
+                "value": f"{_kpis['curr_bounce']:.1f}%",
+                "delta": calculate_period_change(
+                    _kpis["curr_bounce"], _kpis["prev_bounce"]
+                ),
+                "color": "inverse",
+                "icon": "⬇️",
+            },
+        )
+        st.caption(
+            f"Data through {_kpis['period_end']}. "
+            "Comparing last 30 days vs previous 30 days. Green = improved performance."
+        )
+    else:
+        st.info("No session data found.")
+except Exception as _exc:
+    st.warning(f"Could not load live KPIs: {_exc}")
+
 st.divider()
 
 # ── Platform Stats ────────────────────────────────────────────────────────────
