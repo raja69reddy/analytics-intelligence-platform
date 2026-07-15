@@ -4,6 +4,7 @@ Prints execution time and returns a DataFrame.
 """
 
 import time
+from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -51,6 +52,33 @@ def get_view_columns(view_name: str) -> list[str]:
         params={"view": view_name},
     )
     return list(df["column_name"])
+
+
+# ── Period comparison helpers ─────────────────────────────────────────────────
+
+def get_current_period(start: date, end: date) -> tuple[date, date]:
+    """Return the current period date range unchanged."""
+    return start, end
+
+
+def get_previous_period(start: date, end: date) -> tuple[date, date]:
+    """Return the same-length period immediately before the given range."""
+    period_days = (end - start).days + 1
+    prev_end = start - timedelta(days=1)
+    prev_start = start - timedelta(days=period_days)
+    return prev_start, prev_end
+
+
+def calculate_change(current: float, previous: float) -> float:
+    """Calculate % change from previous to current. Returns 0.0 when previous is 0."""
+    if previous == 0:
+        return 0.0
+    return (current - previous) / abs(previous) * 100
+
+
+def format_delta(change: float) -> str:
+    """Format a % change value as a signed string: '+12.5%' or '-3.2%'."""
+    return f"{change:+.1f}%"
 
 
 def save_results_to_csv(df: pd.DataFrame, filename: str) -> Path:
