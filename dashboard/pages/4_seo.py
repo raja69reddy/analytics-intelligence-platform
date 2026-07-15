@@ -2,12 +2,14 @@
 
 import os
 import sys
+from datetime import timedelta
 
 import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from dashboard.components.filters import get_date_filter, get_page_filter
+from dashboard.components.metrics import calculate_period_change, display_4_kpi_row
 from utils.db import query_df
 
 st.set_page_config(page_title="SEO & Content", page_icon="🔍", layout="wide")
@@ -32,7 +34,7 @@ except Exception as _db_exc:
     )
     st.stop()
 
-# ── KPI cards ─────────────────────────────────────────────────────────────────
+# ── KPI cards — 4 metrics, organic sessions with % change vs previous period ──
 
 
 @st.cache_data(ttl=300)
@@ -49,24 +51,61 @@ def _load_kpis():
     return organic, load_time
 
 
+@st.cache_data(ttl=300)
+def _load_organic_sessions(start: str, end: str) -> int:
+    df = query_df(
+        "SELECT COALESCE(SUM(sessions), 0) AS n FROM raw_ga4_sessions "
+        "WHERE channel_grouping ILIKE '%organic%' "
+        "AND session_date BETWEEN :s AND :e",
+        params={"s": start, "e": end},
+    )
+    return int(df["n"].iloc[0] or 0)
+
+
 with st.spinner("Loading KPIs..."):
     try:
         _organic_kpi, _load_kpi = _load_kpis()
-        total_organic = int(_organic_kpi["total_organic_sessions"].iloc[0] or 0)
         avg_word_count = int(_organic_kpi["avg_word_count"].iloc[0] or 0)
         missing_meta = int(_organic_kpi["missing_meta"].iloc[0] or 0)
         avg_load_ms = int(_load_kpi["avg_load_ms"].iloc[0] or 0)
 
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total Organic Sessions", f"{total_organic:,}")
-        col2.metric(
-            "Avg Page Load Time",
-            f"{avg_load_ms:,} ms",
-            delta=None,
-            help="Average load time across all crawled pages (200 status only)",
+        _seo_period_days = (end_date - start_date).days + 1
+        _seo_prev_start = start_date - timedelta(days=_seo_period_days)
+        _seo_prev_end = start_date - timedelta(days=1)
+
+        curr_organic = _load_organic_sessions(start_str, end_str)
+        prev_organic = _load_organic_sessions(
+            _seo_prev_start.isoformat(), _seo_prev_end.isoformat()
         )
-        col3.metric("Pages Missing Meta Description", f"{missing_meta}")
-        col4.metric("Avg Word Count per Page", f"{avg_word_count:,}")
+
+        display_4_kpi_row(
+            {
+                "title": "Total Organic Sessions",
+                "value": f"{curr_organic:,}",
+                "delta": calculate_period_change(curr_organic, prev_organic),
+                "icon": "🔍",
+            },
+            {
+                "title": "Avg Page Load Time",
+                "value": f"{avg_load_ms:,} ms",
+                "icon": "⚡",
+            },
+            {
+                "title": "Missing Meta Description",
+                "value": str(missing_meta),
+                "color": "inverse",
+                "icon": "⚠️",
+            },
+            {
+                "title": "Avg Word Count",
+                "value": f"{avg_word_count:,}",
+                "icon": "📝",
+            },
+        )
+        st.caption(
+            f"Organic sessions: {start_date} to {end_date} vs "
+            f"{_seo_prev_start} to {_seo_prev_end}. Green = improved."
+        )
     except Exception as exc:
         st.error(f"Could not load KPIs: {exc}")
 
