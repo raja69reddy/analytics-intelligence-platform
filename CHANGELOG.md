@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 34 - KPI Cards Updated Across All Pages
+- Updated traffic page KPI cards: replaced 5-card row with display_4_kpi_row showing Sessions, Users, Avg Bounce Rate, Avg Session Duration — all with % change vs previous period; bounce rate uses inverse delta color (lower = green); uses format_large_number and calculate_period_change from metrics.py
+- Updated behavior page KPI cards: added _load_behavior_kpis_period loader querying raw_ga4_sessions (pageviews, avg duration) and raw_clickstream_events (avg scroll depth, total events) for both current and previous periods; display_4_kpi_row with % change deltas
+- Updated conversions page KPI cards: added previous period loading via _load_conversions(prev_start, prev_end); display_4_kpi_row showing CVR, Goal Completions, Total Revenue, Avg Revenue Per Session — all with % change; revenue formatted with format_currency
+- Updated SEO page KPI cards: added _load_organic_sessions loader with date filter on raw_ga4_sessions channel ILIKE organic; display_4_kpi_row showing Organic Sessions (with % change), Avg Load Time, Missing Meta Description, Avg Word Count
+- Added period comparison logic to utils/query_runner.py: get_current_period, get_previous_period, calculate_change, format_delta — reusable helpers for all dashboard pages
+
 ## Day 33 - KPI Cards + Home Page Polish
 - Updated dashboard/components/metrics.py with 6 new functions: format_large_number (K/M suffix), format_currency ($1,234), calculate_period_change (+12.5% delta string), display_trend_indicator (UP/DOWN/FLAT vs threshold), display_metric_card (icon + color params), display_4_kpi_row (4 positional metric dicts in one row)
 - Added real-time KPI cards to home page: Total Sessions, Total Users, Overall CVR, Avg Bounce Rate — each showing last 30 days of data vs previous 30 days with green/red delta; bounce rate uses inverse color (lower = green)
