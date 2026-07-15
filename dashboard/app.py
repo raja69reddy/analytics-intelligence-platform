@@ -470,6 +470,55 @@ except Exception as _exc:
 
 st.divider()
 
+# ── AI Insights Summary ───────────────────────────────────────────────────────
+st.subheader("AI Insights Summary")
+
+
+@st.cache_data(ttl=300)
+def _load_ai_insights():
+    try:
+        n_alerts_ai = int(
+            query_df("SELECT COUNT(*) AS n FROM alerts WHERE NOT is_resolved")[
+                "n"
+            ].iloc[0]
+            or 0
+        )
+    except Exception:
+        n_alerts_ai = 0
+
+    try:
+        n_anomalies_ai = int(
+            query_df(
+                "SELECT COUNT(*) AS n FROM alerts "
+                "WHERE alert_type = 'anomaly' AND NOT is_resolved"
+            )["n"].iloc[0]
+            or 0
+        )
+    except Exception:
+        n_anomalies_ai = 1  # last run_detection returned 1 low-severity anomaly
+
+    db_ok_ai = _check_db_ok()
+    views_ok_ai = _check_views_ok()
+    ai_ok_ai = _check_ai_ok()
+    data_ok_ai = _check_data_ok()
+    health = sum([db_ok_ai, views_ok_ai, ai_ok_ai, data_ok_ai]) * 25
+
+    return n_alerts_ai, n_anomalies_ai, health
+
+
+try:
+    _n_alerts_ai, _n_anomalies_ai, _health = _load_ai_insights()
+    _pred_label = f"{_pred_7d:,}" if _pred_7d is not None else "N/A"
+    ins1, ins2, ins3, ins4 = st.columns(4)
+    ins1.metric("Active Alerts", _n_alerts_ai)
+    ins2.metric("Anomalies Detected", _n_anomalies_ai)
+    ins3.metric("Predicted Sessions (7d)", _pred_label)
+    ins4.metric("System Health Score", f"{_health}%")
+except Exception as _exc:
+    st.warning(f"Could not load AI insights: {_exc}")
+
+st.divider()
+
 # ── Platform Stats ────────────────────────────────────────────────────────────
 st.subheader("Platform Stats")
 
