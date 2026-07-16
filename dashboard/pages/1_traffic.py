@@ -571,28 +571,50 @@ st.divider()
 
 st.subheader("New vs Returning Users")
 if not df_newret.empty:
-    import plotly.graph_objects as go
+    _df_nr = df_newret.copy()
+    _nr_total = _df_nr["new_user_sessions"] + _df_nr["returning_user_sessions"]
+    _df_nr["new_pct"] = (
+        _df_nr["new_user_sessions"] / _nr_total.replace(0, 1) * 100
+    ).round(1)
 
     fig_nr = go.Figure()
     fig_nr.add_trace(
         go.Bar(
             name="New Users",
-            x=df_newret["session_date"],
-            y=df_newret["new_user_sessions"],
+            x=_df_nr["session_date"],
+            y=_df_nr["new_user_sessions"],
+            marker_color="#636EFA",
+            hovertemplate="<b>%{x|%Y-%m-%d}</b><br>New: %{y:,}<extra></extra>",
         )
     )
     fig_nr.add_trace(
         go.Bar(
             name="Returning Users",
-            x=df_newret["session_date"],
-            y=df_newret["returning_user_sessions"],
+            x=_df_nr["session_date"],
+            y=_df_nr["returning_user_sessions"],
+            marker_color="#FFA15A",
+            hovertemplate="<b>%{x|%Y-%m-%d}</b><br>Returning: %{y:,}<extra></extra>",
+        )
+    )
+    fig_nr.add_trace(
+        go.Scatter(
+            name="New User %",
+            x=_df_nr["session_date"],
+            y=_df_nr["new_pct"],
+            mode="lines",
+            line=dict(color="#00CC96", width=2, dash="dot"),
+            yaxis="y2",
+            hovertemplate="<b>%{x|%Y-%m-%d}</b><br>New User %%: %{y:.1f}%%<extra></extra>",
         )
     )
     fig_nr.update_layout(
         barmode="stack",
         title="New vs Returning Users Over Time",
         xaxis_title="Date",
-        yaxis_title="Sessions",
+        yaxis=dict(title="Sessions"),
+        yaxis2=dict(title="New User %", overlaying="y", side="right", range=[0, 100]),
+        hovermode="x unified",
+        legend=dict(orientation="h", y=1.1),
         template=_plotly_tpl,
     )
     st.plotly_chart(fig_nr, use_container_width=True)
