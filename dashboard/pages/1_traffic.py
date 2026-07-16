@@ -524,6 +524,51 @@ else:
 
 st.divider()
 
+# ── Traffic Period Comparison — Current vs Previous ───────────────────────────
+st.subheader("Traffic Period Comparison")
+_cmp_curr_pv = int(df_traffic["total_pageviews"].sum()) if not df_traffic.empty else 0
+_cmp_prev_pv = int(df_prev["total_pageviews"].sum()) if not df_prev.empty else 0
+
+_cmp_labels = ["Sessions", "Users", "Pageviews"]
+_cmp_curr_vals = [curr_sessions, curr_users, _cmp_curr_pv]
+_cmp_prev_vals = [prev_sessions, prev_users, _cmp_prev_pv]
+_cmp_deltas = [
+    calculate_period_change(c, p) for c, p in zip(_cmp_curr_vals, _cmp_prev_vals)
+]
+
+fig_cmp = go.Figure()
+fig_cmp.add_trace(
+    go.Bar(
+        name=f"Current ({start_date} to {end_date})",
+        x=_cmp_labels,
+        y=_cmp_curr_vals,
+        marker_color="#636EFA",
+        text=_cmp_deltas,
+        textposition="outside",
+        hovertemplate="<b>%{x}</b><br>Current: %{y:,}<br>Change: %{text}<extra></extra>",
+    )
+)
+fig_cmp.add_trace(
+    go.Bar(
+        name=f"Previous ({prev_start} to {prev_end})",
+        x=_cmp_labels,
+        y=_cmp_prev_vals,
+        marker_color="#9EA6B5",
+        hovertemplate="<b>%{x}</b><br>Previous: %{y:,}<extra></extra>",
+    )
+)
+fig_cmp.update_layout(
+    title=f"Period Comparison — Current vs Previous {period_days}-Day Window",
+    xaxis_title="Metric",
+    yaxis_title="Count",
+    barmode="group",
+    legend=dict(orientation="h", y=1.1),
+    template=_plotly_tpl,
+)
+st.plotly_chart(fig_cmp, use_container_width=True)
+
+st.divider()
+
 st.subheader("New vs Returning Users")
 if not df_newret.empty:
     import plotly.graph_objects as go
