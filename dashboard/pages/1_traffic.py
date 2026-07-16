@@ -111,6 +111,18 @@ def _load_newret(start_date=None, end_date=None):
 
 
 @st.cache_data(ttl=300)
+def _load_channel_daily(start_date=None, end_date=None, channels: tuple = ()):
+    where, params = build_where_clause(start_date, end_date, channels=list(channels) or None)
+    return query_df(
+        f"""SELECT session_date, channel_grouping, SUM(sessions) AS sessions
+            FROM raw_ga4_sessions {where}
+            GROUP BY session_date, channel_grouping
+            ORDER BY session_date, channel_grouping""",
+        params=params or None,
+    )
+
+
+@st.cache_data(ttl=300)
 def _load_pv_users(start_date=None, end_date=None):
     where, params = build_where_clause(start_date, end_date)
     return query_df(
@@ -462,6 +474,53 @@ with col_right:
             template=_plotly_tpl,
         )
         st.plotly_chart(fig_ch_pie, use_container_width=True)
+
+st.divider()
+
+# ── Sessions by Channel Over Time — Stacked Area ──────────────────────────────
+st.subheader("Sessions by Channel Over Time")
+df_ch_daily = _load_channel_daily(start_date, end_date, _ch)
+if not df_ch_daily.empty:
+    import pandas as _pd
+
+    pivot_ch = df_ch_daily.pivot_table(
+        index="session_date",
+        columns="channel_grouping",
+        values="sessions",
+        fill_value=0,
+    ).reset_index()
+
+    _ch_colors = [
+        "#636EFA", "#EF553B", "#00CC96", "#AB63FA",
+        "#FFA15A", "#19D3F3", "#FF6692", "#B6E880",
+    ]
+    fig_area = go.Figure()
+    _channel_cols = [c for c in pivot_ch.columns if c != "session_date"]
+    for _i, _ch_name in enumerate(_channel_cols):
+        _col = _ch_colors[_i % len(_ch_colors)]
+        fig_area.add_trace(
+            go.Scatter(
+                x=pivot_ch["session_date"],
+                y=pivot_ch[_ch_name],
+                name=_ch_name,
+                mode="lines",
+                stackgroup="one",
+                line=dict(color=_col, width=0.5),
+                fillcolor=_col,
+                hovertemplate=f"<b>%{{x|%Y-%m-%d}}</b><br>{_ch_name}: %{{y:,}}<extra></extra>",
+            )
+        )
+    fig_area.update_layout(
+        title="Sessions by Channel Over Time (Stacked Area)",
+        xaxis_title="Date",
+        yaxis_title="Sessions",
+        hovermode="x unified",
+        legend=dict(orientation="h", y=-0.2),
+        template=_plotly_tpl,
+    )
+    st.plotly_chart(fig_area, use_container_width=True)
+else:
+    st.info("No channel time-series data available for the selected period.")
 
 st.divider()
 
