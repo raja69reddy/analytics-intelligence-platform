@@ -4,6 +4,7 @@ import os
 import sys
 from datetime import date, timedelta
 
+import plotly.graph_objects as go
 import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -107,6 +108,19 @@ ORDER BY d.total_sessions DESC
 def _load_newret(start_date=None, end_date=None):
     where, params = build_where_clause(start_date, end_date)
     return query_df(f"SELECT * FROM vw_new_vs_returning {where}", params=params or None)
+
+
+@st.cache_data(ttl=300)
+def _load_pv_users(start_date=None, end_date=None):
+    where, params = build_where_clause(start_date, end_date)
+    return query_df(
+        f"""SELECT session_date,
+                   SUM(pageviews) AS total_pageviews,
+                   SUM(new_users) AS total_users
+            FROM raw_ga4_sessions {where}
+            GROUP BY session_date ORDER BY session_date""",
+        params=params or None,
+    )
 
 
 @st.cache_data(ttl=300)
@@ -269,6 +283,58 @@ if not df_daily.empty:
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("No daily traffic data available for the selected date range.")
+
+st.divider()
+
+# ── Pageviews and Users Over Time ─────────────────────────────────────────────
+st.subheader("Pageviews & Users Over Time")
+df_pv_users = _load_pv_users(start_date, end_date)
+if not df_pv_users.empty:
+    fig_pv = go.Figure()
+    fig_pv.add_trace(
+        go.Scatter(
+            x=df_pv_users["session_date"],
+            y=df_pv_users["total_pageviews"],
+            name="Total Pageviews",
+            mode="lines",
+            line=dict(color="#636EFA", width=2),
+            hovertemplate="<b>%{x|%Y-%m-%d}</b><br>Pageviews: %{y:,}<extra></extra>",
+        )
+    )
+    fig_pv.add_trace(
+        go.Scatter(
+            x=df_pv_users["session_date"],
+            y=df_pv_users["total_users"],
+            name="New Users",
+            mode="lines",
+            line=dict(color="#EF553B", width=2, dash="dot"),
+            yaxis="y2",
+            hovertemplate="<b>%{x|%Y-%m-%d}</b><br>Users: %{y:,}<extra></extra>",
+        )
+    )
+    fig_pv.update_layout(
+        title="Daily Pageviews & New Users Over Time",
+        xaxis=dict(
+            title="Date",
+            rangeselector=dict(
+                buttons=[
+                    dict(count=7, label="7D", step="day", stepmode="backward"),
+                    dict(count=30, label="30D", step="day", stepmode="backward"),
+                    dict(count=90, label="90D", step="day", stepmode="backward"),
+                    dict(step="all", label="All"),
+                ]
+            ),
+            type="date",
+        ),
+        yaxis=dict(title="Pageviews"),
+        yaxis2=dict(title="New Users", overlaying="y", side="right"),
+        hovermode="x unified",
+        legend=dict(orientation="h", y=1.1),
+        template=_plotly_tpl,
+    )
+    st.plotly_chart(fig_pv, use_container_width=True)
+else:
+    st.info("No pageviews data available for the selected date range.")
 
 st.divider()
 
