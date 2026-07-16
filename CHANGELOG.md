@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 35 - Traffic Page Charts Complete
+- Added sessions over time line chart: enhanced existing chart with Plotly rangeselector (7D/30D/90D/All), unified hover mode, and per-trace hover template showing date and sessions count
+- Added pageviews and users over time chart: dual-axis Plotly figure with pageviews on left axis (blue) and new users on right axis (red dashed) — both with rangeselector and unified hover; queries raw_ga4_sessions by date via _load_pv_users loader
+- Added channel breakdown stacked area chart: queries raw_ga4_sessions GROUP BY session_date + channel_grouping via _load_channel_daily loader; pivots to wide format then renders Plotly stackgroup=one area chart with 8-color palette and channel legend below
+- Added traffic period comparison chart: grouped bar chart comparing Sessions, Users, Pageviews for current vs previous period; current period in blue (#636EFA), previous in gray (#9EA6B5); % change label shown above each current bar using calculate_period_change
+- Added enhanced new vs returning users chart: stacked bar (blue=new, orange=returning) with secondary axis green dashed line showing new user % over time; unified hover mode
+
 ## Day 34 - KPI Cards Updated Across All Pages
 - Updated traffic page KPI cards: replaced 5-card row with display_4_kpi_row showing Sessions, Users, Avg Bounce Rate, Avg Session Duration — all with % change vs previous period; bounce rate uses inverse delta color (lower = green); uses format_large_number and calculate_period_change from metrics.py
 - Updated behavior page KPI cards: added _load_behavior_kpis_period loader querying raw_ga4_sessions (pageviews, avg duration) and raw_clickstream_events (avg scroll depth, total events) for both current and previous periods; display_4_kpi_row with % change deltas
