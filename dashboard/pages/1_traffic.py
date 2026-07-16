@@ -233,7 +233,7 @@ st.caption(
 
 st.divider()
 
-# ── Sessions over time with 7-day rolling average ─────────────────────────────
+# ── Sessions over time with 7-day rolling average + range selectors ───────────
 st.subheader("Sessions Over Time")
 if not df_daily.empty:
     fig = line_chart(
@@ -246,6 +246,25 @@ if not df_daily.empty:
     )
     fig.update_traces(
         selector={"name": "sessions_7day_avg"}, line={"dash": "dot", "width": 2}
+    )
+    fig.update_traces(
+        hovertemplate="<b>%{x|%Y-%m-%d}</b><br>Sessions: %{y:,}<extra></extra>",
+        selector={"name": "total_sessions"},
+    )
+    fig.update_layout(
+        xaxis=dict(
+            rangeselector=dict(
+                buttons=[
+                    dict(count=7, label="7D", step="day", stepmode="backward"),
+                    dict(count=30, label="30D", step="day", stepmode="backward"),
+                    dict(count=90, label="90D", step="day", stepmode="backward"),
+                    dict(step="all", label="All"),
+                ]
+            ),
+            rangeslider=dict(visible=False),
+            type="date",
+        ),
+        hovermode="x unified",
     )
     st.plotly_chart(fig, use_container_width=True)
 else:
