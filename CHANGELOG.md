@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 36 - Traffic Page Channel Charts
+- Added channel bar chart: replaced bar_chart helper with go.Bar using per-channel color palette (8 colors), session count text labels outside each bar, and hover tooltip showing channel and sessions
+- Added channel donut pie chart: replaced pie_chart helper with go.Pie using hole=0.4, label+percent text, and center annotation showing total sessions count across all channels
+- Added device breakdown charts: replaced pie_chart/bar_chart helpers with go.Pie (hole=0.35, 3-color palette) and go.Bar with explicit bounce_rate_pct column, colored text labels, and hover tooltips
+- Added geographic performance table: 5-column styled dataframe (Country, Sessions, Users, Bounce Rate %, Share %) with RdYlGn gradient on bounce rate and CVR columns; CSV download button; horizontal bar chart of top 10 countries alongside the table
+- Added data table with download button: replaced raw vw_traffic table with vw_daily_traffic (df_daily), showing row count, last updated date, sort hint caption, 400px scrollable dataframe, and CSV download
+
 ## Day 35 - Traffic Page Charts Complete
 - Added sessions over time line chart: enhanced existing chart with Plotly rangeselector (7D/30D/90D/All), unified hover mode, and per-trace hover template showing date and sessions count
 - Added pageviews and users over time chart: dual-axis Plotly figure with pageviews on left axis (blue) and new users on right axis (red dashed) — both with rangeselector and unified hover; queries raw_ga4_sessions by date via _load_pv_users loader
