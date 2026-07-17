@@ -480,14 +480,33 @@ with col_left:
 
 with col_right:
     if not df_channels.empty:
-        fig_ch_pie = pie_chart(
-            df_channels,
-            names="channel_grouping",
-            values="total_sessions",
+        _donut_total = int(df_channels["total_sessions"].sum())
+        fig_ch_donut = go.Figure(
+            go.Pie(
+                labels=df_channels["channel_grouping"],
+                values=df_channels["total_sessions"],
+                hole=0.4,
+                textinfo="label+percent",
+                hovertemplate=(
+                    "<b>%{label}</b><br>Sessions: %{value:,}<br>Share: %{percent}<extra></extra>"
+                ),
+            )
+        )
+        fig_ch_donut.update_layout(
             title="Channel Distribution",
+            annotations=[
+                dict(
+                    text=f"{_donut_total:,}<br>sessions",
+                    x=0.5,
+                    y=0.5,
+                    font=dict(size=13),
+                    showarrow=False,
+                )
+            ],
+            legend=dict(orientation="v", x=1.0),
             template=_plotly_tpl,
         )
-        st.plotly_chart(fig_ch_pie, use_container_width=True)
+        st.plotly_chart(fig_ch_donut, use_container_width=True)
 
 st.divider()
 
