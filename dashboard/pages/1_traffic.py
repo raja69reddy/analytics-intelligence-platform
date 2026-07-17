@@ -659,22 +659,42 @@ st.divider()
 st.subheader("Device Breakdown")
 if not df_devices.empty:
     col_dev1, col_dev2 = st.columns(2)
+    _dev_colors = ["#636EFA", "#EF553B", "#00CC96"]
     with col_dev1:
-        fig_dev_pie = pie_chart(
-            df_devices,
-            names="device_category",
-            values="total_sessions",
+        fig_dev_pie = go.Figure(
+            go.Pie(
+                labels=df_devices["device_category"],
+                values=df_devices["total_sessions"],
+                hole=0.35,
+                textinfo="label+percent",
+                marker=dict(colors=_dev_colors),
+                hovertemplate=(
+                    "<b>%{label}</b><br>Sessions: %{value:,}<br>Share: %{percent}<extra></extra>"
+                ),
+            )
+        )
+        fig_dev_pie.update_layout(
             title="Sessions by Device",
             template=_plotly_tpl,
         )
         st.plotly_chart(fig_dev_pie, use_container_width=True)
     with col_dev2:
-        fig_dev_bounce = bar_chart(
-            df_devices,
-            x="device_category",
-            y="avg_bounce_rate",
+        fig_dev_bounce = go.Figure(
+            go.Bar(
+                x=df_devices["device_category"],
+                y=df_devices["bounce_rate_pct"],
+                marker_color=_dev_colors[: len(df_devices)],
+                text=df_devices["bounce_rate_pct"].apply(lambda v: f"{v:.1f}%"),
+                textposition="outside",
+                hovertemplate=(
+                    "<b>%{x}</b><br>Bounce Rate: %{y:.1f}%<extra></extra>"
+                ),
+            )
+        )
+        fig_dev_bounce.update_layout(
             title="Avg Bounce Rate by Device",
-            labels={"device_category": "Device", "avg_bounce_rate": "Bounce Rate (%)"},
+            xaxis_title="Device",
+            yaxis_title="Bounce Rate (%)",
             template=_plotly_tpl,
         )
         st.plotly_chart(fig_dev_bounce, use_container_width=True)
