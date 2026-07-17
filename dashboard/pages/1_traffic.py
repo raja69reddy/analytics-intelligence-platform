@@ -451,15 +451,29 @@ col_left, col_right = st.columns(2)
 
 with col_left:
     if not df_channels.empty:
-        # Sort ascending so that the longest bar appears at the top in a horizontal chart
-        df_ch_sorted = df_channels.sort_values("total_sessions", ascending=True)
-        fig_ch = bar_chart(
-            df_ch_sorted,
-            x="total_sessions",
-            y="channel_grouping",
-            title="Sessions by Channel (Descending)",
-            orientation="h",
-            labels={"channel_grouping": "Channel", "total_sessions": "Sessions"},
+        _bar_palette = [
+            "#636EFA", "#EF553B", "#00CC96", "#AB63FA",
+            "#FFA15A", "#19D3F3", "#FF6692", "#B6E880",
+        ]
+        df_ch_bar = df_channels.sort_values("total_sessions", ascending=True)
+        _bar_colors = [
+            _bar_palette[i % len(_bar_palette)] for i in range(len(df_ch_bar))
+        ]
+        fig_ch = go.Figure(
+            go.Bar(
+                x=df_ch_bar["total_sessions"],
+                y=df_ch_bar["channel_grouping"],
+                orientation="h",
+                marker_color=_bar_colors,
+                text=df_ch_bar["total_sessions"].apply(lambda v: f"{int(v):,}"),
+                textposition="outside",
+                hovertemplate="<b>%{y}</b><br>Sessions: %{x:,}<extra></extra>",
+            )
+        )
+        fig_ch.update_layout(
+            title="Sessions by Channel",
+            xaxis_title="Sessions",
+            yaxis_title="Channel",
             template=_plotly_tpl,
         )
         st.plotly_chart(fig_ch, use_container_width=True)
