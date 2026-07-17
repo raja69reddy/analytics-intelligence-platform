@@ -1443,4 +1443,24 @@ Day 35 - Traffic Page Charts Complete
 
 - Traffic page now fully loaded with 5 interactive charts
 
+Day 36 - Traffic Page Channel Charts
+
+
+- Added channel horizontal bar chart sorted by sessions
+
+
+- Added channel donut pie chart with total in center
+
+
+- Added device breakdown pie and bounce rate charts
+
+
+- Added geographic performance table (top 10 countries)
+
+
+- Added raw data table with CSV download button
+
+
+- Traffic page now has 8 interactive charts total
+
 
