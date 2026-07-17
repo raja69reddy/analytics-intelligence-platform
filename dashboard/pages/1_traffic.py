@@ -787,24 +787,26 @@ else:
 
 st.divider()
 
-# ── Raw data table + CSV download ─────────────────────────────────────────────
-st.subheader("Raw Traffic Data")
+# ── Daily traffic data table + CSV download ───────────────────────────────────
+st.subheader("Daily Traffic Data")
+_now_str = date.today().strftime("%Y-%m-%d")
 st.caption(
-    f"Last updated: {date.today().strftime('%Y-%m-%d')} · {len(df_traffic):,} rows after filters"
+    f"Source: vw_daily_traffic · Last updated: {_now_str} · "
+    f"{len(df_daily):,} rows · Click any column header to sort"
 )
 
-if not df_traffic.empty:
+if not df_daily.empty:
     st.dataframe(
-        df_traffic.sort_values("session_date", ascending=False),
+        df_daily.sort_values("session_date", ascending=False),
         use_container_width=True,
         height=400,
     )
-    csv_bytes = df_traffic.to_csv(index=False).encode("utf-8")
+    _daily_csv = df_daily.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label="Download filtered data as CSV",
-        data=csv_bytes,
-        file_name="traffic_data.csv",
+        label="Download daily data as CSV",
+        data=_daily_csv,
+        file_name="daily_traffic_data.csv",
         mime="text/csv",
     )
 else:
-    st.info("No traffic data available for the selected filters.")
+    st.info("No daily traffic data available for the selected filters.")
