@@ -704,25 +704,81 @@ else:
 st.divider()
 
 # ── Geographic performance ────────────────────────────────────────────────────
-st.subheader("Geographic Performance")
+st.subheader("Geographic Performance — Top 10 Countries")
 if not df_geo.empty:
-    col_geo1, col_geo2 = st.columns(2)
+    import pandas as _pd_geo
+
+    # Build display table with renamed columns
+    df_geo_tbl = df_geo[
+        ["country", "total_sessions", "total_new_users", "bounce_rate_pct", "country_share_pct"]
+    ].copy()
+    df_geo_tbl.columns = ["Country", "Sessions", "Users", "Bounce Rate %", "Share %"]
+
+    # Attempt to load CVR per country (approximate via sessions ratio)
+    try:
+        _cvr_df = query_df("""
+            SELECT g.country,
+                   ROUND(100.0 * COALESCE(SUM(c.goal_completions), 0)
+                       / NULLIF(SUM(g.sessions), 0), 2) AS cvr
+            FROM raw_ga4_sessions g
+            LEFT JOIN (
+                SELECT session_date,
+                       SUM(goal_completions) AS goal_completions,
+                       SUM(sessions) AS cv_sessions
+                FROM vw_conversions GROUP BY session_date
+            ) c ON g.session_date = c.session_date
+            WHERE g.country IS NOT NULL
+            GROUP BY g.country
+        """)
+        df_geo_tbl = df_geo_tbl.merge(
+            _cvr_df.rename(columns={"country": "Country"}),
+            on="Country",
+            how="left",
+        )
+        df_geo_tbl["cvr"] = df_geo_tbl["cvr"].fillna(0.0)
+        df_geo_tbl.rename(columns={"cvr": "CVR %"}, inplace=True)
+        _has_cvr = True
+    except Exception:
+        _has_cvr = False
+
+    col_geo1, col_geo2 = st.columns([3, 2])
     with col_geo1:
-        st.dataframe(
-            df_geo[
-                ["country", "total_sessions", "country_share_pct", "bounce_rate_pct"]
-            ],
-            use_container_width=True,
+        _style = df_geo_tbl.style.format(
+            {"Sessions": "{:,}", "Users": "{:,}",
+             "Bounce Rate %": "{:.1f}", "Share %": "{:.1f}"}
+        )
+        if _has_cvr:
+            _style = _style.background_gradient(
+                subset=["CVR %"], cmap="RdYlGn", vmin=0, vmax=10
+            ).format({"CVR %": "{:.2f}"})
+        _style = _style.background_gradient(
+            subset=["Bounce Rate %"], cmap="RdYlGn_r", vmin=0, vmax=100
+        )
+        st.dataframe(_style, use_container_width=True, hide_index=True)
+        _geo_csv = df_geo_tbl.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download geo data as CSV",
+            data=_geo_csv,
+            file_name="geo_performance.csv",
+            mime="text/csv",
         )
     with col_geo2:
         df_geo_sorted = df_geo.sort_values("total_sessions", ascending=True)
-        fig_geo = bar_chart(
-            df_geo_sorted,
-            x="total_sessions",
-            y="country",
-            title="Top Countries by Sessions",
-            orientation="h",
-            labels={"country": "Country", "total_sessions": "Sessions"},
+        fig_geo = go.Figure(
+            go.Bar(
+                x=df_geo_sorted["total_sessions"],
+                y=df_geo_sorted["country"],
+                orientation="h",
+                marker_color="#636EFA",
+                text=df_geo_sorted["total_sessions"].apply(lambda v: f"{int(v):,}"),
+                textposition="outside",
+                hovertemplate="<b>%{y}</b><br>Sessions: %{x:,}<extra></extra>",
+            )
+        )
+        fig_geo.update_layout(
+            title="Top 10 Countries by Sessions",
+            xaxis_title="Sessions",
+            yaxis_title="Country",
             template=_plotly_tpl,
         )
         st.plotly_chart(fig_geo, use_container_width=True)
