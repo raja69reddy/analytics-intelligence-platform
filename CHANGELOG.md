@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 39 - Behavior Page Funnel + Heatmap
+- Added conversion funnel chart with drop off %: replaced static colors with computed per-stage colors (biggest drop-off stage highlighted red); custom text labels showing count + stage-to-stage drop-off %; uses `_plotly_tpl`; caption shows overall CVR and worst stage
+- Added funnel drop off analysis table: 5-row table (one per funnel stage) with columns Stage, Users Entered, Users Dropped, Drop-off %, Completion Rate %; RdYlGn_r gradient on Drop-off % (red=high) and RdYlGn on Completion Rate % (green=high); caption identifies stage needing most attention
+- Added session duration distribution histogram: enhanced existing chart with avg session duration reference line via `add_vline` pointing to the bucket the average falls in; dashed gold reference line with annotation; caption updated to include avg value
+- Added engagement score bar chart: refactored scoring to expose 3 component scores (scroll 40%, events 30%, speed 30%); added `customdata` with breakdown + raw metrics; hover tooltip shows full score breakdown and raw values; updated template to `_plotly_tpl`
+- Added traffic heatmap by day and hour: updated colorscale from "Blues" to "YlOrRd"; added rich hover tooltip (day, hour, request count); changed template to `_plotly_tpl` for dark mode support; added caption explaining color intensity
+
 ## Day 38 - Behavior Page Charts Complete
 - Enhanced top pages table: added date-aware `_load_top_pages_dated` loader querying raw_server_logs with date filter; added `last_visited` column (MAX(log_time)); updated `_style_page_perf` to highlight fast pages (<200ms) in green in addition to slow pages (>1,000ms) in red; applies both sidebar page filter and inline search box
 - Added page performance bar chart: horizontal go.Bar chart of top 10 pages by request volume; color-coded by response time (green <200ms, orange 200-1,000ms, red >1,000ms); response time label on each bar; uses `_plotly_tpl` for dark mode support
