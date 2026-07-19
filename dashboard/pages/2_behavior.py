@@ -521,6 +521,58 @@ else:
 
 st.divider()
 
+# ── Funnel drop-off analysis table ───────────────────────────────────────────
+st.subheader("Funnel Drop-off Analysis")
+if not df_funnel.empty:
+    import pandas as pd
+
+    _drop_rows = []
+    for _di, _ds in enumerate(_f_stages):
+        _entered = _f_vals[_di]
+        _dropped = _f_vals[_di - 1] - _entered if _di > 0 else 0
+        _drop_pct = _f_drops[_di - 1] if _di > 0 else 0.0
+        _compl_pct = round(_entered / _f_vals[0] * 100, 1) if _f_vals[0] else 0.0
+        _drop_rows.append(
+            {
+                "Stage": _ds,
+                "Users Entered": _entered,
+                "Users Dropped": _dropped,
+                "Drop-off %": _drop_pct,
+                "Completion Rate %": _compl_pct,
+            }
+        )
+
+    df_drop_tbl = pd.DataFrame(_drop_rows)
+    st.dataframe(
+        df_drop_tbl.style.background_gradient(
+            subset=["Drop-off %"], cmap="RdYlGn_r", vmin=0, vmax=100
+        )
+        .background_gradient(
+            subset=["Completion Rate %"], cmap="RdYlGn", vmin=0, vmax=100
+        )
+        .format(
+            {
+                "Drop-off %": "{:.1f}%",
+                "Completion Rate %": "{:.1f}%",
+                "Users Entered": "{:,}",
+                "Users Dropped": "{:,}",
+            }
+        ),
+        use_container_width=True,
+        hide_index=True,
+    )
+    _needs_attn = df_drop_tbl.loc[df_drop_tbl["Drop-off %"].idxmax(), "Stage"]
+    _max_drop_pct = df_drop_tbl["Drop-off %"].max()
+    st.caption(
+        f"Stage needing most attention: {_needs_attn} "
+        f"(highest drop-off: {_max_drop_pct}%) — "
+        "Red = high drop-off, Green = low drop-off / high completion."
+    )
+else:
+    st.info("No funnel data available for drop-off analysis.")
+
+st.divider()
+
 # ── Scroll depth histogram ────────────────────────────────────────────────────
 st.subheader("Scroll Depth Distribution")
 import pandas as pd
