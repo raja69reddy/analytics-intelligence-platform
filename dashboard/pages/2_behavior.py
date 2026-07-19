@@ -755,21 +755,24 @@ st.divider()
 # ── Top pages by engagement score ─────────────────────────────────────────────
 st.subheader("Top Pages by Engagement Score")
 if not df_behavior.empty:
-    import pandas as pd
-
     df_eng = df_behavior.copy()
-    # score = (scroll_depth * 0.4) + (events_count * 0.3) + (time_on_page * 0.3)
-    # Normalise each component to 0-1 range before weighting
-    max_scroll = df_eng["avg_scroll_depth_pct"].max() or 1
-    max_events = df_eng["total_events"].max() or 1
-    max_resp = df_eng["avg_response_ms"].max() or 1
-    df_eng["score"] = (
-        (df_eng["avg_scroll_depth_pct"].fillna(0) / max_scroll) * 0.4
-        + (df_eng["total_events"] / max_events) * 0.3
-        + (1 - df_eng["avg_response_ms"] / max_resp) * 0.3  # faster = better
-    ).round(4)
-    df_top10 = df_eng.nlargest(10, "score")[["page", "score"]].reset_index(drop=True)
+    _max_scroll_e = df_eng["avg_scroll_depth_pct"].max() or 1
+    _max_events_e = df_eng["total_events"].max() or 1
+    _max_resp_e = df_eng["avg_response_ms"].max() or 1
+
+    # Compute normalised component scores
+    df_eng["c_scroll"] = (df_eng["avg_scroll_depth_pct"].fillna(0) / _max_scroll_e * 0.4).round(4)
+    df_eng["c_events"] = (df_eng["total_events"] / _max_events_e * 0.3).round(4)
+    df_eng["c_speed"] = ((1 - df_eng["avg_response_ms"] / _max_resp_e) * 0.3).round(4)
+    df_eng["score"] = (df_eng["c_scroll"] + df_eng["c_events"] + df_eng["c_speed"]).round(4)
+
+    _eng_cols = [
+        "page", "score", "c_scroll", "c_events", "c_speed",
+        "avg_scroll_depth_pct", "total_events", "avg_response_ms",
+    ]
+    df_top10 = df_eng.nlargest(10, "score")[_eng_cols].reset_index(drop=True)
     df_top10_sorted = df_top10.sort_values("score", ascending=True)
+
     fig_eng = go.Figure(
         go.Bar(
             x=df_top10_sorted["score"],
@@ -781,15 +784,36 @@ if not df_behavior.empty:
                 showscale=True,
                 colorbar=dict(title="Score"),
             ),
+            customdata=df_top10_sorted[[
+                "c_scroll", "c_events", "c_speed",
+                "avg_scroll_depth_pct", "total_events", "avg_response_ms",
+            ]].values,
+            hovertemplate=(
+                "<b>%{y}</b><br>"
+                "Total Score: %{x:.4f}<br>"
+                "<br>Score Breakdown:<br>"
+                "  Scroll Depth (40%): %{customdata[0]:.4f}<br>"
+                "  Events (30%): %{customdata[1]:.4f}<br>"
+                "  Speed (30%): %{customdata[2]:.4f}<br>"
+                "<br>Raw Metrics:<br>"
+                "  Avg Scroll Depth: %{customdata[3]:.1f}%<br>"
+                "  Total Events: %{customdata[4]:,}<br>"
+                "  Avg Response: %{customdata[5]:.0f} ms"
+                "<extra></extra>"
+            ),
         )
     )
     fig_eng.update_layout(
         title="Top 10 Pages by Engagement Score",
-        xaxis_title="Engagement Score",
-        yaxis_title="Page",
-        template="plotly_white",
+        xaxis_title="Engagement Score (0-1)",
+        yaxis_title=None,
+        template=_plotly_tpl,
+        height=420,
     )
     st.plotly_chart(fig_eng, use_container_width=True)
+    st.caption(
+        "Score = Scroll Depth (40%) + Events (30%) + Page Speed (30%) — hover for breakdown"
+    )
 else:
     st.info("No behavior data available.")
 
