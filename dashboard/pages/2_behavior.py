@@ -594,23 +594,42 @@ else:
 
 st.divider()
 
-# ── Session duration distribution ─────────────────────────────────────────────
-st.subheader("Session Duration Distribution")
+# ── Time on page distribution ─────────────────────────────────────────────────
+st.subheader("Time on Page Distribution")
 df_dur = _load_duration(start_date, end_date, _dev)
 if not df_dur.empty:
-    import pandas as pd
-
-    dur_labels = ["0–30s", "30s–2m", "2m–5m", "5m–10m", "10m+"]
-    dur_values = [int(df_dur[col].iloc[0]) for col in dur_labels]
-    df_dur_plot = pd.DataFrame({"Bucket": dur_labels, "Sessions": dur_values})
-    fig_dur = bar_chart(
-        df_dur_plot,
-        x="Bucket",
-        y="Sessions",
-        title="Session Duration Distribution",
-        labels={"Bucket": "Duration", "Sessions": "Sessions"},
+    # Column names from SQL use ASCII hyphens — use them directly
+    _dur_cols = ["0-30s", "30s-2m", "2m-5m", "5m-10m", "10m+"]
+    _dur_display = ["0-30s", "30s-2m", "2m-5m", "5m-10m", "10m+"]
+    _dur_colors = ["#d62728", "#ff7f0e", "#ffbb78", "#9dc183", "#2ca02c"]
+    _dur_values = []
+    for col in _dur_cols:
+        try:
+            _dur_values.append(int(df_dur[col].iloc[0]))
+        except (KeyError, IndexError):
+            _dur_values.append(0)
+    _dur_total = sum(_dur_values) or 1
+    fig_dur = go.Figure(
+        go.Bar(
+            x=_dur_display,
+            y=_dur_values,
+            marker_color=_dur_colors,
+            text=[f"{v:,}<br>({v / _dur_total * 100:.1f}%)" for v in _dur_values],
+            textposition="outside",
+            hovertemplate="<b>%{x}</b><br>Sessions: %{y:,}<extra></extra>",
+        )
+    )
+    fig_dur.update_layout(
+        title="Session Duration Distribution (Time on Page)",
+        xaxis_title="Duration Bucket",
+        yaxis_title="Sessions",
+        template=_plotly_tpl,
     )
     st.plotly_chart(fig_dur, use_container_width=True)
+    st.caption(
+        f"Total sessions: {_dur_total:,} · "
+        "Color: red = short sessions, green = long sessions"
+    )
 else:
     st.info("No session duration data available.")
 
