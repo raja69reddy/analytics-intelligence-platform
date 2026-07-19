@@ -501,38 +501,47 @@ st.divider()
 
 # ── Scroll depth histogram ────────────────────────────────────────────────────
 st.subheader("Scroll Depth Distribution")
-if not df_scroll.empty:
-    import pandas as pd
+import pandas as pd
 
+df_scroll_d = _load_scroll_dated(start_date, end_date, page_search or "")
+_scroll_src = df_scroll_d if not df_scroll_d.empty else df_scroll
+if not _scroll_src.empty:
     buckets = {
-        "0–25%": int(df_scroll["bucket_0_25"].sum()),
-        "25–50%": int(df_scroll["bucket_25_50"].sum()),
-        "50–75%": int(df_scroll["bucket_50_75"].sum()),
-        "75–100%": int(df_scroll["bucket_75_100"].sum()),
+        "0-25%": int(_scroll_src["bucket_0_25"].sum()),
+        "25-50%": int(_scroll_src["bucket_25_50"].sum()),
+        "50-75%": int(_scroll_src["bucket_50_75"].sum()),
+        "75-100%": int(_scroll_src["bucket_75_100"].sum()),
     }
-    df_buckets = pd.DataFrame(
+    _total_scroll = sum(buckets.values()) or 1
+    df_scroll_plot = pd.DataFrame(
         {
             "Bucket": list(buckets.keys()),
             "Sessions": list(buckets.values()),
+            "Pct": [f"{v / _total_scroll * 100:.1f}%" for v in buckets.values()],
             "Color": ["#d62728", "#ff7f0e", "#ffbb78", "#2ca02c"],
         }
     )
     fig_scroll = go.Figure(
         go.Bar(
-            x=df_buckets["Bucket"],
-            y=df_buckets["Sessions"],
-            marker_color=df_buckets["Color"].tolist(),
-            text=df_buckets["Sessions"],
+            x=df_scroll_plot["Bucket"],
+            y=df_scroll_plot["Sessions"],
+            marker_color=df_scroll_plot["Color"].tolist(),
+            text=df_scroll_plot["Pct"],
             textposition="outside",
+            hovertemplate="<b>%{x}</b><br>Sessions: %{y:,}<extra></extra>",
         )
     )
     fig_scroll.update_layout(
-        title="Scroll Depth Buckets (all pages)",
+        title="Scroll Depth Distribution"
+        + (f" — {start_date} to {end_date}" if start_date and end_date else ""),
         xaxis_title="Scroll Depth",
         yaxis_title="Event Count",
-        template="plotly_white",
+        template=_plotly_tpl,
     )
     st.plotly_chart(fig_scroll, use_container_width=True)
+    st.caption(
+        "Red = low engagement (0-25%) · Yellow = medium · Green = high (75-100%)"
+    )
 else:
     st.info("No scroll depth data available.")
 
