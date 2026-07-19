@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 38 - Behavior Page Charts Complete
+- Enhanced top pages table: added date-aware `_load_top_pages_dated` loader querying raw_server_logs with date filter; added `last_visited` column (MAX(log_time)); updated `_style_page_perf` to highlight fast pages (<200ms) in green in addition to slow pages (>1,000ms) in red; applies both sidebar page filter and inline search box
+- Added page performance bar chart: horizontal go.Bar chart of top 10 pages by request volume; color-coded by response time (green <200ms, orange 200-1,000ms, red >1,000ms); response time label on each bar; uses `_plotly_tpl` for dark mode support
+- Updated scroll depth histogram: new `_load_scroll_dated` loader queries raw_clickstream_events with date + page filters; falls back to pre-aggregated vw_scroll_depth; added date range in chart title; changed template from hardcoded "plotly_white" to `_plotly_tpl`; added percentage labels on bars
+- Updated engagement events chart: new `_load_engagement_dated` loader queries raw_clickstream_events with date + page filters; changed template from hardcoded "plotly_white" to `_plotly_tpl`; added hover tooltip and event summary caption below chart
+- Fixed and enhanced time on page chart: renamed section to "Time on Page Distribution"; fixed en-dash vs ASCII hyphen bug (column names from `_load_duration` SQL use "-" not "–"); replaced bar_chart helper with go.Figure; added red-to-green color gradient across 5 duration buckets; added `_plotly_tpl` for dark mode
+
 ## Day 36 - Traffic Page Channel Charts
 - Added channel bar chart: replaced bar_chart helper with go.Bar using per-channel color palette (8 colors), session count text labels outside each bar, and hover tooltip showing channel and sessions
 - Added channel donut pie chart: replaced pie_chart helper with go.Pie using hole=0.4, label+percent text, and center annotation showing total sessions count across all channels
