@@ -473,27 +473,49 @@ st.subheader("Conversion Funnel")
 df_funnel = _load_funnel()
 
 if not df_funnel.empty:
-    stages = ["Homepage", "Product Page", "Add to Cart", "Checkout", "Purchase"]
-    values = [
-        int(df_funnel["homepage"].iloc[0]),
-        int(df_funnel["product_page"].iloc[0]),
-        int(df_funnel["add_to_cart"].iloc[0]),
-        int(df_funnel["checkout"].iloc[0]),
-        int(df_funnel["purchase"].iloc[0]),
-    ]
+    _f_stages = ["Landing Page", "Product Page", "Add to Cart", "Checkout", "Purchase"]
+    _f_cols = ["homepage", "product_page", "add_to_cart", "checkout", "purchase"]
+    _f_vals = [int(df_funnel[c].iloc[0]) for c in _f_cols]
+
+    # Drop-off % between consecutive stages
+    _f_drops: list = []
+    for _fi in range(1, len(_f_vals)):
+        _fp = _f_vals[_fi - 1]
+        _f_drops.append(round((_fp - _f_vals[_fi]) / _fp * 100, 1) if _fp else 0.0)
+
+    # Stage with biggest drop-off gets a red bar
+    _worst_idx = (_f_drops.index(max(_f_drops)) + 1) if _f_drops else 0
+    _f_colors = ["#636EFA"] * len(_f_stages)
+    if _worst_idx:
+        _f_colors[_worst_idx] = "#d62728"
+
+    # Custom text: show count + stage-to-stage drop-off %
+    _f_text = [f"{_f_vals[0]:,}"]
+    for _fi, _fd in enumerate(_f_drops):
+        _f_text.append(f"{_f_vals[_fi + 1]:,}  (-{_fd}%)")
+
     fig_funnel = go.Figure(
         go.Funnel(
-            y=stages,
-            x=values,
-            textinfo="value+percent initial",
-            marker_color=["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A"],
+            y=_f_stages,
+            x=_f_vals,
+            text=_f_text,
+            textinfo="text+percent initial",
+            marker_color=_f_colors,
+            connector=dict(line=dict(color="rgba(120,120,120,0.3)", width=1)),
         )
     )
     fig_funnel.update_layout(
-        title="Homepage → Purchase Conversion Funnel",
-        template="plotly_white",
+        title="Conversion Funnel: Landing Page to Purchase",
+        template=_plotly_tpl,
+        height=400,
     )
     st.plotly_chart(fig_funnel, use_container_width=True)
+    _f_overall_cvr = round(_f_vals[-1] / _f_vals[0] * 100, 2) if _f_vals[0] else 0
+    st.caption(
+        f"Biggest drop-off: {_f_stages[_worst_idx]} "
+        f"({_f_drops[_worst_idx - 1]}% lost from previous stage) — highlighted in red.  "
+        f"Overall conversion: {_f_overall_cvr}%"
+    )
 else:
     st.info("No funnel data available.")
 
