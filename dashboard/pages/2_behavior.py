@@ -1061,8 +1061,6 @@ st.divider()
 st.subheader("Traffic Heatmap — Day × Hour")
 df_heat = _load_heatmap()
 if not df_heat.empty:
-    import pandas as pd
-
     _day_map = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"}
     df_heat["day_name"] = df_heat["dow"].map(_day_map)
     pivot = df_heat.pivot_table(
@@ -1078,17 +1076,19 @@ if not df_heat.empty:
             z=pivot.values.tolist(),
             x=[str(h) for h in pivot.columns.tolist()],
             y=pivot.index.tolist(),
-            colorscale="Blues",
+            colorscale="YlOrRd",
             hoverongaps=False,
             colorbar=dict(title="Requests"),
+            hovertemplate="Day: %{y}<br>Hour: %{x}:00<br>Requests: %{z:,}<extra></extra>",
         )
     )
     fig_heat.update_layout(
         title="Request Volume by Day of Week and Hour",
         xaxis_title="Hour of Day (0–23)",
         yaxis_title="Day of Week",
-        template="plotly_white",
+        template=_plotly_tpl,
     )
     st.plotly_chart(fig_heat, use_container_width=True)
+    st.caption("Color intensity = request volume · Brightest cells = peak traffic hours")
 else:
     st.info("No hourly traffic data available.")
