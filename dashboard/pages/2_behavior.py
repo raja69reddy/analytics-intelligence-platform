@@ -699,10 +699,53 @@ if not df_dur.empty:
         yaxis_title="Sessions",
         template=_plotly_tpl,
     )
+
+    # Avg session duration reference annotation
+    _avg_s = float(_curr_kpis.get("avg_duration_s") or 0)
+    if _avg_s > 0:
+        def _avg_dur_bucket(s):
+            if s < 30:
+                return "0-30s"
+            if s < 120:
+                return "30s-2m"
+            if s < 300:
+                return "2m-5m"
+            if s < 600:
+                return "5m-10m"
+            return "10m+"
+
+        _avg_buck = _avg_dur_bucket(_avg_s)
+        try:
+            fig_dur.add_vline(
+                x=_avg_buck,
+                line_dash="dash",
+                line_color="#ffd700",
+                line_width=2,
+                annotation_text=f"Avg: {format_duration(_avg_s)}",
+                annotation_position="top",
+                annotation=dict(
+                    font=dict(color="#ffd700", size=12),
+                    bgcolor="rgba(0,0,0,0.1)",
+                ),
+            )
+        except Exception:
+            fig_dur.add_annotation(
+                xref="paper", yref="paper",
+                x=0.01, y=0.97,
+                text=f"Avg session: {format_duration(_avg_s)}",
+                showarrow=False,
+                bgcolor="rgba(255,215,0,0.15)",
+                bordercolor="#ffd700",
+                borderwidth=1,
+                font=dict(size=11),
+                align="left",
+            )
+
     st.plotly_chart(fig_dur, use_container_width=True)
     st.caption(
         f"Total sessions: {_dur_total:,} · "
         "Color: red = short sessions, green = long sessions"
+        + (f" · Dashed line = avg ({format_duration(_avg_s)})" if _avg_s > 0 else "")
     )
 else:
     st.info("No session duration data available.")
