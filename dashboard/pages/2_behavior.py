@@ -549,40 +549,46 @@ st.divider()
 
 # ── Engagement events breakdown ───────────────────────────────────────────────
 st.subheader("Engagement Events Breakdown")
-if not df_engagement.empty:
-    import pandas as pd
-
+df_ev_d = _load_engagement_dated(start_date, end_date, page_search or "")
+_ev_src = df_ev_d if not df_ev_d.empty else df_engagement
+if not _ev_src.empty:
     ev_totals = {
-        "Click": int(df_engagement["click_events"].sum()),
-        "Scroll": int(df_engagement["scroll_events"].sum()),
-        "Pageview": int(df_engagement["pageview_events"].sum()),
-        "Form Submit": int(df_engagement["form_submit_events"].sum()),
+        "Click": int(_ev_src["click_events"].sum()),
+        "Scroll": int(_ev_src["scroll_events"].sum()),
+        "Pageview": int(_ev_src["pageview_events"].sum()),
+        "Form Submit": int(_ev_src["form_submit_events"].sum()),
     }
-    grand = sum(ev_totals.values()) or 1
-    df_ev = pd.DataFrame(
+    _ev_grand = sum(ev_totals.values()) or 1
+    df_ev_plot = pd.DataFrame(
         {
             "Event Type": list(ev_totals.keys()),
             "Count": list(ev_totals.values()),
-            "Pct": [f"{v / grand * 100:.1f}%" for v in ev_totals.values()],
+            "Pct": [f"{v / _ev_grand * 100:.1f}%" for v in ev_totals.values()],
             "Color": ["#636EFA", "#EF553B", "#00CC96", "#AB63FA"],
         }
     )
     fig_ev = go.Figure(
         go.Bar(
-            x=df_ev["Event Type"],
-            y=df_ev["Count"],
-            marker_color=df_ev["Color"].tolist(),
-            text=df_ev["Pct"],
+            x=df_ev_plot["Event Type"],
+            y=df_ev_plot["Count"],
+            marker_color=df_ev_plot["Color"].tolist(),
+            text=df_ev_plot["Pct"],
             textposition="outside",
+            hovertemplate="<b>%{x}</b><br>Count: %{y:,}<extra></extra>",
         )
     )
     fig_ev.update_layout(
-        title="Events by Type (all pages)",
+        title="Events by Type"
+        + (f" — {start_date} to {end_date}" if start_date and end_date else ""),
         xaxis_title="Event Type",
         yaxis_title="Count",
-        template="plotly_white",
+        template=_plotly_tpl,
     )
     st.plotly_chart(fig_ev, use_container_width=True)
+    st.caption(
+        f"Total events: {_ev_grand:,} · "
+        + " · ".join(f"{k}: {v / _ev_grand * 100:.1f}%" for k, v in ev_totals.items())
+    )
 else:
     st.info("No engagement event data available.")
 
