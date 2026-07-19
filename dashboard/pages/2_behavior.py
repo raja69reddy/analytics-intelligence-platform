@@ -419,6 +419,54 @@ else:
 
 st.divider()
 
+# ── Page performance bar chart ────────────────────────────────────────────────
+st.subheader("Page Performance — Top 10 by Requests")
+if not df_tp_dated.empty:
+    _perf_top10 = df_tp_dated.nlargest(10, "total_requests").sort_values(
+        "total_requests", ascending=True
+    )
+
+    def _ms_color(ms):
+        if ms > 1000:
+            return "#d62728"
+        if ms > 200:
+            return "#ff7f0e"
+        return "#2ca02c"
+
+    _bar_colors = [_ms_color(v) for v in _perf_top10["avg_response_time_ms"]]
+    fig_perf = go.Figure(
+        go.Bar(
+            x=_perf_top10["total_requests"],
+            y=_perf_top10["url"],
+            orientation="h",
+            marker_color=_bar_colors,
+            text=_perf_top10["avg_response_time_ms"].apply(lambda v: f"{v:.0f} ms"),
+            textposition="outside",
+            customdata=_perf_top10[["avg_response_time_ms"]].values,
+            hovertemplate=(
+                "<b>%{y}</b><br>"
+                "Requests: %{x:,}<br>"
+                "Avg Response: %{customdata[0]:.0f} ms"
+                "<extra></extra>"
+            ),
+        )
+    )
+    fig_perf.update_layout(
+        title="Top 10 Pages by Request Volume",
+        xaxis_title="Total Requests",
+        yaxis_title=None,
+        template=_plotly_tpl,
+        height=420,
+    )
+    st.plotly_chart(fig_perf, use_container_width=True)
+    st.caption(
+        "Color: green = fast (<200 ms) · orange = medium (200–1,000 ms) · red = slow (>1,000 ms)"
+    )
+else:
+    st.info("No page performance data available.")
+
+st.divider()
+
 # ── Conversion funnel ─────────────────────────────────────────────────────────
 st.subheader("Conversion Funnel")
 
