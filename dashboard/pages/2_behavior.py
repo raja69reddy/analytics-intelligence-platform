@@ -16,6 +16,7 @@ from dashboard.components.filters import (
     get_date_filter,
     get_device_filter,
     get_page_filter,
+    get_plotly_template,
     show_active_filters,
 )
 from dashboard.components.metrics import (
@@ -214,6 +215,70 @@ def _load_dau_mau():
     """)
 
 
+@st.cache_data(ttl=300)
+def _load_top_pages_dated(start_date=None, end_date=None):
+    if start_date and end_date:
+        return query_df(
+            """SELECT url,
+                      COUNT(*) AS total_requests,
+                      ROUND(AVG(response_time_ms)::numeric, 1) AS avg_response_time_ms,
+                      ROUND(100.0 * SUM(CASE WHEN status_code >= 400 THEN 1 ELSE 0 END)
+                          / NULLIF(COUNT(*), 0), 2) AS error_rate_pct,
+                      MAX(log_time) AS last_visited
+               FROM raw_server_logs
+               WHERE DATE(log_time) BETWEEN :s AND :e
+               GROUP BY url
+               ORDER BY total_requests DESC
+               LIMIT 50""",
+            params={"s": str(start_date), "e": str(end_date)},
+        )
+    return run_view("vw_top_pages")
+
+
+@st.cache_data(ttl=300)
+def _load_scroll_dated(start_date=None, end_date=None, page_search: str = ""):
+    _conds = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(timestamp) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    if page_search:
+        _conds.append("page ILIKE :pg")
+        _params["pg"] = f"%{page_search}%"
+    _where = ("WHERE " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"""SELECT
+                SUM(CASE WHEN scroll_depth_pct IS NOT NULL AND scroll_depth_pct <= 25 THEN 1 ELSE 0 END) AS bucket_0_25,
+                SUM(CASE WHEN scroll_depth_pct > 25 AND scroll_depth_pct <= 50 THEN 1 ELSE 0 END) AS bucket_25_50,
+                SUM(CASE WHEN scroll_depth_pct > 50 AND scroll_depth_pct <= 75 THEN 1 ELSE 0 END) AS bucket_50_75,
+                SUM(CASE WHEN scroll_depth_pct > 75 THEN 1 ELSE 0 END) AS bucket_75_100
+           FROM raw_clickstream_events {_where}""",
+        params=_params,
+    )
+
+
+@st.cache_data(ttl=300)
+def _load_engagement_dated(start_date=None, end_date=None, page_search: str = ""):
+    _conds = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(timestamp) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    if page_search:
+        _conds.append("page ILIKE :pg")
+        _params["pg"] = f"%{page_search}%"
+    _where = ("WHERE " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"""SELECT
+                SUM(CASE WHEN event_type = 'click' THEN 1 ELSE 0 END) AS click_events,
+                SUM(CASE WHEN event_type = 'scroll' THEN 1 ELSE 0 END) AS scroll_events,
+                SUM(CASE WHEN event_type = 'pageview' THEN 1 ELSE 0 END) AS pageview_events,
+                SUM(CASE WHEN event_type = 'form_submit' THEN 1 ELSE 0 END) AS form_submit_events
+           FROM raw_clickstream_events {_where}""",
+        params=_params,
+    )
+
+
 # ── Sidebar filters ───────────────────────────────────────────────────────────
 with st.sidebar:
     st.header("Filters")
@@ -231,6 +296,7 @@ with st.sidebar:
 
 # ── Load data — device filter applied at DB level for session queries ──────────
 _dev = tuple(devices)
+_plotly_tpl = get_plotly_template()
 try:
     with st.spinner("Loading behavior data from PostgreSQL…"):
         df_behavior = _load_behavior()
@@ -315,27 +381,39 @@ st.caption(
 st.divider()
 
 # ── Top pages table ────────────────────────────────────────────────────────────
-st.subheader("Top Pages")
-search = st.text_input("Filter by URL", placeholder="/blog/", key="top_pages_search")
+st.subheader("Top Pages by Requests")
+search = st.text_input("Search by URL", placeholder="/blog/", key="top_pages_search")
 
-if not df_top_pages.empty:
-    df_tp = df_top_pages[
-        ["url", "total_requests", "avg_response_time_ms", "error_rate_pct"]
-    ].copy()
-    df_tp = df_tp.sort_values("total_requests", ascending=False)
+df_tp_dated = _load_top_pages_dated(start_date, end_date)
+if page_search:
+    df_tp_dated = df_tp_dated[
+        df_tp_dated["url"].str.contains(page_search, case=False, na=False)
+    ].reset_index(drop=True)
+
+if not df_tp_dated.empty:
+    _tp_cols = ["url", "total_requests", "avg_response_time_ms", "error_rate_pct"]
+    if "last_visited" in df_tp_dated.columns:
+        _tp_cols.append("last_visited")
+    df_tp = df_tp_dated[_tp_cols].sort_values("total_requests", ascending=False).copy()
     if search:
         df_tp = df_tp[df_tp["url"].str.contains(search, case=False, na=False)]
 
-    def _highlight_slow(row):
-        bg = "background-color: #ffd6d6" if row["avg_response_time_ms"] > 1000 else ""
-        return [bg] * len(row)
+    def _style_page_perf(row):
+        ms = row["avg_response_time_ms"]
+        if ms > 1000:
+            return ["background-color: #ffd6d6"] * len(row)
+        if ms < 200:
+            return ["background-color: #d4edda"] * len(row)
+        return [""] * len(row)
 
     st.dataframe(
-        df_tp.style.apply(_highlight_slow, axis=1),
+        df_tp.style.apply(_style_page_perf, axis=1),
         use_container_width=True,
         hide_index=True,
     )
-    st.caption("Rows highlighted in red have avg response time > 1,000 ms")
+    st.caption(
+        f"{len(df_tp):,} pages shown · Green = fast (<200 ms) · Red = slow (>1,000 ms)"
+    )
 else:
     st.info("No page data available.")
 
