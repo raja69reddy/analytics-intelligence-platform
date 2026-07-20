@@ -1503,4 +1503,24 @@ Day 39 - Behavior Page Funnel + Heatmap
 
 - Behavior page now complete with 10 interactive charts
 
+Day 40 - Behavior Page Complete
+
+
+- Added conversion funnel with drop off percentages
+
+
+- Added session duration distribution histogram
+
+
+- Added traffic heatmap by hour and day of week
+
+
+- Added engagement score table for top 10 pages
+
+
+- Added new vs returning users donut chart
+
+
+- Behavior page now has 10 interactive charts total
+
 
