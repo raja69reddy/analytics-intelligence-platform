@@ -216,6 +216,41 @@ def _load_dau_mau():
 
 
 @st.cache_data(ttl=300)
+def _load_funnel_dated(start_date=None, end_date=None):
+    _conds = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(timestamp) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _dflt = (" AND " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"""WITH homepage AS (
+            SELECT DISTINCT session_id FROM raw_clickstream_events
+            WHERE event_name = 'pageview' AND page_url = '/' {_dflt}
+        ),
+        product AS (
+            SELECT DISTINCT session_id FROM raw_clickstream_events
+            WHERE event_name = 'pageview' AND page_url IN ('/products/', '/pricing/') {_dflt}
+        ),
+        cart AS (
+            SELECT DISTINCT session_id FROM raw_clickstream_events
+            WHERE event_name = 'click' AND page_url IN ('/products/', '/pricing/') {_dflt}
+        ),
+        checkout AS (
+            SELECT DISTINCT session_id FROM raw_clickstream_events
+            WHERE event_name = 'form_submit' {_dflt}
+        )
+        SELECT
+            (SELECT COUNT(*) FROM homepage) AS homepage,
+            (SELECT COUNT(*) FROM product)  AS product_page,
+            (SELECT COUNT(*) FROM cart)     AS add_to_cart,
+            (SELECT COUNT(*) FROM checkout) AS checkout,
+            ROUND((SELECT COUNT(*) FROM checkout) * 0.35) AS purchase""",
+        params=_params or None,
+    )
+
+
+@st.cache_data(ttl=300)
 def _load_top_pages_dated(start_date=None, end_date=None):
     if start_date and end_date:
         return query_df(
@@ -470,7 +505,9 @@ st.divider()
 # ── Conversion funnel ─────────────────────────────────────────────────────────
 st.subheader("Conversion Funnel")
 
-df_funnel = _load_funnel()
+df_funnel = _load_funnel_dated(start_date, end_date)
+if df_funnel.empty:
+    df_funnel = _load_funnel()
 
 if not df_funnel.empty:
     _f_stages = ["Landing Page", "Product Page", "Add to Cart", "Checkout", "Purchase"]
@@ -505,7 +542,8 @@ if not df_funnel.empty:
         )
     )
     fig_funnel.update_layout(
-        title="Conversion Funnel: Landing Page to Purchase",
+        title="Conversion Funnel: Landing Page to Purchase"
+        + (f" ({start_date} to {end_date})" if start_date and end_date else ""),
         template=_plotly_tpl,
         height=400,
     )
