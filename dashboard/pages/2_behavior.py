@@ -140,6 +140,32 @@ FROM raw_ga4_sessions {base_cond}
 
 
 @st.cache_data(ttl=300)
+def _load_duration_clickstream(start_date=None, end_date=None):
+    _conds = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(timestamp) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = ("WHERE " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"""SELECT
+                SUM(CASE WHEN dur < 30 THEN 1 ELSE 0 END)                      AS "0-30s",
+                SUM(CASE WHEN dur >= 30  AND dur < 120 THEN 1 ELSE 0 END)      AS "30s-2m",
+                SUM(CASE WHEN dur >= 120 AND dur < 300 THEN 1 ELSE 0 END)      AS "2m-5m",
+                SUM(CASE WHEN dur >= 300 AND dur < 600 THEN 1 ELSE 0 END)      AS "5m-10m",
+                SUM(CASE WHEN dur >= 600 THEN 1 ELSE 0 END)                    AS "10m+"
+           FROM (
+               SELECT session_id,
+                      EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))) AS dur
+               FROM raw_clickstream_events {_where}
+               GROUP BY session_id
+               HAVING COUNT(*) > 1
+           ) sess""",
+        params=_params or None,
+    )
+
+
+@st.cache_data(ttl=300)
 def _load_heatmap():
     return query_df("""
 SELECT EXTRACT(DOW FROM log_time)::int AS dow,
@@ -708,7 +734,11 @@ st.divider()
 
 # ── Time on page distribution ─────────────────────────────────────────────────
 st.subheader("Time on Page Distribution")
-df_dur = _load_duration(start_date, end_date, _dev)
+# Primary: session duration derived from raw_clickstream_events (per-event timestamps)
+# Fallback: pre-aggregated raw_ga4_sessions buckets
+df_dur = _load_duration_clickstream(start_date, end_date)
+if df_dur.empty:
+    df_dur = _load_duration(start_date, end_date, _dev)
 if not df_dur.empty:
     # Column names from SQL use ASCII hyphens — use them directly
     _dur_cols = ["0-30s", "30s-2m", "2m-5m", "5m-10m", "10m+"]
