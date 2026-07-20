@@ -176,6 +176,25 @@ FROM raw_server_logs GROUP BY 1, 2 ORDER BY 1, 2
 
 
 @st.cache_data(ttl=300)
+def _load_heatmap_dated(start_date=None, end_date=None):
+    _conds = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(log_time) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = ("WHERE " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"""SELECT EXTRACT(DOW FROM log_time)::int AS dow,
+                   EXTRACT(HOUR FROM log_time)::int AS hour_of_day,
+                   COUNT(*) AS total_requests
+            FROM raw_server_logs {_where}
+            GROUP BY 1, 2
+            ORDER BY 1, 2""",
+        params=_params or None,
+    )
+
+
+@st.cache_data(ttl=300)
 def _load_retention(start_date=None, end_date=None, devices: tuple = ()):
     where, params = build_where_clause(start_date, end_date, devices=list(devices) or None)
     return query_df(f"""
@@ -1127,7 +1146,9 @@ st.divider()
 
 # ── Traffic heatmap by day and hour ───────────────────────────────────────────
 st.subheader("Traffic Heatmap — Day × Hour")
-df_heat = _load_heatmap()
+df_heat = _load_heatmap_dated(start_date, end_date)
+if df_heat.empty:
+    df_heat = _load_heatmap()
 if not df_heat.empty:
     _day_map = {0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"}
     df_heat["day_name"] = df_heat["dow"].map(_day_map)
@@ -1151,7 +1172,8 @@ if not df_heat.empty:
         )
     )
     fig_heat.update_layout(
-        title="Request Volume by Day of Week and Hour",
+        title="Request Volume by Day of Week and Hour"
+        + (f" ({start_date} to {end_date})" if start_date and end_date else ""),
         xaxis_title="Hour of Day (0–23)",
         yaxis_title="Day of Week",
         template=_plotly_tpl,
