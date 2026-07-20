@@ -901,6 +901,39 @@ if not df_behavior.empty:
     st.caption(
         "Score = Scroll Depth (40%) + Events (30%) + Page Speed (30%) — hover for breakdown"
     )
+
+    # Engagement score table with CSV download
+    st.markdown("**Engagement Score Table — Top 10 Pages**")
+    df_eng_tbl = df_top10[["page", "score", "c_scroll", "c_events", "c_speed",
+                            "avg_scroll_depth_pct", "total_events", "avg_response_ms"]].copy()
+    df_eng_tbl.columns = [
+        "Page", "Total Score", "Scroll (40%)", "Events (30%)", "Speed (30%)",
+        "Avg Scroll %", "Total Events", "Avg Response ms",
+    ]
+    df_eng_tbl = df_eng_tbl.sort_values("Total Score", ascending=False).reset_index(drop=True)
+    st.dataframe(
+        df_eng_tbl.style.background_gradient(
+            subset=["Total Score"], cmap="viridis", vmin=0, vmax=1
+        ).format(
+            {
+                "Total Score": "{:.4f}",
+                "Scroll (40%)": "{:.4f}",
+                "Events (30%)": "{:.4f}",
+                "Speed (30%)": "{:.4f}",
+                "Avg Scroll %": "{:.1f}%",
+                "Total Events": "{:,.0f}",
+                "Avg Response ms": "{:.0f}",
+            }
+        ),
+        use_container_width=True,
+        hide_index=True,
+    )
+    st.download_button(
+        label="Download engagement scores as CSV",
+        data=df_eng_tbl.to_csv(index=False).encode("utf-8"),
+        file_name="engagement_scores.csv",
+        mime="text/csv",
+    )
 else:
     st.info("No behavior data available.")
 
