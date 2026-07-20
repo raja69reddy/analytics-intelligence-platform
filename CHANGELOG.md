@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 40 - Behavior Page Complete
+- Added conversion funnel chart: new `_load_funnel_dated` loader filters raw_clickstream_events by date range; funnel title includes date range; falls back to unfiltered `_load_funnel()` if dated query returns empty
+- Added session duration distribution: new `_load_duration_clickstream` loader computes session durations from MAX/MIN(timestamp) per session_id in raw_clickstream_events; falls back to pre-aggregated raw_ga4_sessions; HAVING COUNT > 1 filters single-event sessions
+- Added traffic heatmap by day and hour: new `_load_heatmap_dated` loader adds date filter to raw_server_logs query; heatmap title includes date range; falls back to unfiltered `_load_heatmap()` if empty
+- Added engagement score table: styled dataframe showing top 10 pages by engagement score (viridis gradient); displays all 8 columns (page, total score, 3 component scores, 3 raw metrics); CSV download button exports data
+- Added new vs returning users donut chart: new `_load_new_vs_ret_dated` loader queries raw_ga4_sessions; go.Pie hole=0.45 with session count in center annotation; side-by-side KPI metrics and donut; date-filtered with caption
+
 ## Day 39 - Behavior Page Funnel + Heatmap
 - Added conversion funnel chart with drop off %: replaced static colors with computed per-stage colors (biggest drop-off stage highlighted red); custom text labels showing count + stage-to-stage drop-off %; uses `_plotly_tpl`; caption shows overall CVR and worst stage
 - Added funnel drop off analysis table: 5-row table (one per funnel stage) with columns Stage, Users Entered, Users Dropped, Drop-off %, Completion Rate %; RdYlGn_r gradient on Drop-off % (red=high) and RdYlGn on Completion Rate % (green=high); caption identifies stage needing most attention
