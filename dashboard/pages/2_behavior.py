@@ -244,6 +244,24 @@ def _load_quality_heatmap():
 
 
 @st.cache_data(ttl=300)
+def _load_new_vs_ret_dated(start_date=None, end_date=None):
+    _conds = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("session_date BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = ("WHERE " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"""SELECT
+                COALESCE(SUM(new_users), 0)                            AS new_users,
+                COALESCE(SUM(sessions) - SUM(new_users), 0)            AS returning_users,
+                COALESCE(SUM(sessions), 0)                             AS total_sessions
+           FROM raw_ga4_sessions {_where}""",
+        params=_params or None,
+    )
+
+
+@st.cache_data(ttl=300)
 def _load_dau_mau():
     return query_df("""
         WITH dau AS (
@@ -1215,3 +1233,56 @@ if not df_heat.empty:
     st.caption("Color intensity = request volume · Brightest cells = peak traffic hours")
 else:
     st.info("No hourly traffic data available.")
+
+st.divider()
+
+# ── New vs Returning Users ────────────────────────────────────────────────────
+st.subheader("New vs Returning Users")
+df_nvr = _load_new_vs_ret_dated(start_date, end_date)
+if not df_nvr.empty:
+    _new_u = int(df_nvr["new_users"].iloc[0])
+    _ret_u = int(df_nvr["returning_users"].iloc[0])
+    _total_u = int(df_nvr["total_sessions"].iloc[0]) or 1
+    _new_pct = round(_new_u / _total_u * 100, 1)
+    _ret_pct = round(_ret_u / _total_u * 100, 1)
+
+    _nvr_col1, _nvr_col2 = st.columns([1, 2])
+    with _nvr_col1:
+        st.metric("New Users", f"{_new_u:,}", delta=f"{_new_pct}% of sessions")
+        st.metric("Returning Users", f"{_ret_u:,}", delta=f"{_ret_pct}% of sessions")
+        st.metric("Total Sessions", f"{_total_u:,}")
+
+    with _nvr_col2:
+        fig_nvr = go.Figure(
+            go.Pie(
+                labels=["New Users", "Returning Users"],
+                values=[_new_u, _ret_u],
+                hole=0.45,
+                marker_colors=["#636EFA", "#EF553B"],
+                textinfo="label+percent",
+                hovertemplate=(
+                    "<b>%{label}</b><br>Sessions: %{value:,}<br>Share: %{percent}<extra></extra>"
+                ),
+            )
+        )
+        fig_nvr.add_annotation(
+            text=f"{_total_u:,}<br>sessions",
+            x=0.5, y=0.5,
+            showarrow=False,
+            font=dict(size=14),
+        )
+        fig_nvr.update_layout(
+            title="New vs Returning Users"
+            + (f" ({start_date} to {end_date})" if start_date and end_date else ""),
+            template=_plotly_tpl,
+            showlegend=True,
+            legend=dict(orientation="h", y=-0.1),
+        )
+        st.plotly_chart(fig_nvr, use_container_width=True)
+    st.caption(
+        f"New: {_new_pct}% · Returning: {_ret_pct}% "
+        f"· Period: {start_date} to {end_date}" if start_date and end_date
+        else f"New: {_new_pct}% · Returning: {_ret_pct}%"
+    )
+else:
+    st.info("No new vs returning data available.")
