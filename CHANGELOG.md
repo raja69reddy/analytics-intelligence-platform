@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 41 - Behavior Page Engagement Charts
+- Added event type trend line chart: `_load_event_trend` queries raw_clickstream_events GROUP BY date + event_type; pivots to wide format; one Scatter trace per event type (click/scroll/pageview/form_submit) with distinct colors; unified hover + rangeselector 7D/30D/90D/All
+- Added top pages by event count table: `_load_top_pages_events` queries raw_clickstream_events grouped by page with 4 event-type columns; inline URL search box; Greens background_gradient on form_submits column; CSV download button
+- Added user journey Sankey diagram: `_load_page_paths` uses LEAD() window function to find page-to-page transitions per session; builds node index mapping; go.Sankey with node labels truncated to 35 chars; hover shows source → target + user count; top 30 paths
+- Added bounce rate trend chart: `_load_bounce_trend` queries raw_ga4_sessions for daily avg bounce rate; 7-day rolling average via pandas .rolling(7); add_hline at 50% (red dashed, industry benchmark); rangeselector 7D/30D/90D; unified hover; caption shows period avg
+- Added caching to all behavior page queries: added `datetime` import; sidebar shows "Last loaded" timestamp via `datetime.now().strftime()`; updated cache caption to confirm all 300s TTL; all Day 41 loaders use `@st.cache_data(ttl=300)`
+
 ## Day 40 - Behavior Page Complete
 - Added conversion funnel chart: new `_load_funnel_dated` loader filters raw_clickstream_events by date range; funnel title includes date range; falls back to unfiltered `_load_funnel()` if dated query returns empty
 - Added session duration distribution: new `_load_duration_clickstream` loader computes session durations from MAX/MIN(timestamp) per session_id in raw_clickstream_events; falls back to pre-aggregated raw_ga4_sessions; HAVING COUNT > 1 filters single-event sessions
