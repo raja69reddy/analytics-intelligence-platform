@@ -244,6 +244,30 @@ def _load_quality_heatmap():
 
 
 @st.cache_data(ttl=300)
+def _load_page_paths(start_date=None, end_date=None):
+    _conds = ["event_type = 'pageview'"]
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(timestamp) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = "WHERE " + " AND ".join(_conds)
+    return query_df(
+        f"""WITH ordered_pv AS (
+               SELECT session_id, page,
+                      LEAD(page) OVER (PARTITION BY session_id ORDER BY timestamp) AS next_page
+               FROM raw_clickstream_events {_where}
+           )
+           SELECT page AS source_page, next_page AS target_page, COUNT(*) AS user_count
+           FROM ordered_pv
+           WHERE next_page IS NOT NULL AND page != next_page
+           GROUP BY page, next_page
+           ORDER BY user_count DESC
+           LIMIT 30""",
+        params=_params or None,
+    )
+
+
+@st.cache_data(ttl=300)
 def _load_top_pages_events(start_date=None, end_date=None):
     _conds = []
     _params: dict = {}
@@ -1429,3 +1453,56 @@ if not df_top_events.empty:
     )
 else:
     st.info("No page event data available.")
+
+st.divider()
+
+# ── User journey sankey ───────────────────────────────────────────────────────
+st.subheader("User Journey — Page Flow")
+df_paths = _load_page_paths(start_date, end_date)
+if not df_paths.empty:
+    # Build unique node list and index mapping
+    _all_pages = list(
+        dict.fromkeys(df_paths["source_page"].tolist() + df_paths["target_page"].tolist())
+    )
+    _page_idx = {p: i for i, p in enumerate(_all_pages)}
+
+    def _short_url(url, maxlen=35):
+        return url if len(url) <= maxlen else url[:maxlen - 3] + "..."
+
+    _node_labels = [_short_url(p) for p in _all_pages]
+    _sources = [_page_idx[r] for r in df_paths["source_page"]]
+    _targets = [_page_idx[r] for r in df_paths["target_page"]]
+    _values = df_paths["user_count"].tolist()
+
+    fig_sankey = go.Figure(
+        go.Sankey(
+            node=dict(
+                pad=20,
+                thickness=15,
+                line=dict(color="gray", width=0.5),
+                label=_node_labels,
+                color="#636EFA",
+            ),
+            link=dict(
+                source=_sources,
+                target=_targets,
+                value=_values,
+                hovertemplate=(
+                    "%{source.label} → %{target.label}<br>"
+                    "Users: %{value:,}<extra></extra>"
+                ),
+            ),
+        )
+    )
+    fig_sankey.update_layout(
+        title="Most Common Page Transitions (Top 30 Paths)",
+        template=_plotly_tpl,
+        height=520,
+    )
+    st.plotly_chart(fig_sankey, use_container_width=True)
+    st.caption(
+        f"Showing {len(df_paths)} page-to-page transitions · "
+        "Width of each link = number of users taking that path"
+    )
+else:
+    st.info("No page path data available.")
