@@ -244,6 +244,25 @@ def _load_quality_heatmap():
 
 
 @st.cache_data(ttl=300)
+def _load_event_trend(start_date=None, end_date=None):
+    _conds = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(timestamp) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = ("WHERE " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"""SELECT DATE(timestamp) AS event_date,
+                   event_type,
+                   COUNT(*) AS event_count
+            FROM raw_clickstream_events {_where}
+            GROUP BY DATE(timestamp), event_type
+            ORDER BY event_date, event_type""",
+        params=_params or None,
+    )
+
+
+@st.cache_data(ttl=300)
 def _load_new_vs_ret_dated(start_date=None, end_date=None):
     _conds = []
     _params: dict = {}
@@ -1286,3 +1305,65 @@ if not df_nvr.empty:
     )
 else:
     st.info("No new vs returning data available.")
+
+st.divider()
+
+# ── Event type trends ─────────────────────────────────────────────────────────
+st.subheader("Event Type Trends Over Time")
+import pandas as pd
+
+df_event_trend = _load_event_trend(start_date, end_date)
+if not df_event_trend.empty:
+    df_event_trend["event_date"] = pd.to_datetime(df_event_trend["event_date"])
+    df_ev_pivot = df_event_trend.pivot_table(
+        index="event_date",
+        columns="event_type",
+        values="event_count",
+        fill_value=0,
+    ).reset_index()
+
+    _et_colors = {
+        "click": "#636EFA",
+        "scroll": "#EF553B",
+        "pageview": "#00CC96",
+        "form_submit": "#AB63FA",
+    }
+    fig_trend = go.Figure()
+    for _et in ["click", "scroll", "pageview", "form_submit"]:
+        if _et in df_ev_pivot.columns:
+            fig_trend.add_trace(
+                go.Scatter(
+                    x=df_ev_pivot["event_date"],
+                    y=df_ev_pivot[_et],
+                    mode="lines",
+                    name=_et.replace("_", " ").title(),
+                    line=dict(color=_et_colors.get(_et, "#888888"), width=2),
+                    hovertemplate=(
+                        f"<b>{_et.replace('_', ' ').title()}</b><br>"
+                        "Date: %{x|%Y-%m-%d}<br>"
+                        "Count: %{y:,}<extra></extra>"
+                    ),
+                )
+            )
+    fig_trend.update_xaxes(
+        rangeselector=dict(
+            buttons=[
+                dict(count=7, label="7D", step="day", stepmode="backward"),
+                dict(count=30, label="30D", step="day", stepmode="backward"),
+                dict(count=90, label="90D", step="day", stepmode="backward"),
+                dict(step="all", label="All"),
+            ]
+        )
+    )
+    fig_trend.update_layout(
+        title="Event Count by Type Over Time",
+        xaxis_title="Date",
+        yaxis_title="Event Count",
+        template=_plotly_tpl,
+        hovermode="x unified",
+        legend=dict(orientation="h", y=1.1),
+    )
+    st.plotly_chart(fig_trend, use_container_width=True)
+    st.caption("Use the range selector above the chart to zoom into 7D / 30D / 90D windows")
+else:
+    st.info("No event trend data available.")
