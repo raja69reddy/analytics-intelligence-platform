@@ -244,6 +244,24 @@ def _load_quality_heatmap():
 
 
 @st.cache_data(ttl=300)
+def _load_bounce_trend(start_date=None, end_date=None):
+    _conds = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("session_date BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = ("WHERE " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"""SELECT session_date,
+                   ROUND(AVG(CASE WHEN bounce THEN 1.0 ELSE 0.0 END) * 100, 2) AS bounce_rate_pct
+            FROM raw_ga4_sessions {_where}
+            GROUP BY session_date
+            ORDER BY session_date""",
+        params=_params or None,
+    )
+
+
+@st.cache_data(ttl=300)
 def _load_page_paths(start_date=None, end_date=None):
     _conds = ["event_type = 'pageview'"]
     _params: dict = {}
@@ -1506,3 +1524,73 @@ if not df_paths.empty:
     )
 else:
     st.info("No page path data available.")
+
+st.divider()
+
+# ── Bounce rate trend ─────────────────────────────────────────────────────────
+st.subheader("Bounce Rate Trend")
+df_bounce = _load_bounce_trend(start_date, end_date)
+if not df_bounce.empty:
+    df_bounce["session_date"] = pd.to_datetime(df_bounce["session_date"])
+    df_bounce = df_bounce.sort_values("session_date").reset_index(drop=True)
+    df_bounce["rolling_7d"] = (
+        df_bounce["bounce_rate_pct"].rolling(7, min_periods=1).mean().round(2)
+    )
+
+    fig_bounce = go.Figure()
+    fig_bounce.add_trace(
+        go.Scatter(
+            x=df_bounce["session_date"],
+            y=df_bounce["bounce_rate_pct"],
+            mode="lines",
+            name="Daily Bounce Rate",
+            line=dict(color="#636EFA", width=1),
+            opacity=0.45,
+            hovertemplate="Date: %{x|%Y-%m-%d}<br>Bounce Rate: %{y:.1f}%<extra></extra>",
+        )
+    )
+    fig_bounce.add_trace(
+        go.Scatter(
+            x=df_bounce["session_date"],
+            y=df_bounce["rolling_7d"],
+            mode="lines",
+            name="7-Day Rolling Avg",
+            line=dict(color="#EF553B", width=2.5),
+            hovertemplate="Date: %{x|%Y-%m-%d}<br>7D Avg: %{y:.1f}%<extra></extra>",
+        )
+    )
+    fig_bounce.add_hline(
+        y=50,
+        line_dash="dash",
+        line_color="red",
+        annotation_text="Industry avg: 50%",
+        annotation_position="top right",
+        annotation=dict(font=dict(color="red", size=11)),
+    )
+    fig_bounce.update_xaxes(
+        rangeselector=dict(
+            buttons=[
+                dict(count=7, label="7D", step="day", stepmode="backward"),
+                dict(count=30, label="30D", step="day", stepmode="backward"),
+                dict(count=90, label="90D", step="day", stepmode="backward"),
+                dict(step="all", label="All"),
+            ]
+        )
+    )
+    fig_bounce.update_layout(
+        title="Bounce Rate Over Time",
+        xaxis_title="Date",
+        yaxis=dict(title="Bounce Rate %", range=[0, 100]),
+        template=_plotly_tpl,
+        hovermode="x unified",
+        legend=dict(orientation="h", y=1.12),
+    )
+    st.plotly_chart(fig_bounce, use_container_width=True)
+    _avg_bounce = df_bounce["bounce_rate_pct"].mean()
+    st.caption(
+        f"Avg bounce rate over period: {_avg_bounce:.1f}% · "
+        "Red dashed line = 50% industry benchmark · "
+        "Orange line = 7-day rolling average"
+    )
+else:
+    st.info("No bounce rate data available.")
