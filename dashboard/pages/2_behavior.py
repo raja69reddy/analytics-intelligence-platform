@@ -244,6 +244,28 @@ def _load_quality_heatmap():
 
 
 @st.cache_data(ttl=300)
+def _load_top_pages_events(start_date=None, end_date=None):
+    _conds = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(timestamp) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = ("WHERE " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"""SELECT page,
+                   COUNT(*) AS total_events,
+                   SUM(CASE WHEN event_type = 'click' THEN 1 ELSE 0 END)       AS clicks,
+                   SUM(CASE WHEN event_type = 'scroll' THEN 1 ELSE 0 END)      AS scrolls,
+                   SUM(CASE WHEN event_type = 'form_submit' THEN 1 ELSE 0 END) AS form_submits
+            FROM raw_clickstream_events {_where}
+            GROUP BY page
+            ORDER BY total_events DESC
+            LIMIT 50""",
+        params=_params or None,
+    )
+
+
+@st.cache_data(ttl=300)
 def _load_event_trend(start_date=None, end_date=None):
     _conds = []
     _params: dict = {}
@@ -1367,3 +1389,43 @@ if not df_event_trend.empty:
     st.caption("Use the range selector above the chart to zoom into 7D / 30D / 90D windows")
 else:
     st.info("No event trend data available.")
+
+st.divider()
+
+# ── Top pages by event count ──────────────────────────────────────────────────
+st.subheader("Top Pages by Event Count")
+_evt_search = st.text_input("Filter by page URL", placeholder="/blog/", key="evt_page_search")
+df_top_events = _load_top_pages_events(start_date, end_date)
+if not df_top_events.empty:
+    if _evt_search:
+        df_top_events = df_top_events[
+            df_top_events["page"].str.contains(_evt_search, case=False, na=False)
+        ].reset_index(drop=True)
+    df_top_events.columns = ["Page", "Total Events", "Clicks", "Scrolls", "Form Submits"]
+
+    st.dataframe(
+        df_top_events.style.background_gradient(
+            subset=["Form Submits"], cmap="Greens", vmin=0
+        ).format(
+            {
+                "Total Events": "{:,}",
+                "Clicks": "{:,}",
+                "Scrolls": "{:,}",
+                "Form Submits": "{:,}",
+            }
+        ),
+        use_container_width=True,
+        hide_index=True,
+    )
+    st.download_button(
+        label="Download table as CSV",
+        data=df_top_events.to_csv(index=False).encode("utf-8"),
+        file_name="top_pages_events.csv",
+        mime="text/csv",
+    )
+    st.caption(
+        f"{len(df_top_events):,} pages shown · "
+        "Green = high form submission volume · Sorted by total events"
+    )
+else:
+    st.info("No page event data available.")
