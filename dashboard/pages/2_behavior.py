@@ -3,7 +3,7 @@ vw_scroll_depth, and vw_engagement_events."""
 
 import os
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import plotly.graph_objects as go
 import streamlit as st
@@ -473,7 +473,8 @@ with st.sidebar:
     if st.button("Clear data cache"):
         st.cache_data.clear()
         st.success("Cache cleared — reloading…")
-    st.caption("Cache TTL: 5 min")
+    st.caption("Cache TTL: 5 min · All queries cached with @st.cache_data(ttl=300)")
+    st.caption(f"Last loaded: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 # ── Load data — device filter applied at DB level for session queries ──────────
 _dev = tuple(devices)
