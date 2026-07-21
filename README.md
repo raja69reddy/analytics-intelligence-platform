@@ -1523,4 +1523,24 @@ Day 40 - Behavior Page Complete
 
 - Behavior page now has 10 interactive charts total
 
+Day 41 - Behavior Page Engagement Charts
+
+
+- Added event type trend line chart over time
+
+
+- Added top pages by event count table with search
+
+
+- Added user journey sankey diagram
+
+
+- Added bounce rate trend chart with reference line
+
+
+- Added caching to all behavior page queries
+
+
+- Behavior page fully complete with all charts
+
 
