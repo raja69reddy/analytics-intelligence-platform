@@ -660,16 +660,17 @@ st.divider()
 # ── Conversion funnel ─────────────────────────────────────────────────────────
 st.subheader("Conversion Funnel")
 
-try:
-    df_funnel = _load_funnel_dated(start_date, end_date)
-    if df_funnel.empty:
-        df_funnel = _load_funnel()
-except Exception as _exc:
-    st.warning(f"Could not load funnel data. Check your DB connection.\n\n**Error:** {_exc}")
-    if st.button("Retry", key="retry_funnel"):
-        st.cache_data.clear()
-        st.rerun()
-    df_funnel = pd.DataFrame()
+with st.spinner("Loading funnel data…"):
+    try:
+        df_funnel = _load_funnel_dated(start_date, end_date)
+        if df_funnel.empty:
+            df_funnel = _load_funnel()
+    except Exception as _exc:
+        st.warning(f"Could not load funnel data. Check your DB connection.\n\n**Error:** {_exc}")
+        if st.button("Retry", key="retry_funnel"):
+            st.cache_data.clear()
+            st.rerun()
+        df_funnel = pd.DataFrame()
 
 if not df_funnel.empty:
     _f_stages = ["Landing Page", "Product Page", "Add to Cart", "Checkout", "Purchase"]
@@ -1392,14 +1393,15 @@ st.divider()
 st.subheader("Event Type Trends Over Time")
 import pandas as pd
 
-try:
-    df_event_trend = _load_event_trend(start_date, end_date)
-except Exception as _exc:
-    st.warning(f"Could not load event trend data.\n\n**Error:** {_exc}")
-    if st.button("Retry", key="retry_event_trend"):
-        st.cache_data.clear()
-        st.rerun()
-    df_event_trend = pd.DataFrame()
+with st.spinner("Loading event trends…"):
+    try:
+        df_event_trend = _load_event_trend(start_date, end_date)
+    except Exception as _exc:
+        st.warning(f"Could not load event trend data.\n\n**Error:** {_exc}")
+        if st.button("Retry", key="retry_event_trend"):
+            st.cache_data.clear()
+            st.rerun()
+        df_event_trend = pd.DataFrame()
 if not df_event_trend.empty:
     df_event_trend["event_date"] = pd.to_datetime(df_event_trend["event_date"])
     df_ev_pivot = df_event_trend.pivot_table(
@@ -1460,14 +1462,15 @@ st.divider()
 # ── Top pages by event count ──────────────────────────────────────────────────
 st.subheader("Top Pages by Event Count")
 _evt_search = st.text_input("Filter by page URL", placeholder="/blog/", key="evt_page_search")
-try:
-    df_top_events = _load_top_pages_events(start_date, end_date)
-except Exception as _exc:
-    st.warning(f"Could not load event count data.\n\n**Error:** {_exc}")
-    if st.button("Retry", key="retry_top_events"):
-        st.cache_data.clear()
-        st.rerun()
-    df_top_events = pd.DataFrame()
+with st.spinner("Loading page event data…"):
+    try:
+        df_top_events = _load_top_pages_events(start_date, end_date)
+    except Exception as _exc:
+        st.warning(f"Could not load event count data.\n\n**Error:** {_exc}")
+        if st.button("Retry", key="retry_top_events"):
+            st.cache_data.clear()
+            st.rerun()
+        df_top_events = pd.DataFrame()
 if not df_top_events.empty:
     if _evt_search:
         df_top_events = df_top_events[
@@ -1506,14 +1509,15 @@ st.divider()
 
 # ── User journey sankey ───────────────────────────────────────────────────────
 st.subheader("User Journey — Page Flow")
-try:
-    df_paths = _load_page_paths(start_date, end_date)
-except Exception as _exc:
-    st.warning(f"Could not load page path data.\n\n**Error:** {_exc}")
-    if st.button("Retry", key="retry_paths"):
-        st.cache_data.clear()
-        st.rerun()
-    df_paths = pd.DataFrame()
+with st.spinner("Computing page transitions…"):
+    try:
+        df_paths = _load_page_paths(start_date, end_date)
+    except Exception as _exc:
+        st.warning(f"Could not load page path data.\n\n**Error:** {_exc}")
+        if st.button("Retry", key="retry_paths"):
+            st.cache_data.clear()
+            st.rerun()
+        df_paths = pd.DataFrame()
 if not df_paths.empty:
     # Build unique node list and index mapping
     _all_pages = list(
@@ -1566,14 +1570,15 @@ st.divider()
 
 # ── Bounce rate trend ─────────────────────────────────────────────────────────
 st.subheader("Bounce Rate Trend")
-try:
-    df_bounce = _load_bounce_trend(start_date, end_date)
-except Exception as _exc:
-    st.warning(f"Could not load bounce rate data.\n\n**Error:** {_exc}")
-    if st.button("Retry", key="retry_bounce"):
-        st.cache_data.clear()
-        st.rerun()
-    df_bounce = pd.DataFrame()
+with st.spinner("Loading bounce rate data…"):
+    try:
+        df_bounce = _load_bounce_trend(start_date, end_date)
+    except Exception as _exc:
+        st.warning(f"Could not load bounce rate data.\n\n**Error:** {_exc}")
+        if st.button("Retry", key="retry_bounce"):
+            st.cache_data.clear()
+            st.rerun()
+        df_bounce = pd.DataFrame()
 if not df_bounce.empty:
     df_bounce["session_date"] = pd.to_datetime(df_bounce["session_date"])
     df_bounce = df_bounce.sort_values("session_date").reset_index(drop=True)
