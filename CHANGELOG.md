@@ -1,5 +1,13 @@
 # Changelog
 
+## Day 42 - Behavior Page Filters + Table Styling
+- Fixed git config for contribution tracking: set user.email to GitHub noreply address so commits appear on profile
+- Wired all filters to behavior page sidebar: enhanced sidebar shows active filter count, page URL filter preview, device filter preview, cache TTL note, last-loaded timestamp
+- Added error handling to behavior page: all major chart/table loaders wrapped in try/except with st.warning + Retry button (st.cache_data.clear → st.rerun) pattern
+- Added loading spinners to behavior page: all chart loads wrapped in st.spinner context manager with descriptive messages
+- Created dashboard/components/tables.py: reusable utilities — display_styled_table, highlight_slow_pages, highlight_top_performers, add_rank_column, format_table_numbers
+- Applied consistent table styling across all pages: traffic page daily table + behavior page top events table + SEO content health table all now use add_rank_column (#) and format_table_numbers
+
 ## Day 41 - Behavior Page Engagement Charts
 - Added event type trend line chart: `_load_event_trend` queries raw_clickstream_events GROUP BY date + event_type; pivots to wide format; one Scatter trace per event type (click/scroll/pageview/form_submit) with distinct colors; unified hover + rangeselector 7D/30D/90D/All
 - Added top pages by event count table: `_load_top_pages_events` queries raw_clickstream_events grouped by page with 4 event-type columns; inline URL search box; Greens background_gradient on form_submits column; CSV download button
