@@ -230,35 +230,46 @@ st.divider()
 
 # ── Goal completions by source / medium ───────────────────────────────────────
 st.subheader("Goal Completions by Source / Medium")
-if not df_conv.empty:
-    df_src = (
-        df_conv.groupby(["source", "medium", "channel_grouping"])["goal_completions"]
-        .sum()
-        .reset_index()
-        .sort_values("goal_completions", ascending=False)
-        .head(15)
-    )
-    df_src["source_medium"] = df_src["source"] + " / " + df_src["medium"]
+with st.spinner("Loading goal completions by source…"):
+    if not df_conv.empty:
+        import plotly.express as px
 
-    import plotly.express as px
-
-    fig_src = px.bar(
-        df_src,
-        x="source_medium",
-        y="goal_completions",
-        color="channel_grouping",
-        title="Goal Completions by Source / Medium (Top 15)",
-        labels={
-            "source_medium": "Source / Medium",
-            "goal_completions": "Completions",
-            "channel_grouping": "Channel",
-        },
-        template="plotly_white",
-    )
-    fig_src.update_xaxes(tickangle=30)
-    st.plotly_chart(fig_src, use_container_width=True)
-else:
-    st.info("No source/medium data available.")
+        df_src = (
+            df_conv.groupby(["source", "medium", "channel_grouping"])["goal_completions"]
+            .sum()
+            .reset_index()
+            .sort_values("goal_completions", ascending=False)
+            .head(15)
+        )
+        df_src["source_medium"] = df_src["source"] + " / " + df_src["medium"]
+        fig_src = px.bar(
+            df_src,
+            x="source_medium",
+            y="goal_completions",
+            color="channel_grouping",
+            title="Goal Completions by Source / Medium (Top 15)",
+            labels={
+                "source_medium": "Source / Medium",
+                "goal_completions": "Completions",
+                "channel_grouping": "Channel",
+            },
+            template=_plotly_tpl,
+        )
+        fig_src.update_xaxes(tickangle=30)
+        fig_src.update_layout(hovermode="x unified", legend=dict(orientation="h"))
+        st.plotly_chart(fig_src, use_container_width=True)
+        _src_dl = df_src[["source_medium", "channel_grouping", "goal_completions"]].copy()
+        _src_dl.columns = ["Source / Medium", "Channel", "Goal Completions"]
+        st.download_button(
+            "Download as CSV",
+            data=_src_dl.to_csv(index=False).encode("utf-8"),
+            file_name="goal_completions_by_source.csv",
+            mime="text/csv",
+            key="dl_src_csv",
+        )
+        st.caption(f"Top 15 sources sorted by goal completions · {len(df_src)} rows shown")
+    else:
+        st.info("No source/medium data available.")
 
 st.divider()
 
