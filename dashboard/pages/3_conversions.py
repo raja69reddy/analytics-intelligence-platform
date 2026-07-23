@@ -320,46 +320,57 @@ st.divider()
 
 # ── Drop-off waterfall chart ───────────────────────────────────────────────────
 st.subheader("Funnel Drop-off Analysis")
-if not df_funnel.empty:
-    stages = df_funnel["stage_name"].tolist()
-    reached = df_funnel["users_reached"].tolist()
-    dropoffs = df_funnel["drop_off_count"].tolist()
+with st.spinner("Loading drop-off waterfall…"):
+    if not df_funnel.empty:
+        stages = df_funnel["stage_name"].tolist()
+        reached = df_funnel["users_reached"].tolist()
+        dropoffs = df_funnel["drop_off_count"].tolist()
 
-    # Waterfall: first bar absolute (total), then each stage = -dropoff
-    wf_x = [stages[0]] + stages[1:]
-    wf_measure = ["absolute"] + ["relative"] * (len(stages) - 1)
-    wf_y = [reached[0]] + [-d for d in dropoffs[:-1]] + [0]
-    wf_colors = (
-        ["#636EFA"]
-        + ["#d62728" if d > 0 else "#2ca02c" for d in dropoffs[:-1]]
-        + ["#2ca02c"]
-    )
+        # Build drop-off % labels: pct of previous stage that dropped
+        def _dropoff_label(idx):
+            if idx == 0:
+                return f"{reached[0]:,} entered"
+            d = dropoffs[idx - 1]
+            prev = reached[idx - 1]
+            pct = (d / prev * 100) if prev else 0
+            return f"-{d:,} ({pct:.1f}% dropped)"
 
-    fig_wf = go.Figure(
-        go.Waterfall(
-            name="Funnel",
-            orientation="v",
-            measure=wf_measure,
-            x=wf_x,
-            y=wf_y,
-            text=[f"{v:,}" for v in ([reached[0]] + [-d for d in dropoffs[:-1]] + [0])],
-            textposition="outside",
-            connector={"line": {"color": "rgba(63,63,63,0.3)"}},
-            increasing={"marker": {"color": "#2ca02c"}},
-            decreasing={"marker": {"color": "#d62728"}},
-            totals={"marker": {"color": "#636EFA"}},
+        wf_x = [stages[0]] + stages[1:]
+        wf_measure = ["absolute"] + ["relative"] * (len(stages) - 1)
+        wf_y = [reached[0]] + [-d for d in dropoffs[:-1]] + [0]
+        wf_text = [_dropoff_label(i) for i in range(len(wf_x))]
+
+        fig_wf = go.Figure(
+            go.Waterfall(
+                name="Funnel",
+                orientation="v",
+                measure=wf_measure,
+                x=wf_x,
+                y=wf_y,
+                text=wf_text,
+                textposition="outside",
+                connector={"line": {"color": "rgba(63,63,63,0.3)"}},
+                increasing={"marker": {"color": "#2ca02c"}},
+                decreasing={"marker": {"color": "#d62728"}},
+                totals={"marker": {"color": "#636EFA"}},
+            )
         )
-    )
-    fig_wf.update_layout(
-        title="Users Entering vs Dropping Off at Each Stage",
-        xaxis_title="Funnel Stage",
-        yaxis_title="Users",
-        template="plotly_white",
-        waterfallgap=0.3,
-    )
-    st.plotly_chart(fig_wf, use_container_width=True)
-else:
-    st.info("No funnel data available.")
+        fig_wf.update_layout(
+            title="Users Entering vs Dropping Off at Each Stage",
+            xaxis_title="Funnel Stage",
+            yaxis_title="Users",
+            template=_plotly_tpl,
+            waterfallgap=0.3,
+        )
+        st.plotly_chart(fig_wf, use_container_width=True)
+        _total_drop = reached[0] - reached[-1]
+        _total_drop_pct = (_total_drop / reached[0] * 100) if reached[0] else 0
+        st.caption(
+            f"Total drop-off: {_total_drop:,} users ({_total_drop_pct:.1f}%) · "
+            f"Green bars = users continuing · Red bars = drop-offs"
+        )
+    else:
+        st.info("No funnel data available.")
 
 st.divider()
 
