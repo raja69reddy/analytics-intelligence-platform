@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from dashboard.components.filters import get_date_filter, get_page_filter
 from dashboard.components.metrics import calculate_period_change, display_4_kpi_row
+from dashboard.components.tables import add_rank_column
 from utils.db import query_df
 
 st.set_page_config(page_title="SEO & Content", page_icon="🔍", layout="wide")
@@ -244,6 +245,7 @@ with st.spinner("Loading content health..."):
             )
         else:
             _health_df["health"] = _health_df.apply(_health_score, axis=1)
+            _health_df = add_rank_column(_health_df)
 
             def _color_health(row):
                 c = {"healthy": "#d4edda", "needs work": "#fff3cd", "issues": "#f8d7da"}

@@ -13,6 +13,7 @@ from ai.anomaly_detection.detector import AnomalyDetector
 from ai.anomaly_detection.train import load_model
 from ai.anomaly_detection.utils import load_traffic_data
 from dashboard.components.charts import bar_chart, line_chart, pie_chart
+from dashboard.components.tables import add_rank_column, format_table_numbers
 from dashboard.components.filters import (
     apply_filters,
     build_where_clause,
@@ -796,9 +797,13 @@ st.caption(
 )
 
 if not df_daily.empty:
+    _daily_ranked = add_rank_column(
+        df_daily.sort_values("session_date", ascending=False).reset_index(drop=True)
+    )
     st.dataframe(
-        df_daily.sort_values("session_date", ascending=False),
+        format_table_numbers(_daily_ranked),
         use_container_width=True,
+        hide_index=True,
         height=400,
     )
     _daily_csv = df_daily.to_csv(index=False).encode("utf-8")

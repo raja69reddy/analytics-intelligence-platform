@@ -12,6 +12,7 @@ import streamlit as st
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from dashboard.components.charts import bar_chart, line_chart
+from dashboard.components.tables import add_rank_column, highlight_slow_pages
 from dashboard.components.filters import (
     build_where_clause,
     get_date_filter,
@@ -1477,6 +1478,7 @@ if not df_top_events.empty:
             df_top_events["page"].str.contains(_evt_search, case=False, na=False)
         ].reset_index(drop=True)
     df_top_events.columns = ["Page", "Total Events", "Clicks", "Scrolls", "Form Submits"]
+    df_top_events = add_rank_column(df_top_events, col="Total Events", ascending=False)
 
     st.dataframe(
         df_top_events.style.background_gradient(
