@@ -9,6 +9,7 @@ import os
 import sys
 from datetime import datetime
 
+import plotly.graph_objects as go
 import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -421,8 +422,66 @@ def _load_live_kpis():
     }
 
 
+@st.cache_data(ttl=300)
+def _load_sparklines():
+    """Return 7-day daily trend data for sparklines."""
+    from datetime import date as _date, timedelta as _td
+
+    max_row = query_df("SELECT MAX(session_date)::date AS d FROM raw_ga4_sessions")
+    max_d_raw = max_row["d"].iloc[0]
+    if max_d_raw is None:
+        return None
+    max_d = (
+        max_d_raw
+        if isinstance(max_d_raw, _date)
+        else _date.fromisoformat(str(max_d_raw)[:10])
+    )
+    start7 = str(max_d - _td(days=6))
+    end7 = str(max_d)
+    return query_df(
+        """
+        SELECT
+            session_date,
+            COALESCE(SUM(sessions), 0)  AS sessions,
+            COALESCE(SUM(new_users), 0) AS users,
+            ROUND(100.0 * COALESCE(SUM(CASE WHEN bounce THEN sessions END), 0)
+                / NULLIF(SUM(sessions), 0), 2) AS bounce_rate
+        FROM raw_ga4_sessions
+        WHERE session_date BETWEEN :s AND :e
+        GROUP BY session_date
+        ORDER BY session_date
+        """,
+        {"s": start7, "e": end7},
+    )
+
+
+def _mini_sparkline(y_vals: list, color: str = "#636EFA") -> go.Figure:
+    """Return a minimal Plotly sparkline figure with no axes or margins."""
+    fig = go.Figure(
+        go.Scatter(
+            y=y_vals,
+            mode="lines",
+            line=dict(color=color, width=2),
+            fill="tozeroy",
+            fillcolor=color.replace(")", ", 0.15)").replace("rgb", "rgba"),
+            hoverinfo="skip",
+        )
+    )
+    fig.update_layout(
+        height=60,
+        margin=dict(l=0, r=0, t=0, b=0),
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        showlegend=False,
+    )
+    return fig
+
+
 try:
     _kpis = _load_live_kpis()
+    _spark_df = _load_sparklines()
     if _kpis:
         display_4_kpi_row(
             {
@@ -459,6 +518,47 @@ try:
                 "icon": "⬇️",
             },
         )
+        # 7-day sparkline row
+        if _spark_df is not None and not _spark_df.empty:
+            sp1, sp2, sp3, sp4 = st.columns(4)
+            _cvr_df = query_df(
+                """
+                SELECT session_date,
+                    ROUND(100.0 * SUM(goal_completions) / NULLIF(SUM(sessions), 0), 2) AS cvr
+                FROM vw_conversions
+                WHERE session_date BETWEEN :s AND :e
+                GROUP BY session_date ORDER BY session_date
+                """,
+                {
+                    "s": str(_spark_df["session_date"].min()),
+                    "e": str(_spark_df["session_date"].max()),
+                },
+            )
+            with sp1:
+                st.caption("Sessions — 7d trend")
+                st.plotly_chart(
+                    _mini_sparkline(_spark_df["sessions"].tolist(), "#636EFA"),
+                    use_container_width=True, config={"displayModeBar": False},
+                )
+            with sp2:
+                st.caption("Users — 7d trend")
+                st.plotly_chart(
+                    _mini_sparkline(_spark_df["users"].tolist(), "#19D3F3"),
+                    use_container_width=True, config={"displayModeBar": False},
+                )
+            with sp3:
+                st.caption("CVR — 7d trend")
+                _cvr_vals = _cvr_df["cvr"].fillna(0).tolist() if not _cvr_df.empty else []
+                st.plotly_chart(
+                    _mini_sparkline(_cvr_vals, "#00CC96"),
+                    use_container_width=True, config={"displayModeBar": False},
+                )
+            with sp4:
+                st.caption("Bounce Rate — 7d trend")
+                st.plotly_chart(
+                    _mini_sparkline(_spark_df["bounce_rate"].fillna(0).tolist(), "#EF553B"),
+                    use_container_width=True, config={"displayModeBar": False},
+                )
         st.caption(
             f"Data through {_kpis['period_end']}. "
             "Comparing last 30 days vs previous 30 days. Green = improved performance."
