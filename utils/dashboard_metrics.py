@@ -23,9 +23,9 @@ def get_total_sessions(start: str | None = None, end: str | None = None) -> int:
 
 @lru_cache(maxsize=256)
 def get_total_users(start: str | None = None, end: str | None = None) -> int:
-    """Return total unique users in [start, end]."""
+    """Return total new users in [start, end]."""
     _where, _p = _date_where("session_date", start, end)
-    df = query_df(f"SELECT COALESCE(SUM(users), 0) AS v FROM raw_ga4_sessions {_where}", _p)
+    df = query_df(f"SELECT COALESCE(SUM(new_users), 0) AS v FROM raw_ga4_sessions {_where}", _p)
     return int(df["v"].iloc[0])
 
 
@@ -54,7 +54,11 @@ def get_avg_bounce_rate(start: str | None = None, end: str | None = None) -> flo
     df = query_df(
         f"""
         SELECT COALESCE(
-            ROUND(AVG(bounce_rate) * 100, 2), 0.0
+            ROUND(
+                100.0 * SUM(CASE WHEN bounce THEN sessions ELSE 0 END)::numeric
+                / NULLIF(SUM(sessions), 0),
+                2
+            ), 0.0
         ) AS v
         FROM raw_ga4_sessions
         {_where}
@@ -66,14 +70,14 @@ def get_avg_bounce_rate(start: str | None = None, end: str | None = None) -> flo
 
 @lru_cache(maxsize=256)
 def get_top_channel(start: str | None = None, end: str | None = None) -> str:
-    """Return the channel with the most sessions in [start, end]."""
+    """Return the channel grouping with the most sessions in [start, end]."""
     _where, _p = _date_where("session_date", start, end)
     df = query_df(
         f"""
-        SELECT channel, SUM(sessions) AS total
+        SELECT channel_grouping, SUM(sessions) AS total
         FROM raw_ga4_sessions
         {_where}
-        GROUP BY channel
+        GROUP BY channel_grouping
         ORDER BY total DESC
         LIMIT 1
         """,
@@ -81,7 +85,7 @@ def get_top_channel(start: str | None = None, end: str | None = None) -> str:
     )
     if df.empty:
         return "N/A"
-    return str(df["channel"].iloc[0])
+    return str(df["channel_grouping"].iloc[0])
 
 
 @lru_cache(maxsize=256)

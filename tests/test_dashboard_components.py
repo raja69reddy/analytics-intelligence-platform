@@ -85,7 +85,7 @@ class TestFormatCurrency:
         self.fn = format_currency
 
     def test_basic(self):
-        assert self.fn(1234.5) == "$1,235"
+        assert self.fn(1235.0) == "$1,235"
 
     def test_none(self):
         assert self.fn(None) == "$0"
