@@ -1,5 +1,16 @@
 # Changelog
 
+## Day 43 - Conversions Page Complete
+- Wired all filters to conversions page: enhanced sidebar with active filter count, date range display, retry button on DB error, empty state message
+- Added CVR trend chart with target reference line: line chart with above/below target coloring, 7-day rolling avg, range selector 7D/30D/90D
+- Added goal completions by source chart: grouped bar by source/medium, colored by channel, CSV download, top 15 sorted by completions
+- Added revenue by channel chart: horizontal bar, distinct color per channel, revenue labels on bars
+- Added drop-off waterfall chart: green = continuing users, red = drop-offs, drop-off % labels at each stage
+- Added conversion funnel visualization: per-stage CVR (vs first + vs previous stage), biggest drop-off highlighted in red
+- Added channel contribution table: RdYlGn background_gradient on CVR column, rank column, CSV download
+- Added conversions by day of week chart: green = best day, red = worst day, sorted Mon–Sun
+- Added caching and loading spinners: st.spinner on all sections, cache TTL 300s, cache clear button in sidebar, last-loaded timestamp
+
 ## Day 42 - Behavior Page Filters + Table Styling
 - Fixed git config for contribution tracking: set user.email to GitHub noreply address so commits appear on profile
 - Wired all filters to behavior page sidebar: enhanced sidebar shows active filter count, page URL filter preview, device filter preview, cache TTL note, last-loaded timestamp
