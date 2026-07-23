@@ -9,7 +9,15 @@ import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from dashboard.components.filters import build_where_clause, get_channel_filter, get_date_filter
+import pandas as pd
+
+from dashboard.components.filters import (
+    build_where_clause,
+    get_channel_filter,
+    get_date_filter,
+    get_plotly_template,
+    show_active_filters,
+)
 from dashboard.components.metrics import (
     calculate_period_change,
     display_4_kpi_row,
@@ -40,34 +48,45 @@ with st.sidebar:
     st.header("Filters")
     start_date, end_date = get_date_filter()
     channels = get_channel_filter()
-    if st.button("Clear cache"):
+    st.divider()
+    _active = sum([bool(channels)])
+    st.caption(f"Date: {start_date} → {end_date}")
+    if _active:
+        st.success(f"{_active} filter(s) active")
+        if channels:
+            st.caption(f"Channels: {', '.join(channels)}")
+    else:
+        st.caption("No extra filters — showing all channels")
+    if st.button("Clear data cache", key="conv_clear_cache"):
         st.cache_data.clear()
-        st.rerun()
-    if channels:
-        st.success(f"Channel filter: {len(channels)} selected")
+        st.success("Cache cleared — reloading…")
+    st.caption("Cache TTL: 5 min · All queries cached")
+    from datetime import datetime as _dt
+    st.caption(f"Last loaded: {_dt.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# Apply date and channel filters to vw_conversions
-from dashboard.components.filters import apply_filters  # noqa: E402
-import pandas as pd  # noqa: E402
+_plotly_tpl = get_plotly_template()
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 with st.spinner("Loading conversion data…"):
     try:
         df_conv = _load_conversions(start_date, end_date, tuple(channels))
         df_funnel = _load_funnel()
-    except Exception as exc:
-        st.error(f"Failed to load data from the database: {exc}")
+    except Exception as _load_exc:
+        st.error(f"Failed to load data from the database: {_load_exc}")
+        if st.button("Retry", key="retry_conv_load"):
+            st.cache_data.clear()
+            st.rerun()
         st.stop()
 
-# Date and channel filters applied at DB level
-
-with st.expander("Debug: data shapes", expanded=False):
-    st.write(
-        {
-            "vw_conversions": df_conv.shape,
-            "vw_funnel": df_funnel.shape,
-        }
+if df_conv.empty:
+    st.info(
+        f"No conversion data found for the selected filters "
+        f"({start_date} → {end_date}"
+        + (f", channels: {', '.join(channels)}" if channels else "")
+        + "). Try adjusting the date range or channel filter."
     )
+
+# Date and channel filters applied at DB level
 
 # ── KPI cards — 4 metrics with % change vs previous period ───────────────────
 _cv_period_days = (end_date - start_date).days + 1
