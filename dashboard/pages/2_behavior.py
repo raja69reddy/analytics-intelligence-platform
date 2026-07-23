@@ -468,8 +468,15 @@ with st.sidebar:
     page_search = get_page_filter()
     st.divider()
     active = sum([bool(devices), bool(page_search)])
+    st.caption(f"Date: {start_date} → {end_date}")
     if active:
         st.success(f"{active} filter(s) active")
+        if page_search:
+            st.caption(f"Page URL: `{page_search}`")
+        if devices:
+            st.caption(f"Devices: {', '.join(devices)}")
+    else:
+        st.caption("No extra filters — showing all data")
     if st.button("Clear data cache"):
         st.cache_data.clear()
         st.success("Cache cleared — reloading…")
