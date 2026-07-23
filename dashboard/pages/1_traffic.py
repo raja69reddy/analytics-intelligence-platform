@@ -294,6 +294,27 @@ if not df_daily.empty:
         hovermode="x unified",
     )
     st.plotly_chart(fig, use_container_width=True)
+    _dl_col1, _dl_col2 = st.columns(2)
+    with _dl_col1:
+        try:
+            _png = fig.to_image(format="png", width=1200, height=500)
+            st.download_button(
+                "Download Chart as PNG",
+                data=_png,
+                file_name="sessions_chart.png",
+                mime="image/png",
+                key="dl_sessions_png",
+            )
+        except Exception:
+            st.caption("Install kaleido to enable PNG export.")
+    with _dl_col2:
+        st.download_button(
+            "Download Data as CSV",
+            data=df_daily.to_csv(index=False).encode("utf-8"),
+            file_name="sessions_data.csv",
+            mime="text/csv",
+            key="dl_sessions_csv",
+        )
 else:
     st.info("No daily traffic data available for the selected date range.")
 

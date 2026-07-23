@@ -602,6 +602,13 @@ if not df_tp_dated.empty:
         use_container_width=True,
         hide_index=True,
     )
+    st.download_button(
+        "Download Top Pages as CSV",
+        data=df_tp.to_csv(index=False).encode("utf-8"),
+        file_name="top_pages.csv",
+        mime="text/csv",
+        key="dl_top_pages_csv",
+    )
     st.caption(
         f"{len(df_tp):,} pages shown · Green = fast (<200 ms) · Red = slow (>1,000 ms)"
     )

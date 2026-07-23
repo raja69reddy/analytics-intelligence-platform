@@ -161,6 +161,17 @@ with st.spinner("Loading scatter data..."):
             )
             fig_scatter.update_layout(height=450)
             st.plotly_chart(fig_scatter, use_container_width=True)
+            try:
+                _png_scatter = fig_scatter.to_image(format="png", width=1200, height=500)
+                st.download_button(
+                    "Download Chart as PNG",
+                    data=_png_scatter,
+                    file_name="seo_engagement_scatter.png",
+                    mime="image/png",
+                    key="dl_scatter_png",
+                )
+            except Exception:
+                st.caption("Install kaleido to enable PNG export.")
             st.caption(
                 "Trend line shows relationship between content length and user engagement."
             )

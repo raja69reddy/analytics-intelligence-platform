@@ -9,6 +9,7 @@ numpy==2.4.6
 streamlit==1.58.0
 plotly==6.8.0
 altair==6.2.1
+kaleido==0.2.1
 
 # Ingestion / HTTP
 requests==2.34.2
