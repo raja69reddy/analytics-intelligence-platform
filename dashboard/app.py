@@ -146,6 +146,61 @@ with st.sidebar:
 
     st.divider()
 
+    # ── Project Stats ─────────────────────────────────────────────────────────
+    st.subheader("📊 Project Stats")
+
+    @st.cache_data(ttl=120)
+    def _sidebar_project_stats():
+        from utils.db import query_df as _qdf
+        from pathlib import Path as _Path
+        import os as _os
+
+        tables = [
+            "raw_ga4_sessions",
+            "raw_server_logs",
+            "raw_clickstream_events",
+            "raw_scrape_pages",
+        ]
+        total_rows = 0
+        last_run_ts = None
+        for tbl in tables:
+            try:
+                df = _qdf(f"SELECT COUNT(*) AS n, MAX(ingested_at) AS ts FROM {tbl}")
+                total_rows += int(df["n"].iloc[0] or 0)
+                ts = df["ts"].iloc[0]
+                if ts and (last_run_ts is None or ts > last_run_ts):
+                    last_run_ts = ts
+            except Exception:
+                pass
+
+        ai_features = ["anomaly_detection", "nlq", "report_generation", "forecasting", "smart_alerts"]
+        active_ai = sum(
+            1 for feat in ai_features
+            if (_Path(__file__).resolve().parent.parent / "ai" / feat).exists()
+        )
+
+        pages_dir = _Path(__file__).resolve().parent / "pages"
+        dashboard_pages = len(list(pages_dir.glob("[0-9]_*.py")))
+
+        last_run_str = str(last_run_ts)[:16] if last_run_ts else "N/A"
+        return total_rows, active_ai, dashboard_pages, last_run_str
+
+    try:
+        _proj_total_rows, _proj_ai, _proj_pages, _proj_last_run = _sidebar_project_stats()
+        _db_healthy = _check_db_ok()
+        _health_dot = "🟢" if _db_healthy else "🔴"
+        _health_label = "Healthy" if _db_healthy else "Down"
+
+        st.metric("Total DB Rows", f"{_proj_total_rows:,}")
+        st.metric("Active AI Features", _proj_ai)
+        st.metric("Dashboard Pages", _proj_pages)
+        st.caption(f"Last pipeline run: {_proj_last_run}")
+        st.caption(f"System health: {_health_dot} {_health_label}")
+    except Exception as _proj_exc:
+        st.caption(f"Stats unavailable: {_proj_exc}")
+
+    st.divider()
+
     # ── AI Anomaly Alerts ─────────────────────────────────────────────────────
     st.subheader("🤖 AI Anomaly Alerts")
 
