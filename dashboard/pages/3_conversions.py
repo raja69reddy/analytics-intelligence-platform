@@ -439,41 +439,59 @@ st.divider()
 
 # ── Channel contribution table ─────────────────────────────────────────────────
 st.subheader("Channel Contribution")
-if not df_conv.empty:
-    df_ch = (
-        df_conv.groupby("channel_grouping")
-        .agg(
-            sessions=("sessions", "sum"),
-            goal_completions=("goal_completions", "sum"),
-            revenue=("revenue", "sum"),
-        )
-        .reset_index()
-        .sort_values("goal_completions", ascending=False)
-    )
-    df_ch["cvr_pct"] = (
-        df_ch["goal_completions"] / df_ch["sessions"].replace(0, None) * 100
-    ).round(2)
-    df_ch["revenue"] = df_ch["revenue"].round(2)
-    df_ch.rename(
-        columns={
-            "channel_grouping": "Channel",
-            "sessions": "Sessions",
-            "goal_completions": "Conversions",
-            "cvr_pct": "CVR (%)",
-            "revenue": "Revenue ($)",
-        },
-        inplace=True,
-    )
+from dashboard.components.tables import add_rank_column  # noqa: E402
 
-    st.dataframe(df_ch, use_container_width=True, hide_index=True)
-    st.download_button(
-        label="Download channel table as CSV",
-        data=df_ch.to_csv(index=False).encode("utf-8"),
-        file_name="channel_contribution.csv",
-        mime="text/csv",
-    )
-else:
-    st.info("No channel data available.")
+with st.spinner("Loading channel contribution table…"):
+    if not df_conv.empty:
+        df_ch = (
+            df_conv.groupby("channel_grouping")
+            .agg(
+                sessions=("sessions", "sum"),
+                goal_completions=("goal_completions", "sum"),
+                revenue=("revenue", "sum"),
+            )
+            .reset_index()
+            .sort_values("goal_completions", ascending=False)
+        )
+        df_ch["cvr_pct"] = (
+            df_ch["goal_completions"] / df_ch["sessions"].replace(0, None) * 100
+        ).round(2)
+        df_ch["revenue"] = df_ch["revenue"].round(2)
+        df_ch.rename(
+            columns={
+                "channel_grouping": "Channel",
+                "sessions": "Sessions",
+                "goal_completions": "Conversions",
+                "cvr_pct": "CVR (%)",
+                "revenue": "Revenue ($)",
+            },
+            inplace=True,
+        )
+        df_ch = add_rank_column(df_ch)
+
+        # Color-code CVR column: green gradient (higher = better)
+        _cvr_max = df_ch["CVR (%)"].max() or 1
+        styled_ch = df_ch.style.background_gradient(
+            subset=["CVR (%)"], cmap="RdYlGn", vmin=0, vmax=_cvr_max
+        ).format(
+            {
+                "Sessions": "{:,}",
+                "Conversions": "{:,}",
+                "CVR (%)": "{:.2f}",
+                "Revenue ($)": "${:,.2f}",
+            }
+        )
+        st.dataframe(styled_ch, use_container_width=True, hide_index=True)
+        st.download_button(
+            label="Download channel table as CSV",
+            data=df_ch.to_csv(index=False).encode("utf-8"),
+            file_name="channel_contribution.csv",
+            mime="text/csv",
+            key="dl_channel_csv",
+        )
+        st.caption("CVR column color-coded: green = high conversion rate · Sorted by conversions")
+    else:
+        st.info("No channel data available.")
 
 st.divider()
 
