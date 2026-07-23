@@ -275,32 +275,46 @@ st.divider()
 
 # ── Revenue by channel ─────────────────────────────────────────────────────────
 st.subheader("Revenue by Channel")
-if not df_conv.empty:
-    df_rev = (
-        df_conv.groupby("channel_grouping")["revenue"]
-        .sum()
-        .reset_index()
-        .sort_values("revenue", ascending=True)
-    )
-    fig_rev = go.Figure(
-        go.Bar(
-            x=df_rev["revenue"],
-            y=df_rev["channel_grouping"],
-            orientation="h",
-            text=[f"${v:,.0f}" for v in df_rev["revenue"]],
-            textposition="outside",
-            marker_color="#636EFA",
+with st.spinner("Loading revenue by channel…"):
+    if not df_conv.empty:
+        _CHANNEL_COLORS = [
+            "#636EFA", "#EF553B", "#00CC96", "#AB63FA",
+            "#FFA15A", "#19D3F3", "#FF6692", "#B6E880",
+        ]
+        df_rev = (
+            df_conv.groupby("channel_grouping")["revenue"]
+            .sum()
+            .reset_index()
+            .sort_values("revenue", ascending=True)
         )
-    )
-    fig_rev.update_layout(
-        title="Total Revenue by Channel",
-        xaxis_title="Revenue ($)",
-        yaxis_title="Channel",
-        template="plotly_white",
-    )
-    st.plotly_chart(fig_rev, use_container_width=True)
-else:
-    st.info("No revenue data available.")
+        _rev_colors = [
+            _CHANNEL_COLORS[i % len(_CHANNEL_COLORS)]
+            for i in range(len(df_rev))
+        ]
+        fig_rev = go.Figure(
+            go.Bar(
+                x=df_rev["revenue"],
+                y=df_rev["channel_grouping"],
+                orientation="h",
+                text=[f"${v:,.0f}" for v in df_rev["revenue"]],
+                textposition="outside",
+                marker_color=_rev_colors,
+                hovertemplate="<b>%{y}</b><br>Revenue: $%{x:,.0f}<extra></extra>",
+            )
+        )
+        fig_rev.update_layout(
+            title="Total Revenue by Channel",
+            xaxis_title="Revenue ($)",
+            yaxis_title="Channel",
+            template=_plotly_tpl,
+        )
+        st.plotly_chart(fig_rev, use_container_width=True)
+        st.caption(
+            f"Total revenue: ${df_rev['revenue'].sum():,.0f} · "
+            f"{len(df_rev)} channels · Sorted by revenue ascending"
+        )
+    else:
+        st.info("No revenue data available.")
 
 st.divider()
 
