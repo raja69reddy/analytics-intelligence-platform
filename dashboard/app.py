@@ -32,6 +32,27 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── Session state initialisation ──────────────────────────────────────────────
+_SESSION_DEFAULTS: dict = {
+    "dark_mode": False,
+    "selected_filters": {},
+    "theme": "plotly_white",
+    "last_refresh": datetime.now(),
+    "auto_refresh": False,
+}
+for _key, _default in _SESSION_DEFAULTS.items():
+    if _key not in st.session_state:
+        st.session_state[_key] = _default
+
+# Auto-refresh: rerun every 5 minutes when enabled
+_AUTO_REFRESH_INTERVAL_S = 300
+if st.session_state.get("auto_refresh", False):
+    _elapsed = (datetime.now() - st.session_state["last_refresh"]).total_seconds()
+    if _elapsed >= _AUTO_REFRESH_INTERVAL_S:
+        st.session_state["last_refresh"] = datetime.now()
+        st.cache_data.clear()
+        st.rerun()
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.title("📊 Analytics Intelligence")
@@ -59,6 +80,11 @@ with st.sidebar:
         value=st.session_state.get("dark_mode", False),
         key="dark_mode",
     )
+    st.session_state["theme"] = "plotly_dark" if st.session_state.get("dark_mode") else "plotly_white"
+    st.session_state["selected_filters"] = {
+        "start_date": str(st.session_state.get("gf_start", "")),
+        "end_date": str(st.session_state.get("gf_end", "")),
+    }
 
     start_date, end_date = get_date_filter()
     channels = get_channel_filter()
@@ -140,9 +166,24 @@ with st.sidebar:
     else:
         st.caption("No ingest timestamp found.")
 
-    if st.button("Clear Cache", key="clear_cache_btn"):
-        st.cache_data.clear()
-        st.rerun()
+    # ── Refresh controls ──────────────────────────────────────────────────────
+    st.caption(f"Last refresh: {st.session_state['last_refresh'].strftime('%H:%M:%S')}")
+    _auto = st.toggle(
+        "Auto-refresh (5 min)",
+        value=st.session_state.get("auto_refresh", False),
+        key="auto_refresh",
+    )
+    st.session_state["auto_refresh"] = _auto
+    _refresh_col1, _refresh_col2 = st.columns(2)
+    with _refresh_col1:
+        if st.button("Refresh Now", key="manual_refresh_btn"):
+            st.session_state["last_refresh"] = datetime.now()
+            st.cache_data.clear()
+            st.rerun()
+    with _refresh_col2:
+        if st.button("Clear Cache", key="clear_cache_btn"):
+            st.cache_data.clear()
+            st.rerun()
 
     st.divider()
 
