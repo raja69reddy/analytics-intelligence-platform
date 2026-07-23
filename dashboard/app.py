@@ -491,6 +491,7 @@ try:
                     _kpis["curr_sessions"], _kpis["prev_sessions"]
                 ),
                 "icon": "📈",
+                "help": "Total number of visits in the selected period. A session starts when a user arrives and ends after 30 minutes of inactivity.",
             },
             {
                 "title": "Total Users",
@@ -499,6 +500,7 @@ try:
                     _kpis["curr_users"], _kpis["prev_users"]
                 ),
                 "icon": "👥",
+                "help": "Unique new users who visited for the first time in this period, based on GA4 new_users field.",
             },
             {
                 "title": "Overall CVR",
@@ -507,6 +509,7 @@ try:
                     _kpis["curr_cvr"], _kpis["prev_cvr"]
                 ),
                 "icon": "🎯",
+                "help": "% of sessions that completed a goal (e.g. form submission, purchase). Calculated as goal_completions / sessions × 100.",
             },
             {
                 "title": "Avg Bounce Rate",
@@ -516,6 +519,7 @@ try:
                 ),
                 "color": "inverse",
                 "icon": "⬇️",
+                "help": "% of single-page sessions where the user left without any interaction. Lower is better — industry average is ~40–55%.",
             },
         )
         # 7-day sparkline row

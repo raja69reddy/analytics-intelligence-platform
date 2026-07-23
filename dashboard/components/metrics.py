@@ -110,10 +110,12 @@ def display_metric_card(
     icon: str = "",
     color: Literal["normal", "inverse", "off"] = "normal",
     col=None,
+    help: str | None = None,
 ) -> None:
     """
     Render a KPI metric card with an optional icon prefix and delta color.
     Pass col=st.columns(...)[i] to place inside a specific column.
+    Pass help= for a hover tooltip explaining the metric.
     """
     label = f"{icon} {title}".strip() if icon else title
     target = col if col is not None else st
@@ -122,6 +124,7 @@ def display_metric_card(
         value=str(value),
         delta=str(delta) if delta is not None else None,
         delta_color=color,
+        help=help,
     )
 
 
@@ -149,7 +152,8 @@ def display_4_kpi_row(
 ) -> None:
     """
     Render exactly 4 KPI metric cards in a single row using display_metric_card.
-    Each dict: {"title": str, "value": any, "delta": any (opt), "icon": str (opt), "color": str (opt)}
+    Each dict: {"title": str, "value": any, "delta": any (opt), "icon": str (opt),
+                "color": str (opt), "help": str (opt)}
     """
     c1, c2, c3, c4 = st.columns(4)
     for col, m in zip([c1, c2, c3, c4], [m1, m2, m3, m4]):
@@ -160,4 +164,5 @@ def display_4_kpi_row(
             icon=m.get("icon", ""),
             color=m.get("color", "normal"),
             col=col,
+            help=m.get("help"),
         )
