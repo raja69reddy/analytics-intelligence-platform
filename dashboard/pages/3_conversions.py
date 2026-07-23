@@ -497,37 +497,54 @@ st.divider()
 
 # ── Conversion trend by day of week ───────────────────────────────────────────
 st.subheader("Conversion Trend by Day of Week")
-if not df_conv.empty:
-    df_dow = df_conv.copy()
-    df_dow["session_date"] = pd.to_datetime(df_dow["session_date"])
-    df_dow["dow"] = df_dow["session_date"].dt.dayofweek  # 0=Mon … 6=Sun
-    df_dow["day_name"] = df_dow["session_date"].dt.strftime("%A")
+with st.spinner("Loading conversions by day of week…"):
+    if not df_conv.empty:
+        df_dow = df_conv.copy()
+        df_dow["session_date"] = pd.to_datetime(df_dow["session_date"])
+        df_dow["dow"] = df_dow["session_date"].dt.dayofweek  # 0=Mon … 6=Sun
+        df_dow["day_name"] = df_dow["session_date"].dt.strftime("%A")
 
-    dow_agg = (
-        df_dow.groupby(["dow", "day_name"])["goal_completions"]
-        .mean()
-        .reset_index()
-        .sort_values("dow")
-    )
-    best_dow = int(dow_agg.loc[dow_agg["goal_completions"].idxmax(), "dow"])
-    dow_colors = ["#2ca02c" if d == best_dow else "#636EFA" for d in dow_agg["dow"]]
-
-    fig_dow = go.Figure(
-        go.Bar(
-            x=dow_agg["day_name"],
-            y=dow_agg["goal_completions"].round(1),
-            text=dow_agg["goal_completions"].round(1),
-            textposition="outside",
-            marker_color=dow_colors,
+        dow_agg = (
+            df_dow.groupby(["dow", "day_name"])["goal_completions"]
+            .mean()
+            .reset_index()
+            .sort_values("dow")
         )
-    )
-    best_day_name = dow_agg.loc[dow_agg["dow"] == best_dow, "day_name"].iloc[0]
-    fig_dow.update_layout(
-        title=f"Avg Goal Completions by Day of Week — Best day: {best_day_name}",
-        xaxis_title="Day of Week",
-        yaxis_title="Avg Completions",
-        template="plotly_white",
-    )
-    st.plotly_chart(fig_dow, use_container_width=True)
-else:
-    st.info("No data available for day-of-week analysis.")
+        best_dow = int(dow_agg.loc[dow_agg["goal_completions"].idxmax(), "dow"])
+        worst_dow = int(dow_agg.loc[dow_agg["goal_completions"].idxmin(), "dow"])
+        dow_colors = [
+            "#2ca02c" if d == best_dow
+            else "#d62728" if d == worst_dow
+            else "#636EFA"
+            for d in dow_agg["dow"]
+        ]
+
+        fig_dow = go.Figure(
+            go.Bar(
+                x=dow_agg["day_name"],
+                y=dow_agg["goal_completions"].round(1),
+                text=dow_agg["goal_completions"].round(1),
+                textposition="outside",
+                marker_color=dow_colors,
+                hovertemplate="<b>%{x}</b><br>Avg completions: %{y:.1f}<extra></extra>",
+            )
+        )
+        best_day_name = dow_agg.loc[dow_agg["dow"] == best_dow, "day_name"].iloc[0]
+        worst_day_name = dow_agg.loc[dow_agg["dow"] == worst_dow, "day_name"].iloc[0]
+        fig_dow.update_layout(
+            title=(
+                f"Avg Goal Completions by Day of Week — "
+                f"Best: {best_day_name} · Worst: {worst_day_name}"
+            ),
+            xaxis_title="Day of Week",
+            yaxis_title="Avg Completions",
+            template=_plotly_tpl,
+        )
+        st.plotly_chart(fig_dow, use_container_width=True)
+        st.caption(
+            f"Green = best day ({best_day_name}) · "
+            f"Red = worst day ({worst_day_name}) · "
+            "Based on average daily goal completions"
+        )
+    else:
+        st.info("No data available for day-of-week analysis.")
