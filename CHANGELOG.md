@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 44 - Chart Polish: Titles, Labels, Tooltips, Annotations
+- Polished all traffic page charts: descriptive titles, axis labels with units, `_FONT` applied, peak-day annotation on sessions chart
+- Polished all behavior page charts: `font=_FONT` on all 15 charts, fixed 8 hardcoded `template="plotly_white"` → `template=_plotly_tpl`, improved titles (scroll depth, engagement events, duration, retention, quality, heatmap, NVR, trend, sankey, bounce), peak-bucket annotation on scroll chart
+- Polished all conversions page charts: subtitle, `show_active_filters()`, `_FONT` on all 6 charts, improved titles (waterfall, funnel, DOW), best-day annotation on CVR chart
+- Polished all SEO page charts: subtitle, `show_active_filters()`, moved imports to top level, `_FONT` + `template=_plotly_tpl` on all 4 charts, fast-pages % annotation on load time chart
+- Created `dashboard/components/colors.py`: `CHANNEL_PALETTE`, semantic color constants (`COLOR_GOOD`, `COLOR_BAD`, `COLOR_WARN`), `CHART_FONT`, `channel_color(idx)` helper, `apply_theme(fig)` utility
+
 ## Day 43 - Conversions Page Complete
 - Wired all filters to conversions page: enhanced sidebar with active filter count, date range display, retry button on DB error, empty state message
 - Added CVR trend chart with target reference line: line chart with above/below target coloring, 7-day rolling avg, range selector 7D/30D/90D
