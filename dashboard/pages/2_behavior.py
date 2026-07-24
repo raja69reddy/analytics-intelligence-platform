@@ -33,7 +33,13 @@ from utils.query_runner import run_view
 
 st.set_page_config(page_title="User Behavior & Funnels", page_icon="🖱️", layout="wide")
 st.title("🖱️ User Behavior & Funnels")
+st.markdown(
+    "Explore how users interact with your site — top pages, scroll depth, event types, "
+    "session quality, and journey flows. Use sidebar filters to narrow by date, device, or page."
+)
 show_active_filters()
+
+_FONT = dict(family="Inter, Arial, sans-serif", size=13)
 
 
 # ── Cached loaders (TTL = 5 minutes) ─────────────────────────────────────────
@@ -650,11 +656,12 @@ if not df_tp_dated.empty:
         )
     )
     fig_perf.update_layout(
-        title="Top 10 Pages by Request Volume",
+        title="Top 10 Pages by Request Volume — color = avg response time (green<200ms, red>1s)",
         xaxis_title="Total Requests",
-        yaxis_title=None,
+        yaxis_title="Page URL",
         template=_plotly_tpl,
         height=420,
+        font=_FONT,
     )
     st.plotly_chart(fig_perf, use_container_width=True)
     st.caption(
@@ -713,10 +720,11 @@ if not df_funnel.empty:
         )
     )
     fig_funnel.update_layout(
-        title="Conversion Funnel: Landing Page to Purchase"
+        title="Conversion Funnel: Landing Page → Purchase — red = biggest drop-off stage"
         + (f" ({start_date} to {end_date})" if start_date and end_date else ""),
         template=_plotly_tpl,
         height=400,
+        font=_FONT,
     )
     st.plotly_chart(fig_funnel, use_container_width=True)
     _f_overall_cvr = round(_f_vals[-1] / _f_vals[0] * 100, 2) if _f_vals[0] else 0
@@ -815,11 +823,12 @@ if not _scroll_src.empty:
         )
     )
     fig_scroll.update_layout(
-        title="Scroll Depth Distribution"
-        + (f" — {start_date} to {end_date}" if start_date and end_date else ""),
-        xaxis_title="Scroll Depth",
-        yaxis_title="Event Count",
+        title="Scroll Depth Distribution — how far users scroll before leaving"
+        + (f" ({start_date} to {end_date})" if start_date and end_date else ""),
+        xaxis_title="Scroll Depth Bucket",
+        yaxis_title="Sessions",
         template=_plotly_tpl,
+        font=_FONT,
     )
     st.plotly_chart(fig_scroll, use_container_width=True)
     st.caption(
@@ -861,11 +870,12 @@ if not _ev_src.empty:
         )
     )
     fig_ev.update_layout(
-        title="Events by Type"
-        + (f" — {start_date} to {end_date}" if start_date and end_date else ""),
+        title="Engagement Events by Type — clicks, scrolls, pageviews, form submits"
+        + (f" ({start_date} to {end_date})" if start_date and end_date else ""),
         xaxis_title="Event Type",
-        yaxis_title="Count",
+        yaxis_title="Event Count",
         template=_plotly_tpl,
+        font=_FONT,
     )
     st.plotly_chart(fig_ev, use_container_width=True)
     st.caption(
@@ -907,10 +917,11 @@ if not df_dur.empty:
         )
     )
     fig_dur.update_layout(
-        title="Session Duration Distribution (Time on Page)",
+        title="Session Duration Distribution — red = quick exits, green = deep engagement",
         xaxis_title="Duration Bucket",
         yaxis_title="Sessions",
         template=_plotly_tpl,
+        font=_FONT,
     )
 
     # Avg session duration reference annotation
@@ -1017,11 +1028,12 @@ if not df_behavior.empty:
         )
     )
     fig_eng.update_layout(
-        title="Top 10 Pages by Engagement Score",
-        xaxis_title="Engagement Score (0-1)",
+        title="Top 10 Pages by Engagement Score — scroll depth (40%) + events (30%) + speed (30%)",
+        xaxis_title="Engagement Score (0–1)",
         yaxis_title=None,
         template=_plotly_tpl,
         height=420,
+        font=_FONT,
     )
     st.plotly_chart(fig_eng, use_container_width=True)
     st.caption(
@@ -1143,12 +1155,13 @@ if not df_retention.empty:
         )
     )
     fig_ret.update_layout(
-        title="Weekly Retention Rate & Session Volume",
+        title="Weekly Retention Rate & Session Volume — returning users / total sessions",
         xaxis_title="Week",
         yaxis=dict(title="Retention Rate %", range=[0, 100]),
         yaxis2=dict(title="Sessions", overlaying="y", side="right"),
-        template="plotly_white",
+        template=_plotly_tpl,
         legend=dict(orientation="h", y=1.1),
+        font=_FONT,
     )
     st.plotly_chart(fig_ret, use_container_width=True)
 
@@ -1170,10 +1183,11 @@ if not df_retention.empty:
             )
         )
         fig_re.update_layout(
-            title="Re-engagement Rate by Channel (Returning Users %)",
+            title="Re-engagement Rate by Channel — % of sessions from returning users",
             xaxis_title="Channel",
             yaxis_title="Re-engagement %",
-            template="plotly_white",
+            template=_plotly_tpl,
+            font=_FONT,
         )
         st.plotly_chart(fig_re, use_container_width=True)
 else:
@@ -1229,7 +1243,9 @@ if not df_sq.empty:
             )
         )
         fig_pie.update_layout(
-            title="Session Quality Distribution", template="plotly_white"
+            title="Session Quality Distribution — high quality: >3 min & no bounce",
+            template=_plotly_tpl,
+            font=_FONT,
         )
         st.plotly_chart(fig_pie, use_container_width=True)
 
@@ -1253,10 +1269,11 @@ if not df_sq.empty:
         )
         fig_bar.update_layout(
             barmode="group",
-            title="Session Quality by Channel",
-            xaxis_title="Channel",
+            title="Session Quality by Channel — green = engaged, red = bounced/quick-exit",
+            xaxis_title="Acquisition Channel",
             yaxis_title="% of Sessions",
-            template="plotly_white",
+            template=_plotly_tpl,
+            font=_FONT,
         )
         st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -1292,10 +1309,11 @@ if not df_sq.empty:
             )
         )
         fig_qheat.update_layout(
-            title="Best Time for High Quality Sessions (Day × Hour)",
-            xaxis_title="Hour of Day",
+            title="Best Time for High Quality Sessions — darkest cells = peak engagement hours",
+            xaxis_title="Hour of Day (0–23)",
             yaxis_title="Day of Week",
-            template="plotly_white",
+            template=_plotly_tpl,
+            font=_FONT,
         )
         st.plotly_chart(fig_qheat, use_container_width=True)
 else:
@@ -1331,11 +1349,12 @@ if not df_heat.empty:
         )
     )
     fig_heat.update_layout(
-        title="Request Volume by Day of Week and Hour"
+        title="Traffic Heatmap — request volume by day of week and hour of day"
         + (f" ({start_date} to {end_date})" if start_date and end_date else ""),
         xaxis_title="Hour of Day (0–23)",
         yaxis_title="Day of Week",
         template=_plotly_tpl,
+        font=_FONT,
     )
     st.plotly_chart(fig_heat, use_container_width=True)
     st.caption("Color intensity = request volume · Brightest cells = peak traffic hours")
@@ -1380,11 +1399,12 @@ if not df_nvr.empty:
             font=dict(size=14),
         )
         fig_nvr.update_layout(
-            title="New vs Returning Users"
+            title="New vs Returning Users — acquisition vs retention balance"
             + (f" ({start_date} to {end_date})" if start_date and end_date else ""),
             template=_plotly_tpl,
             showlegend=True,
             legend=dict(orientation="h", y=-0.1),
+            font=_FONT,
         )
         st.plotly_chart(fig_nvr, use_container_width=True)
     st.caption(
@@ -1453,12 +1473,13 @@ if not df_event_trend.empty:
         )
     )
     fig_trend.update_layout(
-        title="Event Count by Type Over Time",
+        title="Daily Event Volume by Type — clicks, scrolls, pageviews, form submits over time",
         xaxis_title="Date",
         yaxis_title="Event Count",
         template=_plotly_tpl,
         hovermode="x unified",
         legend=dict(orientation="h", y=1.1),
+        font=_FONT,
     )
     st.plotly_chart(fig_trend, use_container_width=True)
     st.caption("Use the range selector above the chart to zoom into 7D / 30D / 90D windows")
@@ -1563,9 +1584,10 @@ if not df_paths.empty:
         )
     )
     fig_sankey.update_layout(
-        title="Most Common Page Transitions (Top 30 Paths)",
+        title="User Journey — most common page-to-page transitions (top 30 paths)",
         template=_plotly_tpl,
         height=520,
+        font=_FONT,
     )
     st.plotly_chart(fig_sankey, use_container_width=True)
     st.caption(
@@ -1636,12 +1658,13 @@ if not df_bounce.empty:
         )
     )
     fig_bounce.update_layout(
-        title="Bounce Rate Over Time",
+        title="Bounce Rate Trend — daily rate vs 7-day rolling average (target: below 50%)",
         xaxis_title="Date",
         yaxis=dict(title="Bounce Rate %", range=[0, 100]),
         template=_plotly_tpl,
         hovermode="x unified",
         legend=dict(orientation="h", y=1.12),
+        font=_FONT,
     )
     st.plotly_chart(fig_bounce, use_container_width=True)
     _avg_bounce = df_bounce["bounce_rate_pct"].mean()
