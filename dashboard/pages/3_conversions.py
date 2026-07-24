@@ -29,6 +29,13 @@ from utils.query_runner import run_view
 
 st.set_page_config(page_title="Conversion Tracking", page_icon="🎯", layout="wide")
 st.title("🎯 Conversion Tracking")
+st.markdown(
+    "Track goal completions, revenue attribution, and conversion rates across channels. "
+    "Use sidebar filters to narrow by date range or acquisition channel."
+)
+show_active_filters()
+
+_FONT = dict(family="Inter, Arial, sans-serif", size=13)
 
 
 # ── Cached data loaders — date-filtered at DB level ───────────────────────────
@@ -199,12 +206,13 @@ with st.spinner("Loading CVR trend…"):
             annotation_position="bottom right",
         )
         fig_cvr.update_layout(
-            title="Conversion Rate % — Daily with 7-Day Rolling Average",
+            title="Conversion Rate % — Daily (green = above target, red = below) with 7-Day Rolling Average",
             xaxis_title="Date",
             yaxis_title="CVR (%)",
             template=_plotly_tpl,
             legend=dict(orientation="h"),
             hovermode="x unified",
+            font=_FONT,
         )
         fig_cvr.update_xaxes(
             rangeselector=dict(
@@ -257,7 +265,12 @@ with st.spinner("Loading goal completions by source…"):
             template=_plotly_tpl,
         )
         fig_src.update_xaxes(tickangle=30)
-        fig_src.update_layout(hovermode="x unified", legend=dict(orientation="h"))
+        fig_src.update_layout(
+            title="Goal Completions by Source / Medium — top 15 traffic sources",
+            hovermode="x unified",
+            legend=dict(orientation="h"),
+            font=_FONT,
+        )
         st.plotly_chart(fig_src, use_container_width=True)
         _src_dl = df_src[["source_medium", "channel_grouping", "goal_completions"]].copy()
         _src_dl.columns = ["Source / Medium", "Channel", "Goal Completions"]
@@ -304,10 +317,11 @@ with st.spinner("Loading revenue by channel…"):
             )
         )
         fig_rev.update_layout(
-            title="Total Revenue by Channel",
-            xaxis_title="Revenue ($)",
-            yaxis_title="Channel",
+            title="Total Revenue by Channel — sorted ascending to highlight top earner",
+            xaxis_title="Revenue (USD)",
+            yaxis_title="Acquisition Channel",
             template=_plotly_tpl,
+            font=_FONT,
         )
         st.plotly_chart(fig_rev, use_container_width=True)
         st.caption(
@@ -357,11 +371,12 @@ with st.spinner("Loading drop-off waterfall…"):
             )
         )
         fig_wf.update_layout(
-            title="Users Entering vs Dropping Off at Each Stage",
+            title="Funnel Drop-off Waterfall — green = users continuing, red = users lost",
             xaxis_title="Funnel Stage",
             yaxis_title="Users",
             template=_plotly_tpl,
             waterfallgap=0.3,
+            font=_FONT,
         )
         st.plotly_chart(fig_wf, use_container_width=True)
         _total_drop = reached[0] - reached[-1]
@@ -424,9 +439,10 @@ with st.spinner("Loading conversion funnel…"):
         fig_funnel.update_layout(
             title=(
                 f"Conversion Funnel — Biggest drop-off: {biggest_stage} "
-                f"({biggest_drop_pct:.1f}% lost)"
+                f"({biggest_drop_pct:.1f}% lost) — red = highest drop-off stage"
             ),
             template=_plotly_tpl,
+            font=_FONT,
         )
         st.plotly_chart(fig_funnel, use_container_width=True)
         st.caption(
@@ -534,12 +550,13 @@ with st.spinner("Loading conversions by day of week…"):
         worst_day_name = dow_agg.loc[dow_agg["dow"] == worst_dow, "day_name"].iloc[0]
         fig_dow.update_layout(
             title=(
-                f"Avg Goal Completions by Day of Week — "
-                f"Best: {best_day_name} · Worst: {worst_day_name}"
+                f"Avg Daily Goal Completions by Day of Week — "
+                f"Best: {best_day_name} (green) · Worst: {worst_day_name} (red)"
             ),
             xaxis_title="Day of Week",
-            yaxis_title="Avg Completions",
+            yaxis_title="Avg Goal Completions",
             template=_plotly_tpl,
+            font=_FONT,
         )
         st.plotly_chart(fig_dow, use_container_width=True)
         st.caption(
