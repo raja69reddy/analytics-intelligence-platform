@@ -225,8 +225,22 @@ with st.spinner("Loading CVR trend…"):
             ),
             rangeslider=dict(visible=False),
         )
-        st.plotly_chart(fig_cvr, use_container_width=True)
+        # Annotate period average CVR
         _period_avg = daily_cvr["cvr_pct"].mean()
+        _best_day = daily_cvr.loc[daily_cvr["cvr_pct"].idxmax()]
+        fig_cvr.add_annotation(
+            x=str(_best_day["session_date"]),
+            y=float(_best_day["cvr_pct"]),
+            text=f"Best day: {float(_best_day['cvr_pct']):.2f}%",
+            showarrow=True,
+            arrowhead=2,
+            arrowcolor="#2ca02c",
+            font=dict(size=11, color="#2ca02c"),
+            bgcolor="rgba(0,0,0,0.25)",
+            borderpad=4,
+            ay=-40,
+        )
+        st.plotly_chart(fig_cvr, use_container_width=True)
         st.caption(
             f"Period avg CVR: {_period_avg:.2f}% · Target: {CVR_TARGET}% · "
             f"Green = above target · Red = below target"

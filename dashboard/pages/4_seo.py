@@ -378,6 +378,19 @@ with st.spinner("Loading load time data..."):
                 line_color="red",
                 annotation_text="2000ms (poor threshold)",
             )
+            _fast_pct = round(_counts.get("Fast (≤500ms)", 0) / len(_lt_df) * 100, 1)
+            fig_load.add_annotation(
+                xref="paper", yref="paper",
+                x=0.02, y=0.95,
+                text=f"{_fast_pct}% of pages load in <500ms",
+                showarrow=False,
+                font=dict(size=12, color="#28a745"),
+                bgcolor="rgba(40,167,69,0.12)",
+                bordercolor="#28a745",
+                borderwidth=1,
+                borderpad=4,
+                align="left",
+            )
             st.plotly_chart(fig_load, use_container_width=True)
             st.caption(
                 f"Total pages: {len(_lt_df)} | Avg: {int(_lt_df['load_time_ms'].mean())}ms | "

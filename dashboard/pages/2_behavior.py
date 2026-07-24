@@ -830,6 +830,22 @@ if not _scroll_src.empty:
         template=_plotly_tpl,
         font=_FONT,
     )
+    # Annotate the dominant scroll bucket
+    _peak_bucket_idx = df_scroll_plot["Sessions"].idxmax()
+    _peak_bucket = df_scroll_plot.loc[_peak_bucket_idx, "Bucket"]
+    _peak_bucket_val = df_scroll_plot.loc[_peak_bucket_idx, "Sessions"]
+    fig_scroll.add_annotation(
+        x=_peak_bucket,
+        y=_peak_bucket_val,
+        text=f"Most common: {_peak_bucket}",
+        showarrow=True,
+        arrowhead=2,
+        arrowcolor="#ffd700",
+        font=dict(size=11, color="#ffd700"),
+        bgcolor="rgba(0,0,0,0.25)",
+        borderpad=4,
+        ay=-40,
+    )
     st.plotly_chart(fig_scroll, use_container_width=True)
     st.caption(
         "Red = low engagement (0-25%) · Yellow = medium · Green = high (75-100%)"

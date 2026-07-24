@@ -291,6 +291,20 @@ if not df_daily.empty:
         hovermode="x unified",
         font=_FONT,
     )
+    # Annotate peak session day
+    _peak = df_daily.loc[df_daily["total_sessions"].idxmax()]
+    fig.add_annotation(
+        x=str(_peak["session_date"]),
+        y=_peak["total_sessions"],
+        text=f"Peak: {int(_peak['total_sessions']):,}",
+        showarrow=True,
+        arrowhead=2,
+        arrowcolor="#ffd700",
+        font=dict(size=11, color="#ffd700"),
+        bgcolor="rgba(0,0,0,0.25)",
+        borderpad=4,
+        ay=-40,
+    )
     st.plotly_chart(fig, use_container_width=True)
     _dl_col1, _dl_col2 = st.columns(2)
     with _dl_col1:
