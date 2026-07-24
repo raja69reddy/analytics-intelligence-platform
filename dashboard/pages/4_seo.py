@@ -4,17 +4,32 @@ import os
 import sys
 from datetime import timedelta
 
+import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from dashboard.components.filters import get_date_filter, get_page_filter
+from dashboard.components.filters import (
+    get_date_filter,
+    get_page_filter,
+    get_plotly_template,
+    show_active_filters,
+)
 from dashboard.components.metrics import calculate_period_change, display_4_kpi_row
 from dashboard.components.tables import add_rank_column
 from utils.db import query_df
 
 st.set_page_config(page_title="SEO & Content", page_icon="🔍", layout="wide")
 st.title("🔍 SEO & Content Performance")
+st.markdown(
+    "Analyse organic traffic, content quality, page speed, and link structure. "
+    "Use sidebar filters to narrow by date range or page URL."
+)
+show_active_filters()
+
+_FONT = dict(family="Inter, Arial, sans-serif", size=13)
+_plotly_tpl = get_plotly_template()
 
 # ── Sidebar filters ───────────────────────────────────────────────────────────
 with st.sidebar:
@@ -130,8 +145,6 @@ def _load_wc_scatter():
 
 with st.spinner("Loading scatter data..."):
     try:
-        import plotly.express as px
-
         _wc_df = _load_wc_scatter()
         if _wc_df.empty:
             st.info("No data available for scatter plot.")
@@ -159,7 +172,14 @@ with st.spinner("Loading scatter data..."):
                 color_continuous_scale="RdYlGn_r",
                 trendline="ols",
             )
-            fig_scatter.update_layout(height=450)
+            fig_scatter.update_layout(
+                title="Word Count vs Engagement — bubble size = pageviews, color = bounce rate",
+                xaxis_title="Word Count",
+                yaxis_title="Avg Session Duration (s)",
+                height=450,
+                template=_plotly_tpl,
+                font=_FONT,
+            )
             st.plotly_chart(fig_scatter, use_container_width=True)
             try:
                 _png_scatter = fig_scatter.to_image(format="png", width=1200, height=500)
@@ -298,8 +318,6 @@ def _load_times():
 
 with st.spinner("Loading load time data..."):
     try:
-        import plotly.graph_objects as go
-
         _lt_df = _load_times()
         if _lt_df.empty:
             st.info("No load time data available.")
@@ -339,11 +357,13 @@ with st.spinner("Loading load time data..."):
                 )
             )
             fig_load.update_layout(
-                title="Page Load Time Distribution",
+                title="Page Load Time Distribution — green = fast (<500ms), red = very slow (>2s)",
                 xaxis_title="Load Time Bucket",
                 yaxis_title="Number of Pages",
                 height=400,
                 showlegend=False,
+                template=_plotly_tpl,
+                font=_FONT,
             )
             # Reference lines at 1000ms and 2000ms
             fig_load.add_vline(
@@ -382,8 +402,6 @@ def _load_links():
 
 with st.spinner("Loading links data..."):
     try:
-        import plotly.express as px
-
         _links_df = _load_links()
         if _links_df.empty:
             st.info("No links data available.")
@@ -401,10 +419,17 @@ with st.spinner("Loading links data..."):
                     "Avg Internal Links": "#007bff",
                     "Avg External Links": "#fd7e14",
                 },
-                title="Average Links per Page",
-                labels={"x": "Link Type", "y": "Average Count"},
+                template=_plotly_tpl,
             )
-            fig_avg.update_layout(showlegend=False, height=350)
+            fig_avg.update_layout(
+                title="Avg Internal vs External Links per Page",
+                xaxis_title="Link Type",
+                yaxis_title="Average Count",
+                showlegend=False,
+                height=350,
+                template=_plotly_tpl,
+                font=_FONT,
+            )
             col_a.plotly_chart(fig_avg, use_container_width=True)
 
             # Orphan pages (zero internal links)
@@ -423,11 +448,17 @@ with st.spinner("Loading links data..."):
                 _links_df,
                 x="external_links",
                 nbins=15,
-                title="Distribution of External Links per Page",
-                labels={"external_links": "External Links", "count": "Pages"},
                 color_discrete_sequence=["#fd7e14"],
+                template=_plotly_tpl,
             )
-            fig_ext.update_layout(height=350)
+            fig_ext.update_layout(
+                title="External Links Distribution — pages with >10 external links flagged",
+                xaxis_title="Number of External Links",
+                yaxis_title="Pages",
+                height=350,
+                template=_plotly_tpl,
+                font=_FONT,
+            )
             col_b.plotly_chart(fig_ext, use_container_width=True)
             col_b.metric("Pages with >10 External Links", len(_heavy_ext))
             if not _heavy_ext.empty:
