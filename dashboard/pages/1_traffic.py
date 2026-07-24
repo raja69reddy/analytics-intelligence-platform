@@ -36,9 +36,14 @@ from utils.query_runner import run_view
 
 st.set_page_config(page_title="Traffic & Sessions", page_icon="📈", layout="wide")
 st.title("📈 Traffic & Sessions Overview")
+st.markdown(
+    "Monitor session volume, user growth, channel performance, and geographic reach. "
+    "Use the sidebar filters to narrow by date range, channel, device, or page."
+)
 show_active_filters()
 
 _plotly_tpl = get_plotly_template()
+_FONT = dict(family="Inter, Arial, sans-serif", size=13)
 
 
 # ── Cached data loaders (TTL = 5 minutes) — date-filtered at DB level ─────────
@@ -195,19 +200,7 @@ except Exception as exc:
     )
     st.stop()
 
-with st.expander("Debug: data shapes", expanded=False):
-    st.write(
-        {
-            "vw_traffic (filtered)": df_traffic.shape,
-            "vw_daily_traffic (filtered)": df_daily.shape,
-            "channel_performance (filtered)": df_channels.shape,
-            "device_breakdown (filtered)": df_devices.shape,
-            "vw_new_vs_returning (filtered)": df_newret.shape,
-            "geo_performance (filtered)": df_geo.shape,
-        }
-    )
-
-# Channel filter now applied at DB level via _load_traffic / _load_channels
+# Channel filter applied at DB level via _load_traffic / _load_channels
 
 # ── KPI cards — 4 core metrics with % change vs previous period ────────────────
 period_days = (end_date - start_date).days + 1
@@ -272,7 +265,9 @@ if not df_daily.empty:
         template=_plotly_tpl,
     )
     fig.update_traces(
-        selector={"name": "sessions_7day_avg"}, line={"dash": "dot", "width": 2}
+        selector={"name": "sessions_7day_avg"},
+        line={"dash": "dot", "width": 2},
+        hovertemplate="<b>%{x|%Y-%m-%d}</b><br>7-Day Avg: %{y:,.0f}<extra></extra>",
     )
     fig.update_traces(
         hovertemplate="<b>%{x|%Y-%m-%d}</b><br>Sessions: %{y:,}<extra></extra>",
@@ -280,6 +275,7 @@ if not df_daily.empty:
     )
     fig.update_layout(
         xaxis=dict(
+            title="Date",
             rangeselector=dict(
                 buttons=[
                     dict(count=7, label="7D", step="day", stepmode="backward"),
@@ -291,7 +287,9 @@ if not df_daily.empty:
             rangeslider=dict(visible=False),
             type="date",
         ),
+        yaxis=dict(title="Sessions"),
         hovermode="x unified",
+        font=_FONT,
     )
     st.plotly_chart(fig, use_container_width=True)
     _dl_col1, _dl_col2 = st.columns(2)
@@ -347,7 +345,7 @@ if not df_pv_users.empty:
         )
     )
     fig_pv.update_layout(
-        title="Daily Pageviews & New Users Over Time",
+        title="Daily Pageviews & New Users Over Time — Dual-axis view",
         xaxis=dict(
             title="Date",
             rangeselector=dict(
@@ -360,11 +358,12 @@ if not df_pv_users.empty:
             ),
             type="date",
         ),
-        yaxis=dict(title="Pageviews"),
-        yaxis2=dict(title="New Users", overlaying="y", side="right"),
+        yaxis=dict(title="Pageviews (left axis)"),
+        yaxis2=dict(title="New Users (right axis)", overlaying="y", side="right"),
         hovermode="x unified",
         legend=dict(orientation="h", y=1.1),
         template=_plotly_tpl,
+        font=_FONT,
     )
     st.plotly_chart(fig_pv, use_container_width=True)
 else:
@@ -493,10 +492,11 @@ with col_left:
             )
         )
         fig_ch.update_layout(
-            title="Sessions by Channel",
-            xaxis_title="Sessions",
-            yaxis_title="Channel",
+            title="Sessions by Channel — Top channels ranked by volume",
+            xaxis_title="Total Sessions",
+            yaxis_title="Marketing Channel",
             template=_plotly_tpl,
+            font=_FONT,
         )
         st.plotly_chart(fig_ch, use_container_width=True)
 
@@ -515,18 +515,19 @@ with col_right:
             )
         )
         fig_ch_donut.update_layout(
-            title="Channel Distribution",
+            title="Channel Share — % of total sessions per channel",
             annotations=[
                 dict(
                     text=f"{_donut_total:,}<br>sessions",
                     x=0.5,
                     y=0.5,
-                    font=dict(size=13),
+                    font=dict(size=13, family="Inter, Arial, sans-serif"),
                     showarrow=False,
                 )
             ],
             legend=dict(orientation="v", x=1.0),
             template=_plotly_tpl,
+            font=_FONT,
         )
         st.plotly_chart(fig_ch_donut, use_container_width=True)
 
@@ -566,12 +567,13 @@ if not df_ch_daily.empty:
             )
         )
     fig_area.update_layout(
-        title="Sessions by Channel Over Time (Stacked Area)",
+        title="Sessions by Channel Over Time — Stacked area showing channel contribution per day",
         xaxis_title="Date",
         yaxis_title="Sessions",
         hovermode="x unified",
         legend=dict(orientation="h", y=-0.2),
         template=_plotly_tpl,
+        font=_FONT,
     )
     st.plotly_chart(fig_area, use_container_width=True)
 else:
@@ -613,12 +615,13 @@ fig_cmp.add_trace(
     )
 )
 fig_cmp.update_layout(
-    title=f"Period Comparison — Current vs Previous {period_days}-Day Window",
+    title=f"Period Comparison — Current vs Previous {period_days}-Day Window (% change shown on bars)",
     xaxis_title="Metric",
     yaxis_title="Count",
     barmode="group",
     legend=dict(orientation="h", y=1.1),
     template=_plotly_tpl,
+    font=_FONT,
 )
 st.plotly_chart(fig_cmp, use_container_width=True)
 
@@ -664,13 +667,14 @@ if not df_newret.empty:
     )
     fig_nr.update_layout(
         barmode="stack",
-        title="New vs Returning Users Over Time",
+        title="New vs Returning Users — Stacked bars with new-user % trend (right axis)",
         xaxis_title="Date",
-        yaxis=dict(title="Sessions"),
-        yaxis2=dict(title="New User %", overlaying="y", side="right", range=[0, 100]),
+        yaxis=dict(title="Sessions (left axis)"),
+        yaxis2=dict(title="New User % (right axis)", overlaying="y", side="right", range=[0, 100]),
         hovermode="x unified",
         legend=dict(orientation="h", y=1.1),
         template=_plotly_tpl,
+        font=_FONT,
     )
     st.plotly_chart(fig_nr, use_container_width=True)
 else:
@@ -696,8 +700,9 @@ if not df_devices.empty:
             )
         )
         fig_dev_pie.update_layout(
-            title="Sessions by Device",
+            title="Sessions by Device — Mobile / Desktop / Tablet split",
             template=_plotly_tpl,
+            font=_FONT,
         )
         st.plotly_chart(fig_dev_pie, use_container_width=True)
     with col_dev2:
@@ -714,10 +719,11 @@ if not df_devices.empty:
             )
         )
         fig_dev_bounce.update_layout(
-            title="Avg Bounce Rate by Device",
-            xaxis_title="Device",
+            title="Avg Bounce Rate by Device — lower is better",
+            xaxis_title="Device Category",
             yaxis_title="Bounce Rate (%)",
             template=_plotly_tpl,
+            font=_FONT,
         )
         st.plotly_chart(fig_dev_bounce, use_container_width=True)
 else:
@@ -798,10 +804,11 @@ if not df_geo.empty:
             )
         )
         fig_geo.update_layout(
-            title="Top 10 Countries by Sessions",
-            xaxis_title="Sessions",
+            title="Top 10 Countries by Sessions — Geographic reach ranking",
+            xaxis_title="Total Sessions",
             yaxis_title="Country",
             template=_plotly_tpl,
+            font=_FONT,
         )
         st.plotly_chart(fig_geo, use_container_width=True)
 else:
