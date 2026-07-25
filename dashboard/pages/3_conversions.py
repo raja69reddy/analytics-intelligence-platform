@@ -816,3 +816,100 @@ if not df_rev_trend.empty:
     )
 else:
     st.info("No revenue data available for the selected filters.")
+
+st.divider()
+
+# ── Conversion Rate by Device ─────────────────────────────────────────────────
+st.subheader("Conversion Rate by Device")
+
+
+@st.cache_data(ttl=300)
+def _load_device_conv(start_date=None, end_date=None):
+    """Estimate device-level CVR by distributing conversions proportionally."""
+    _conds: list = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("session_date BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = ("WHERE " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"""WITH device_agg AS (
+                SELECT device_type,
+                       SUM(sessions)              AS total_sessions,
+                       ROUND(AVG(session_duration_s), 1) AS avg_duration_s
+                FROM raw_ga4_sessions {_where}
+                GROUP BY device_type
+            ),
+            total_conv AS (
+                SELECT COALESCE(SUM(sessions), 0)         AS t_sessions,
+                       COALESCE(SUM(goal_completions), 0) AS t_completions
+                FROM vw_conversions {_where}
+            )
+            SELECT da.device_type,
+                   da.total_sessions                   AS sessions,
+                   da.avg_duration_s,
+                   ROUND(
+                       da.total_sessions::NUMERIC / NULLIF(tc.t_sessions, 0)
+                       * tc.t_completions
+                   )::INT                              AS estimated_conversions,
+                   ROUND(
+                       da.total_sessions::NUMERIC / NULLIF(tc.t_sessions, 0)
+                       * tc.t_completions
+                       / NULLIF(da.total_sessions, 0) * 100,
+                   2)                                 AS cvr_pct
+            FROM device_agg da
+            CROSS JOIN total_conv tc
+            ORDER BY da.total_sessions DESC""",
+        params=_params or None,
+    )
+
+
+with st.spinner("Loading device conversion data…"):
+    try:
+        df_dev = _load_device_conv(start_date, end_date)
+    except Exception as _exc:
+        st.warning(f"Could not load device conversion data: {_exc}")
+        if st.button("Retry", key="retry_dev_conv"):
+            st.cache_data.clear()
+            st.rerun()
+        df_dev = pd.DataFrame()
+
+if not df_dev.empty:
+    _dev_colors = {"desktop": "#636EFA", "mobile": "#EF553B", "tablet": "#00CC96"}
+    _bar_colors = [_dev_colors.get(str(d).lower(), "#AB63FA") for d in df_dev["device_type"]]
+
+    fig_dev = go.Figure(
+        go.Bar(
+            x=df_dev["device_type"],
+            y=df_dev["cvr_pct"],
+            marker_color=_bar_colors,
+            text=[
+                f"{v:.2f}%<br>({s:,} sessions)"
+                for v, s in zip(df_dev["cvr_pct"], df_dev["sessions"])
+            ],
+            textposition="outside",
+            customdata=df_dev[["sessions", "estimated_conversions", "avg_duration_s"]].values,
+            hovertemplate=(
+                "<b>%{x}</b><br>"
+                "CVR: %{y:.2f}%<br>"
+                "Sessions: %{customdata[0]:,}<br>"
+                "Est. Conversions: %{customdata[1]:,}<br>"
+                "Avg Duration: %{customdata[2]:.0f}s"
+                "<extra></extra>"
+            ),
+        )
+    )
+    fig_dev.update_layout(
+        title="Estimated Conversion Rate by Device Type — desktop / mobile / tablet",
+        xaxis_title="Device Type",
+        yaxis_title="Estimated CVR (%)",
+        template=_plotly_tpl,
+        font=_FONT,
+    )
+    st.plotly_chart(fig_dev, use_container_width=True)
+    st.caption(
+        "CVR estimated by distributing total conversions proportionally to each device's session share. "
+        "Desktop = blue · Mobile = red · Tablet = teal"
+    )
+else:
+    st.info("No device data available for the selected filters.")
