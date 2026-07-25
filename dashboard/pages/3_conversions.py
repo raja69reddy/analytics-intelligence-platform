@@ -913,3 +913,84 @@ if not df_dev.empty:
     )
 else:
     st.info("No device data available for the selected filters.")
+
+st.divider()
+
+# ── Top Converting Pages ──────────────────────────────────────────────────────
+st.subheader("Top Converting Pages")
+
+
+@st.cache_data(ttl=300)
+def _load_top_conv_pages(start_date=None, end_date=None):
+    _conds: list = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(timestamp) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = ("WHERE " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"""SELECT page                                                            AS page_url,
+                   COUNT(DISTINCT session_id)                                     AS sessions,
+                   COUNT(CASE WHEN event_type = 'form_submit' THEN 1 END)         AS conversions,
+                   ROUND(
+                       100.0 * COUNT(CASE WHEN event_type = 'form_submit' THEN 1 END)::NUMERIC
+                       / NULLIF(COUNT(DISTINCT session_id), 0),
+                   2)                                                             AS cvr_pct
+            FROM raw_clickstream_events {_where}
+            GROUP BY page
+            HAVING COUNT(DISTINCT session_id) >= 5
+            ORDER BY cvr_pct DESC
+            LIMIT 20""",
+        params=_params or None,
+    )
+
+
+with st.spinner("Loading top converting pages…"):
+    try:
+        df_top_conv = _load_top_conv_pages(start_date, end_date)
+    except Exception as _exc:
+        st.warning(f"Could not load top converting pages: {_exc}")
+        if st.button("Retry", key="retry_top_conv"):
+            st.cache_data.clear()
+            st.rerun()
+        df_top_conv = pd.DataFrame()
+
+if not df_top_conv.empty:
+    # Estimate revenue using avg revenue per conversion from already-loaded KPI data
+    _apc = (total_revenue / total_completions) if total_completions > 0 else 0.0
+    df_top_conv["Estimated Revenue ($)"] = (df_top_conv["conversions"] * _apc).round(2)
+    df_top_conv.rename(
+        columns={
+            "page_url": "Page URL",
+            "sessions": "Sessions",
+            "conversions": "Conversions",
+            "cvr_pct": "CVR (%)",
+        },
+        inplace=True,
+    )
+
+    _cvr_col_max = df_top_conv["CVR (%)"].max() or 1
+    styled_top_conv = df_top_conv.style.background_gradient(
+        subset=["CVR (%)"], cmap="RdYlGn", vmin=0, vmax=_cvr_col_max
+    ).format(
+        {
+            "Sessions": "{:,}",
+            "Conversions": "{:,}",
+            "CVR (%)": "{:.2f}%",
+            "Estimated Revenue ($)": "${:,.2f}",
+        }
+    )
+    st.dataframe(styled_top_conv, use_container_width=True, hide_index=True)
+    st.download_button(
+        label="Download top converting pages as CSV",
+        data=df_top_conv.to_csv(index=False).encode("utf-8"),
+        file_name="top_converting_pages.csv",
+        mime="text/csv",
+        key="dl_top_conv_csv",
+    )
+    st.caption(
+        f"{len(df_top_conv)} pages shown · CVR = form_submit events / unique sessions · "
+        f"Revenue estimated at ${_apc:.2f}/conversion · Sorted by CVR descending"
+    )
+else:
+    st.info("No page conversion data available for the selected filters.")
