@@ -4,6 +4,7 @@ import os
 import sys
 from datetime import timedelta
 
+import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -48,6 +49,22 @@ def _load_conversions(start_date=None, end_date=None, channels: tuple = ()):
 @st.cache_data(ttl=300)
 def _load_funnel():
     return run_view("vw_funnel")
+
+
+@st.cache_data(ttl=300)
+def _load_cvr_trend(start_date=None, end_date=None, channels: tuple = ()):
+    """Daily CVR time-series — aggregated directly from vw_conversions."""
+    where, params = build_where_clause(start_date, end_date, channels=list(channels) or None)
+    return query_df(
+        f"""SELECT session_date,
+                   SUM(sessions) AS sessions,
+                   SUM(goal_completions) AS goal_completions,
+                   ROUND(SUM(goal_completions)::NUMERIC / NULLIF(SUM(sessions), 0) * 100, 4) AS cvr_pct
+            FROM vw_conversions {where}
+            GROUP BY session_date
+            ORDER BY session_date""",
+        params=params or None,
+    )
 
 
 # ── Sidebar filters ───────────────────────────────────────────────────────────
@@ -153,101 +170,100 @@ st.subheader("Conversion Rate Over Time")
 CVR_TARGET = 3.5  # target CVR % for reference line
 
 with st.spinner("Loading CVR trend…"):
-    if not df_conv.empty:
-        daily_cvr = (
-            df_conv.groupby("session_date")
-            .agg(sessions=("sessions", "sum"), goal_completions=("goal_completions", "sum"))
-            .reset_index()
-            .sort_values("session_date")
-        )
-        daily_cvr["cvr_pct"] = (
-            daily_cvr["goal_completions"] / daily_cvr["sessions"].replace(0, None) * 100
-        ).round(4)
-        daily_cvr["cvr_7day_avg"] = daily_cvr["cvr_pct"].rolling(7, min_periods=1).mean().round(4)
-        _above = daily_cvr[daily_cvr["cvr_pct"] >= CVR_TARGET]
-        _below = daily_cvr[daily_cvr["cvr_pct"] < CVR_TARGET]
+    try:
+        daily_cvr = _load_cvr_trend(start_date, end_date, tuple(channels))
+    except Exception as _cvr_exc:
+        st.warning(f"Could not load CVR trend data: {_cvr_exc}")
+        if st.button("Retry", key="retry_cvr_trend"):
+            st.cache_data.clear()
+            st.rerun()
+        daily_cvr = pd.DataFrame()
 
-        fig_cvr = go.Figure()
-        fig_cvr.add_trace(
-            go.Scatter(
-                x=_above["session_date"],
-                y=_above["cvr_pct"],
-                mode="markers",
-                name="Above Target",
-                marker=dict(color="#2ca02c", size=6),
-                hovertemplate="<b>%{x|%Y-%m-%d}</b><br>CVR: %{y:.2f}%<extra></extra>",
-            )
+if not daily_cvr.empty:
+    daily_cvr["cvr_7day_avg"] = daily_cvr["cvr_pct"].rolling(7, min_periods=1).mean().round(4)
+    _above = daily_cvr[daily_cvr["cvr_pct"] >= CVR_TARGET]
+    _below = daily_cvr[daily_cvr["cvr_pct"] < CVR_TARGET]
+
+    fig_cvr = go.Figure()
+    fig_cvr.add_trace(
+        go.Scatter(
+            x=_above["session_date"],
+            y=_above["cvr_pct"],
+            mode="markers",
+            name="Above Target",
+            marker=dict(color="#2ca02c", size=6),
+            hovertemplate="<b>%{x|%Y-%m-%d}</b><br>CVR: %{y:.2f}%<extra></extra>",
         )
-        fig_cvr.add_trace(
-            go.Scatter(
-                x=_below["session_date"],
-                y=_below["cvr_pct"],
-                mode="markers",
-                name="Below Target",
-                marker=dict(color="#d62728", size=6),
-                hovertemplate="<b>%{x|%Y-%m-%d}</b><br>CVR: %{y:.2f}%<extra></extra>",
-            )
+    )
+    fig_cvr.add_trace(
+        go.Scatter(
+            x=_below["session_date"],
+            y=_below["cvr_pct"],
+            mode="markers",
+            name="Below Target",
+            marker=dict(color="#d62728", size=6),
+            hovertemplate="<b>%{x|%Y-%m-%d}</b><br>CVR: %{y:.2f}%<extra></extra>",
         )
-        fig_cvr.add_trace(
-            go.Scatter(
-                x=daily_cvr["session_date"],
-                y=daily_cvr["cvr_7day_avg"],
-                name="7-Day Rolling Avg",
-                mode="lines",
-                line=dict(color="#1f77b4", width=2),
-                hovertemplate="<b>%{x|%Y-%m-%d}</b><br>7d Avg: %{y:.2f}%<extra></extra>",
-            )
+    )
+    fig_cvr.add_trace(
+        go.Scatter(
+            x=daily_cvr["session_date"],
+            y=daily_cvr["cvr_7day_avg"],
+            name="7-Day Rolling Avg",
+            mode="lines",
+            line=dict(color="#1f77b4", width=2),
+            hovertemplate="<b>%{x|%Y-%m-%d}</b><br>7d Avg: %{y:.2f}%<extra></extra>",
         )
-        fig_cvr.add_hline(
-            y=CVR_TARGET,
-            line_dash="dash",
-            line_color="orange",
-            annotation_text=f"Target {CVR_TARGET}%",
-            annotation_position="bottom right",
-        )
-        fig_cvr.update_layout(
-            title="Conversion Rate % — Daily (green = above target, red = below) with 7-Day Rolling Average",
-            xaxis_title="Date",
-            yaxis_title="CVR (%)",
-            template=_plotly_tpl,
-            legend=dict(orientation="h"),
-            hovermode="x unified",
-            font=_FONT,
-        )
-        fig_cvr.update_xaxes(
-            rangeselector=dict(
-                buttons=[
-                    dict(count=7, label="7D", step="day", stepmode="backward"),
-                    dict(count=30, label="30D", step="day", stepmode="backward"),
-                    dict(count=90, label="90D", step="day", stepmode="backward"),
-                    dict(step="all", label="All"),
-                ]
-            ),
-            rangeslider=dict(visible=False),
-        )
-        # Annotate period average CVR
-        _period_avg = daily_cvr["cvr_pct"].mean()
-        _best_day = daily_cvr.loc[daily_cvr["cvr_pct"].idxmax()]
-        fig_cvr.add_annotation(
-            x=str(_best_day["session_date"]),
-            y=float(_best_day["cvr_pct"]),
-            text=f"Best day: {float(_best_day['cvr_pct']):.2f}%",
-            showarrow=True,
-            arrowhead=2,
-            arrowcolor="#2ca02c",
-            font=dict(size=11, color="#2ca02c"),
-            bgcolor="rgba(0,0,0,0.25)",
-            borderpad=4,
-            ay=-40,
-        )
-        st.plotly_chart(fig_cvr, use_container_width=True)
-        st.caption(
-            f"Period avg CVR: {_period_avg:.2f}% · Target: {CVR_TARGET}% · "
-            f"Green = above target · Red = below target"
-            + (f" · Channels: {', '.join(channels)}" if channels else "")
-        )
-    else:
-        st.info("No conversion data available for the selected filters.")
+    )
+    fig_cvr.add_hline(
+        y=CVR_TARGET,
+        line_dash="dash",
+        line_color="orange",
+        annotation_text=f"Target {CVR_TARGET}%",
+        annotation_position="bottom right",
+    )
+    fig_cvr.update_layout(
+        title="Conversion Rate % — Daily (green = above target, red = below) with 7-Day Rolling Average",
+        xaxis_title="Date",
+        yaxis_title="CVR (%)",
+        template=_plotly_tpl,
+        legend=dict(orientation="h"),
+        hovermode="x unified",
+        font=_FONT,
+    )
+    fig_cvr.update_xaxes(
+        rangeselector=dict(
+            buttons=[
+                dict(count=7, label="7D", step="day", stepmode="backward"),
+                dict(count=30, label="30D", step="day", stepmode="backward"),
+                dict(count=90, label="90D", step="day", stepmode="backward"),
+                dict(step="all", label="All"),
+            ]
+        ),
+        rangeslider=dict(visible=False),
+    )
+    _period_avg = daily_cvr["cvr_pct"].mean()
+    _best_day = daily_cvr.loc[daily_cvr["cvr_pct"].idxmax()]
+    fig_cvr.add_annotation(
+        x=str(_best_day["session_date"]),
+        y=float(_best_day["cvr_pct"]),
+        text=f"Best day: {float(_best_day['cvr_pct']):.2f}%",
+        showarrow=True,
+        arrowhead=2,
+        arrowcolor="#2ca02c",
+        font=dict(size=11, color="#2ca02c"),
+        bgcolor="rgba(0,0,0,0.25)",
+        borderpad=4,
+        ay=-40,
+    )
+    st.plotly_chart(fig_cvr, use_container_width=True)
+    st.caption(
+        f"Period avg CVR: {_period_avg:.2f}% · Target: {CVR_TARGET}% · "
+        f"Green = above target · Red = below target"
+        + (f" · Channels: {', '.join(channels)}" if channels else "")
+    )
+else:
+    st.info("No conversion data available for the selected filters.")
 
 st.divider()
 
@@ -255,8 +271,6 @@ st.divider()
 st.subheader("Goal Completions by Source / Medium")
 with st.spinner("Loading goal completions by source…"):
     if not df_conv.empty:
-        import plotly.express as px
-
         df_src = (
             df_conv.groupby(["source", "medium", "channel_grouping"])["goal_completions"]
             .sum()
