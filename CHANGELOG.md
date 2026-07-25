@@ -1,5 +1,14 @@
 # Changelog
 
+## Day 45 - Conversions Page Enhanced
+- Added CVR over time line chart with dedicated `_load_cvr_trend()` cached loader, 7-day rolling average, dashed target reference line, range selector 7D/30D/90D, and best-day annotation
+- Added A/B test results section: mock variant data, Wilson 95% confidence intervals, two-proportion Z-test significance badges, CI bar chart with green winner highlight
+- Added revenue trend chart: daily bar + 7-day rolling average line, dashed revenue target line, range selector, total/avg/above-target-days caption
+- Added conversion by device chart: estimated CVR per device via proportional session-share distribution, distinct colors per device, session count labels
+- Added top converting pages table: CVR from form_submit/unique-session ratio via raw_clickstream_events, RdYlGn CVR gradient, estimated revenue column, CSV download
+- Added conversion cohort heatmap: CVR by acquisition channel × weekly cohort, Blues colorscale, best-channel caption
+- Added caching and error handling: try/except + Retry button on all sections, empty-state messages, all new loaders use `@st.cache_data(ttl=300)`
+
 ## Day 44 - Chart Polish: Titles, Labels, Tooltips, Annotations
 - Polished all traffic page charts: descriptive titles, axis labels with units, `_FONT` applied, peak-day annotation on sessions chart
 - Polished all behavior page charts: `font=_FONT` on all 15 charts, fixed 8 hardcoded `template="plotly_white"` → `template=_plotly_tpl`, improved titles (scroll depth, engagement events, duration, retention, quality, heatmap, NVR, trend, sankey, bounce), peak-bucket annotation on scroll chart
