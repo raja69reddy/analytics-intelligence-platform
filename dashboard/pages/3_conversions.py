@@ -994,3 +994,83 @@ if not df_top_conv.empty:
     )
 else:
     st.info("No page conversion data available for the selected filters.")
+
+st.divider()
+
+# ── Conversion Cohort Analysis ────────────────────────────────────────────────
+st.subheader("Conversion Cohort Analysis")
+st.caption(
+    "CVR by acquisition channel × weekly cohort — "
+    "darker cells indicate higher conversion rates for that channel in that week."
+)
+
+
+@st.cache_data(ttl=300)
+def _load_conv_cohorts(start_date=None, end_date=None, channels: tuple = ()):
+    where, params = build_where_clause(start_date, end_date, channels=list(channels) or None)
+    return query_df(
+        f"""SELECT channel_grouping,
+                   DATE_TRUNC('week', session_date)::DATE                          AS cohort_week,
+                   ROUND(SUM(goal_completions)::NUMERIC / NULLIF(SUM(sessions), 0) * 100, 2)
+                                                                                   AS cvr_pct,
+                   SUM(sessions)                                                   AS sessions
+            FROM vw_conversions {where}
+            GROUP BY channel_grouping, cohort_week
+            ORDER BY cohort_week, channel_grouping""",
+        params=params or None,
+    )
+
+
+with st.spinner("Loading cohort data…"):
+    try:
+        df_cohort = _load_conv_cohorts(start_date, end_date, tuple(channels))
+    except Exception as _exc:
+        st.warning(f"Could not load cohort data: {_exc}")
+        if st.button("Retry", key="retry_cohort"):
+            st.cache_data.clear()
+            st.rerun()
+        df_cohort = pd.DataFrame()
+
+if not df_cohort.empty:
+    df_cohort["cohort_week"] = df_cohort["cohort_week"].astype(str)
+    pivot_cohort = df_cohort.pivot_table(
+        index="channel_grouping",
+        columns="cohort_week",
+        values="cvr_pct",
+        fill_value=0,
+    )
+    fig_cohort = go.Figure(
+        go.Heatmap(
+            z=pivot_cohort.values.tolist(),
+            x=[str(c) for c in pivot_cohort.columns],
+            y=pivot_cohort.index.tolist(),
+            colorscale="Blues",
+            hoverongaps=False,
+            colorbar=dict(title="CVR %"),
+            hovertemplate=(
+                "Channel: %{y}<br>"
+                "Week: %{x}<br>"
+                "CVR: %{z:.2f}%"
+                "<extra></extra>"
+            ),
+        )
+    )
+    fig_cohort.update_layout(
+        title="Conversion Rate Cohort Heatmap — Acquisition Channel × Week",
+        xaxis_title="Cohort Week",
+        yaxis_title="Acquisition Channel",
+        template=_plotly_tpl,
+        height=max(300, len(pivot_cohort) * 55 + 120),
+        font=_FONT,
+    )
+    fig_cohort.update_xaxes(tickangle=45)
+    st.plotly_chart(fig_cohort, use_container_width=True)
+    _ch_avg = df_cohort.groupby("channel_grouping")["cvr_pct"].mean()
+    _best_ch = str(_ch_avg.idxmax())
+    _best_ch_cvr = float(_ch_avg.max())
+    st.caption(
+        f"Best-performing channel: {_best_ch} (avg CVR {_best_ch_cvr:.2f}%) · "
+        "Darker blue = higher CVR · Rows = channels, columns = weekly cohorts"
+    )
+else:
+    st.info("No cohort data available for the selected filters.")
