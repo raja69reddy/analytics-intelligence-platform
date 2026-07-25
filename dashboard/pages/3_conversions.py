@@ -594,3 +594,129 @@ with st.spinner("Loading conversions by day of week…"):
         )
     else:
         st.info("No data available for day-of-week analysis.")
+
+st.divider()
+
+# ── A/B Test Results ──────────────────────────────────────────────────────────
+st.subheader("A/B Test Results")
+st.caption("Mock data — in production, load from your experiments tracking table.")
+
+import numpy as np  # noqa: E402
+
+_ab_df = pd.DataFrame({
+    "Variant": ["Control (A)", "Variant B", "Variant C"],
+    "Sessions": [4250, 4180, 4320],
+    "Conversions": [148, 172, 164],
+})
+_ab_df["CVR (%)"] = (_ab_df["Conversions"] / _ab_df["Sessions"] * 100).round(3)
+_control_cvr = float(_ab_df.loc[0, "CVR (%)"])
+_ab_df["Uplift vs Control"] = ((_ab_df["CVR (%)"] / _control_cvr - 1) * 100).round(2)
+_ab_df.loc[0, "Uplift vs Control"] = 0.0
+
+
+def _wilson_ci(n: int, k: int, z: float = 1.96):
+    p = k / n if n > 0 else 0.0
+    denom = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / denom
+    margin = z * (p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5 / denom
+    return round((centre - margin) * 100, 3), round((centre + margin) * 100, 3)
+
+
+_ab_df[["CI Lower (%)", "CI Upper (%)"]] = pd.DataFrame(
+    [_wilson_ci(int(r.Sessions), int(r.Conversions)) for r in _ab_df.itertuples()],
+    index=_ab_df.index,
+)
+
+
+def _is_significant(n1: int, k1: int, n2: int, k2: int) -> bool:
+    if n1 == 0 or n2 == 0:
+        return False
+    p1, p2 = k1 / n1, k2 / n2
+    p_pool = (k1 + k2) / (n1 + n2)
+    se = (p_pool * (1 - p_pool) * (1 / n1 + 1 / n2)) ** 0.5
+    return se > 0 and abs(p1 - p2) / se > 1.96
+
+
+_ctrl_n = int(_ab_df.loc[0, "Sessions"])
+_ctrl_k = int(_ab_df.loc[0, "Conversions"])
+_ab_df["Significant?"] = [
+    "—" if i == 0
+    else (
+        "✅ Yes (p<0.05)"
+        if _is_significant(_ctrl_n, _ctrl_k, int(r.Sessions), int(r.Conversions))
+        else "❌ No"
+    )
+    for i, r in enumerate(_ab_df.itertuples())
+]
+
+_winner_idx = int(_ab_df["CVR (%)"].idxmax())
+
+
+def _color_ab_row(row):
+    return (
+        ["background-color: #d4edda"] * len(row)
+        if row.name == _winner_idx
+        else [""] * len(row)
+    )
+
+
+st.dataframe(
+    _ab_df.style.apply(_color_ab_row, axis=1).format({
+        "CVR (%)": "{:.3f}%",
+        "Uplift vs Control": "{:+.2f}%",
+        "CI Lower (%)": "{:.3f}%",
+        "CI Upper (%)": "{:.3f}%",
+        "Sessions": "{:,}",
+        "Conversions": "{:,}",
+    }),
+    use_container_width=True,
+    hide_index=True,
+)
+_winner_name = _ab_df.loc[_winner_idx, "Variant"]
+_winner_uplift = float(_ab_df.loc[_winner_idx, "Uplift vs Control"])
+st.success(f"Winner: **{_winner_name}** — {_winner_uplift:+.2f}% uplift vs Control")
+
+fig_ab = go.Figure()
+for _i, _row in _ab_df.iterrows():
+    fig_ab.add_trace(
+        go.Bar(
+            name=_row["Variant"],
+            x=[_row["Variant"]],
+            y=[_row["CVR (%)"]],
+            error_y=dict(
+                type="data",
+                symmetric=False,
+                array=[_row["CI Upper (%)"] - _row["CVR (%)"]],
+                arrayminus=[_row["CVR (%)"] - _row["CI Lower (%)"]],
+                color="#888888",
+            ),
+            marker_color="#2ca02c" if _i == _winner_idx else "#636EFA",
+            hovertemplate=(
+                f"<b>{_row['Variant']}</b><br>"
+                f"CVR: {_row['CVR (%)']:.3f}%<br>"
+                f"95% CI: [{_row['CI Lower (%)']:.3f}%, {_row['CI Upper (%)']:.3f}%]"
+                "<extra></extra>"
+            ),
+        )
+    )
+fig_ab.add_hline(
+    y=_control_cvr,
+    line_dash="dash",
+    line_color="gray",
+    annotation_text="Control CVR",
+    annotation_position="bottom right",
+)
+fig_ab.update_layout(
+    title="A/B Test CVR Comparison — bars show 95% confidence intervals",
+    xaxis_title="Variant",
+    yaxis_title="CVR (%)",
+    template=_plotly_tpl,
+    showlegend=False,
+    font=_FONT,
+)
+st.plotly_chart(fig_ab, use_container_width=True)
+st.caption(
+    "Error bars = 95% Wilson confidence intervals · "
+    "Green bar = winning variant · Dashed line = Control CVR · "
+    "✅ = statistically significant at p<0.05"
+)
