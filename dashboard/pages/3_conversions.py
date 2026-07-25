@@ -720,3 +720,99 @@ st.caption(
     "Green bar = winning variant · Dashed line = Control CVR · "
     "✅ = statistically significant at p<0.05"
 )
+
+st.divider()
+
+# ── Revenue Trend Over Time ───────────────────────────────────────────────────
+st.subheader("Revenue Trend Over Time")
+_REVENUE_TARGET = 5000.0  # daily target in USD
+
+
+@st.cache_data(ttl=300)
+def _load_revenue_trend(start_date=None, end_date=None, channels: tuple = ()):
+    where, params = build_where_clause(start_date, end_date, channels=list(channels) or None)
+    return query_df(
+        f"""SELECT session_date,
+                   ROUND(SUM(revenue)::NUMERIC, 2) AS daily_revenue
+            FROM vw_conversions {where}
+            GROUP BY session_date
+            ORDER BY session_date""",
+        params=params or None,
+    )
+
+
+with st.spinner("Loading revenue trend…"):
+    try:
+        df_rev_trend = _load_revenue_trend(start_date, end_date, tuple(channels))
+    except Exception as _exc:
+        st.warning(f"Could not load revenue trend data: {_exc}")
+        if st.button("Retry", key="retry_rev_trend"):
+            st.cache_data.clear()
+            st.rerun()
+        df_rev_trend = pd.DataFrame()
+
+if not df_rev_trend.empty:
+    df_rev_trend["rev_7day_avg"] = (
+        df_rev_trend["daily_revenue"].rolling(7, min_periods=1).mean().round(2)
+    )
+    _total_rev_trend = float(df_rev_trend["daily_revenue"].sum())
+    _period_days_rv = len(df_rev_trend)
+    _avg_daily_rev = _total_rev_trend / _period_days_rv if _period_days_rv else 0.0
+
+    fig_rev_trend = go.Figure()
+    fig_rev_trend.add_trace(
+        go.Bar(
+            x=df_rev_trend["session_date"],
+            y=df_rev_trend["daily_revenue"],
+            name="Daily Revenue",
+            marker_color="#636EFA",
+            opacity=0.6,
+            hovertemplate="<b>%{x|%Y-%m-%d}</b><br>Revenue: $%{y:,.2f}<extra></extra>",
+        )
+    )
+    fig_rev_trend.add_trace(
+        go.Scatter(
+            x=df_rev_trend["session_date"],
+            y=df_rev_trend["rev_7day_avg"],
+            name="7-Day Rolling Avg",
+            mode="lines",
+            line=dict(color="#EF553B", width=2.5),
+            hovertemplate="<b>%{x|%Y-%m-%d}</b><br>7d Avg: $%{y:,.2f}<extra></extra>",
+        )
+    )
+    fig_rev_trend.add_hline(
+        y=_REVENUE_TARGET,
+        line_dash="dash",
+        line_color="#ffd700",
+        annotation_text=f"Daily Target ${_REVENUE_TARGET:,.0f}",
+        annotation_position="bottom right",
+        annotation=dict(font=dict(color="#ffd700", size=11)),
+    )
+    fig_rev_trend.update_xaxes(
+        rangeselector=dict(
+            buttons=[
+                dict(count=7, label="7D", step="day", stepmode="backward"),
+                dict(count=30, label="30D", step="day", stepmode="backward"),
+                dict(count=90, label="90D", step="day", stepmode="backward"),
+                dict(step="all", label="All"),
+            ]
+        )
+    )
+    fig_rev_trend.update_layout(
+        title=f"Daily Revenue Over Time — Total: ${_total_rev_trend:,.0f} · Avg: ${_avg_daily_rev:,.0f}/day",
+        xaxis_title="Date",
+        yaxis_title="Revenue (USD)",
+        template=_plotly_tpl,
+        hovermode="x unified",
+        legend=dict(orientation="h", y=1.1),
+        font=_FONT,
+    )
+    st.plotly_chart(fig_rev_trend, use_container_width=True)
+    _above_target = int((df_rev_trend["daily_revenue"] >= _REVENUE_TARGET).sum())
+    st.caption(
+        f"Total: ${_total_rev_trend:,.0f} · "
+        f"Daily avg: ${_avg_daily_rev:,.0f} · "
+        f"Days above ${_REVENUE_TARGET:,.0f} target: {_above_target}/{_period_days_rv}"
+    )
+else:
+    st.info("No revenue data available for the selected filters.")
