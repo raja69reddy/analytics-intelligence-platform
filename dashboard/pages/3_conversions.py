@@ -270,94 +270,105 @@ st.divider()
 # ── Goal completions by source / medium ───────────────────────────────────────
 st.subheader("Goal Completions by Source / Medium")
 with st.spinner("Loading goal completions by source…"):
-    if not df_conv.empty:
-        df_src = (
-            df_conv.groupby(["source", "medium", "channel_grouping"])["goal_completions"]
-            .sum()
-            .reset_index()
-            .sort_values("goal_completions", ascending=False)
-            .head(15)
-        )
-        df_src["source_medium"] = df_src["source"] + " / " + df_src["medium"]
-        fig_src = px.bar(
-            df_src,
-            x="source_medium",
-            y="goal_completions",
-            color="channel_grouping",
-            title="Goal Completions by Source / Medium (Top 15)",
-            labels={
-                "source_medium": "Source / Medium",
-                "goal_completions": "Completions",
-                "channel_grouping": "Channel",
-            },
-            template=_plotly_tpl,
-        )
-        fig_src.update_xaxes(tickangle=30)
-        fig_src.update_layout(
-            title="Goal Completions by Source / Medium — top 15 traffic sources",
-            hovermode="x unified",
-            legend=dict(orientation="h"),
-            font=_FONT,
-        )
-        st.plotly_chart(fig_src, use_container_width=True)
-        _src_dl = df_src[["source_medium", "channel_grouping", "goal_completions"]].copy()
-        _src_dl.columns = ["Source / Medium", "Channel", "Goal Completions"]
-        st.download_button(
-            "Download as CSV",
-            data=_src_dl.to_csv(index=False).encode("utf-8"),
-            file_name="goal_completions_by_source.csv",
-            mime="text/csv",
-            key="dl_src_csv",
-        )
-        st.caption(f"Top 15 sources sorted by goal completions · {len(df_src)} rows shown")
-    else:
-        st.info("No source/medium data available.")
+    try:
+        if not df_conv.empty:
+            df_src = (
+                df_conv.groupby(["source", "medium", "channel_grouping"])["goal_completions"]
+                .sum()
+                .reset_index()
+                .sort_values("goal_completions", ascending=False)
+                .head(15)
+            )
+            df_src["source_medium"] = df_src["source"] + " / " + df_src["medium"]
+            fig_src = px.bar(
+                df_src,
+                x="source_medium",
+                y="goal_completions",
+                color="channel_grouping",
+                labels={
+                    "source_medium": "Source / Medium",
+                    "goal_completions": "Completions",
+                    "channel_grouping": "Channel",
+                },
+                template=_plotly_tpl,
+            )
+            fig_src.update_xaxes(tickangle=30)
+            fig_src.update_layout(
+                title="Goal Completions by Source / Medium — top 15 traffic sources",
+                hovermode="x unified",
+                legend=dict(orientation="h"),
+                font=_FONT,
+            )
+            st.plotly_chart(fig_src, use_container_width=True)
+            _src_dl = df_src[["source_medium", "channel_grouping", "goal_completions"]].copy()
+            _src_dl.columns = ["Source / Medium", "Channel", "Goal Completions"]
+            st.download_button(
+                "Download as CSV",
+                data=_src_dl.to_csv(index=False).encode("utf-8"),
+                file_name="goal_completions_by_source.csv",
+                mime="text/csv",
+                key="dl_src_csv",
+            )
+            st.caption(f"Top 15 sources sorted by goal completions · {len(df_src)} rows shown")
+        else:
+            st.info("No source/medium data available for the selected filters.")
+    except Exception as _exc:
+        st.warning(f"Could not render goal completions chart: {_exc}")
+        if st.button("Retry", key="retry_src"):
+            st.cache_data.clear()
+            st.rerun()
 
 st.divider()
 
 # ── Revenue by channel ─────────────────────────────────────────────────────────
 st.subheader("Revenue by Channel")
 with st.spinner("Loading revenue by channel…"):
-    if not df_conv.empty:
-        _CHANNEL_COLORS = [
-            "#636EFA", "#EF553B", "#00CC96", "#AB63FA",
-            "#FFA15A", "#19D3F3", "#FF6692", "#B6E880",
-        ]
-        df_rev = (
-            df_conv.groupby("channel_grouping")["revenue"]
-            .sum()
-            .reset_index()
-            .sort_values("revenue", ascending=True)
-        )
-        _rev_colors = [
-            _CHANNEL_COLORS[i % len(_CHANNEL_COLORS)]
-            for i in range(len(df_rev))
-        ]
-        fig_rev = go.Figure(
-            go.Bar(
-                x=df_rev["revenue"],
-                y=df_rev["channel_grouping"],
-                orientation="h",
-                text=[f"${v:,.0f}" for v in df_rev["revenue"]],
-                textposition="outside",
-                marker_color=_rev_colors,
-                hovertemplate="<b>%{y}</b><br>Revenue: $%{x:,.0f}<extra></extra>",
+    try:
+        if not df_conv.empty:
+            _CHANNEL_COLORS = [
+                "#636EFA", "#EF553B", "#00CC96", "#AB63FA",
+                "#FFA15A", "#19D3F3", "#FF6692", "#B6E880",
+            ]
+            df_rev = (
+                df_conv.groupby("channel_grouping")["revenue"]
+                .sum()
+                .reset_index()
+                .sort_values("revenue", ascending=True)
             )
-        )
-        fig_rev.update_layout(
-            title="Total Revenue by Channel — sorted ascending to highlight top earner",
-            xaxis_title="Revenue (USD)",
-            yaxis_title="Acquisition Channel",
-            template=_plotly_tpl,
-            font=_FONT,
-        )
-        st.plotly_chart(fig_rev, use_container_width=True)
-        st.caption(
-            f"Total revenue: ${df_rev['revenue'].sum():,.0f} · "
-            f"{len(df_rev)} channels · Sorted by revenue ascending"
-        )
-    else:
-        st.info("No revenue data available.")
+            _rev_colors = [
+                _CHANNEL_COLORS[i % len(_CHANNEL_COLORS)]
+                for i in range(len(df_rev))
+            ]
+            fig_rev = go.Figure(
+                go.Bar(
+                    x=df_rev["revenue"],
+                    y=df_rev["channel_grouping"],
+                    orientation="h",
+                    text=[f"${v:,.0f}" for v in df_rev["revenue"]],
+                    textposition="outside",
+                    marker_color=_rev_colors,
+                    hovertemplate="<b>%{y}</b><br>Revenue: $%{x:,.0f}<extra></extra>",
+                )
+            )
+            fig_rev.update_layout(
+                title="Total Revenue by Channel — sorted ascending to highlight top earner",
+                xaxis_title="Revenue (USD)",
+                yaxis_title="Acquisition Channel",
+                template=_plotly_tpl,
+                font=_FONT,
+            )
+            st.plotly_chart(fig_rev, use_container_width=True)
+            st.caption(
+                f"Total revenue: ${df_rev['revenue'].sum():,.0f} · "
+                f"{len(df_rev)} channels · Sorted by revenue ascending"
+            )
+        else:
+            st.info("No revenue data available for the selected filters.")
+    except Exception as _exc:
+        st.warning(f"Could not render revenue by channel chart: {_exc}")
+        if st.button("Retry", key="retry_rev_ch"):
+            st.cache_data.clear()
+            st.rerun()
 
 st.divider()
 
@@ -487,113 +498,121 @@ st.subheader("Channel Contribution")
 from dashboard.components.tables import add_rank_column  # noqa: E402
 
 with st.spinner("Loading channel contribution table…"):
-    if not df_conv.empty:
-        df_ch = (
-            df_conv.groupby("channel_grouping")
-            .agg(
-                sessions=("sessions", "sum"),
-                goal_completions=("goal_completions", "sum"),
-                revenue=("revenue", "sum"),
+    try:
+        if not df_conv.empty:
+            df_ch = (
+                df_conv.groupby("channel_grouping")
+                .agg(
+                    sessions=("sessions", "sum"),
+                    goal_completions=("goal_completions", "sum"),
+                    revenue=("revenue", "sum"),
+                )
+                .reset_index()
+                .sort_values("goal_completions", ascending=False)
             )
-            .reset_index()
-            .sort_values("goal_completions", ascending=False)
-        )
-        df_ch["cvr_pct"] = (
-            df_ch["goal_completions"] / df_ch["sessions"].replace(0, None) * 100
-        ).round(2)
-        df_ch["revenue"] = df_ch["revenue"].round(2)
-        df_ch.rename(
-            columns={
-                "channel_grouping": "Channel",
-                "sessions": "Sessions",
-                "goal_completions": "Conversions",
-                "cvr_pct": "CVR (%)",
-                "revenue": "Revenue ($)",
-            },
-            inplace=True,
-        )
-        df_ch = add_rank_column(df_ch)
-
-        # Color-code CVR column: green gradient (higher = better)
-        _cvr_max = df_ch["CVR (%)"].max() or 1
-        styled_ch = df_ch.style.background_gradient(
-            subset=["CVR (%)"], cmap="RdYlGn", vmin=0, vmax=_cvr_max
-        ).format(
-            {
-                "Sessions": "{:,}",
-                "Conversions": "{:,}",
-                "CVR (%)": "{:.2f}",
-                "Revenue ($)": "${:,.2f}",
-            }
-        )
-        st.dataframe(styled_ch, use_container_width=True, hide_index=True)
-        st.download_button(
-            label="Download channel table as CSV",
-            data=df_ch.to_csv(index=False).encode("utf-8"),
-            file_name="channel_contribution.csv",
-            mime="text/csv",
-            key="dl_channel_csv",
-        )
-        st.caption("CVR column color-coded: green = high conversion rate · Sorted by conversions")
-    else:
-        st.info("No channel data available.")
+            df_ch["cvr_pct"] = (
+                df_ch["goal_completions"] / df_ch["sessions"].replace(0, None) * 100
+            ).round(2)
+            df_ch["revenue"] = df_ch["revenue"].round(2)
+            df_ch.rename(
+                columns={
+                    "channel_grouping": "Channel",
+                    "sessions": "Sessions",
+                    "goal_completions": "Conversions",
+                    "cvr_pct": "CVR (%)",
+                    "revenue": "Revenue ($)",
+                },
+                inplace=True,
+            )
+            df_ch = add_rank_column(df_ch)
+            _cvr_max = df_ch["CVR (%)"].max() or 1
+            styled_ch = df_ch.style.background_gradient(
+                subset=["CVR (%)"], cmap="RdYlGn", vmin=0, vmax=_cvr_max
+            ).format(
+                {
+                    "Sessions": "{:,}",
+                    "Conversions": "{:,}",
+                    "CVR (%)": "{:.2f}",
+                    "Revenue ($)": "${:,.2f}",
+                }
+            )
+            st.dataframe(styled_ch, use_container_width=True, hide_index=True)
+            st.download_button(
+                label="Download channel table as CSV",
+                data=df_ch.to_csv(index=False).encode("utf-8"),
+                file_name="channel_contribution.csv",
+                mime="text/csv",
+                key="dl_channel_csv",
+            )
+            st.caption("CVR column color-coded: green = high conversion rate · Sorted by conversions")
+        else:
+            st.info("No channel data available for the selected filters.")
+    except Exception as _exc:
+        st.warning(f"Could not render channel contribution table: {_exc}")
+        if st.button("Retry", key="retry_ch_tbl"):
+            st.cache_data.clear()
+            st.rerun()
 
 st.divider()
 
 # ── Conversion trend by day of week ───────────────────────────────────────────
 st.subheader("Conversion Trend by Day of Week")
 with st.spinner("Loading conversions by day of week…"):
-    if not df_conv.empty:
-        df_dow = df_conv.copy()
-        df_dow["session_date"] = pd.to_datetime(df_dow["session_date"])
-        df_dow["dow"] = df_dow["session_date"].dt.dayofweek  # 0=Mon … 6=Sun
-        df_dow["day_name"] = df_dow["session_date"].dt.strftime("%A")
-
-        dow_agg = (
-            df_dow.groupby(["dow", "day_name"])["goal_completions"]
-            .mean()
-            .reset_index()
-            .sort_values("dow")
-        )
-        best_dow = int(dow_agg.loc[dow_agg["goal_completions"].idxmax(), "dow"])
-        worst_dow = int(dow_agg.loc[dow_agg["goal_completions"].idxmin(), "dow"])
-        dow_colors = [
-            "#2ca02c" if d == best_dow
-            else "#d62728" if d == worst_dow
-            else "#636EFA"
-            for d in dow_agg["dow"]
-        ]
-
-        fig_dow = go.Figure(
-            go.Bar(
-                x=dow_agg["day_name"],
-                y=dow_agg["goal_completions"].round(1),
-                text=dow_agg["goal_completions"].round(1),
-                textposition="outside",
-                marker_color=dow_colors,
-                hovertemplate="<b>%{x}</b><br>Avg completions: %{y:.1f}<extra></extra>",
+    try:
+        if not df_conv.empty:
+            df_dow = df_conv.copy()
+            df_dow["session_date"] = pd.to_datetime(df_dow["session_date"])
+            df_dow["dow"] = df_dow["session_date"].dt.dayofweek
+            df_dow["day_name"] = df_dow["session_date"].dt.strftime("%A")
+            dow_agg = (
+                df_dow.groupby(["dow", "day_name"])["goal_completions"]
+                .mean()
+                .reset_index()
+                .sort_values("dow")
             )
-        )
-        best_day_name = dow_agg.loc[dow_agg["dow"] == best_dow, "day_name"].iloc[0]
-        worst_day_name = dow_agg.loc[dow_agg["dow"] == worst_dow, "day_name"].iloc[0]
-        fig_dow.update_layout(
-            title=(
-                f"Avg Daily Goal Completions by Day of Week — "
-                f"Best: {best_day_name} (green) · Worst: {worst_day_name} (red)"
-            ),
-            xaxis_title="Day of Week",
-            yaxis_title="Avg Goal Completions",
-            template=_plotly_tpl,
-            font=_FONT,
-        )
-        st.plotly_chart(fig_dow, use_container_width=True)
-        st.caption(
-            f"Green = best day ({best_day_name}) · "
-            f"Red = worst day ({worst_day_name}) · "
-            "Based on average daily goal completions"
-        )
-    else:
-        st.info("No data available for day-of-week analysis.")
+            best_dow = int(dow_agg.loc[dow_agg["goal_completions"].idxmax(), "dow"])
+            worst_dow = int(dow_agg.loc[dow_agg["goal_completions"].idxmin(), "dow"])
+            dow_colors = [
+                "#2ca02c" if d == best_dow
+                else "#d62728" if d == worst_dow
+                else "#636EFA"
+                for d in dow_agg["dow"]
+            ]
+            fig_dow = go.Figure(
+                go.Bar(
+                    x=dow_agg["day_name"],
+                    y=dow_agg["goal_completions"].round(1),
+                    text=dow_agg["goal_completions"].round(1),
+                    textposition="outside",
+                    marker_color=dow_colors,
+                    hovertemplate="<b>%{x}</b><br>Avg completions: %{y:.1f}<extra></extra>",
+                )
+            )
+            best_day_name = dow_agg.loc[dow_agg["dow"] == best_dow, "day_name"].iloc[0]
+            worst_day_name = dow_agg.loc[dow_agg["dow"] == worst_dow, "day_name"].iloc[0]
+            fig_dow.update_layout(
+                title=(
+                    f"Avg Daily Goal Completions by Day of Week — "
+                    f"Best: {best_day_name} (green) · Worst: {worst_day_name} (red)"
+                ),
+                xaxis_title="Day of Week",
+                yaxis_title="Avg Goal Completions",
+                template=_plotly_tpl,
+                font=_FONT,
+            )
+            st.plotly_chart(fig_dow, use_container_width=True)
+            st.caption(
+                f"Green = best day ({best_day_name}) · "
+                f"Red = worst day ({worst_day_name}) · "
+                "Based on average daily goal completions"
+            )
+        else:
+            st.info("No data available for day-of-week analysis.")
+    except Exception as _exc:
+        st.warning(f"Could not render day-of-week chart: {_exc}")
+        if st.button("Retry", key="retry_dow"):
+            st.cache_data.clear()
+            st.rerun()
 
 st.divider()
 
