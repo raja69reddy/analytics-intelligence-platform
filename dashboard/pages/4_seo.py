@@ -205,37 +205,81 @@ st.subheader("Top Organic Landing Pages")
 
 
 @st.cache_data(ttl=300)
-def _load_organic_pages(page_filter: str):
-    sql = (
-        "SELECT url, title, word_count, organic_sessions, organic_pageviews, "
-        "avg_session_duration_s, "
-        "ROUND(organic_bounces::NUMERIC / NULLIF(organic_sessions, 0) * 100, 2) AS bounce_rate_pct "
-        "FROM vw_seo "
-        "WHERE organic_sessions > 0 "
-        + (f"AND url ILIKE '%{page_filter}%' " if page_filter else "")
-        + "ORDER BY organic_sessions DESC LIMIT 20"
-    )
-    return query_df(sql)
+def _load_organic_pages_dated(start: str, end: str, page_filter: str = ""):
+    """Top organic pages with load_time from raw_scrape_pages, date-filtered organic sessions."""
+    _pg = f"AND v.url ILIKE '%{page_filter}%' " if page_filter else ""
+    # Organic sessions in the selected date range from raw_ga4_sessions
+    _date_sess = """
+        SELECT page AS page_url,
+               COUNT(DISTINCT session_id) AS dated_sessions
+        FROM raw_clickstream_events
+        WHERE DATE(timestamp) BETWEEN :s AND :e
+        GROUP BY page
+    """
+    sql = f"""
+        SELECT v.url,
+               v.title,
+               COALESCE(ds.dated_sessions, v.organic_sessions) AS organic_sessions,
+               ROUND(v.avg_session_duration_s, 1)              AS avg_time_s,
+               ROUND(v.organic_bounces::NUMERIC
+                     / NULLIF(v.organic_sessions, 0) * 100, 2) AS bounce_rate_pct,
+               v.word_count,
+               ROUND(AVG(sp.load_time_ms))                     AS load_time_ms
+        FROM vw_seo v
+        LEFT JOIN ({_date_sess}) ds ON ds.page_url = v.url
+        LEFT JOIN raw_scrape_pages sp
+            ON sp.url = v.url AND sp.http_status = 200
+        WHERE v.organic_sessions > 0 {_pg}
+        GROUP BY v.url, v.title, v.avg_session_duration_s, v.organic_sessions,
+                 v.organic_bounces, v.word_count, ds.dated_sessions
+        ORDER BY organic_sessions DESC
+        LIMIT 20
+    """
+    return query_df(sql, params={"s": start, "e": end})
 
 
 _search = st.text_input("Search pages", value=page_search, placeholder="/blog/")
 
 with st.spinner("Loading organic pages..."):
     try:
-        _pages_df = _load_organic_pages(_search)
+        _pages_df = _load_organic_pages_dated(start_str, end_str, _search)
         if _pages_df.empty:
-            st.info("No organic landing pages found with the current filter.")
+            st.info("No organic landing pages found for the current filters.")
         else:
-
             def _highlight_top3(row):
-                color = "background-color: #d4edda" if row.name < 3 else ""
-                return [color] * len(row)
+                return (
+                    ["background-color: #d4edda"] * len(row)
+                    if row.name < 3
+                    else [""] * len(row)
+                )
 
-            styled = _pages_df.style.apply(_highlight_top3, axis=1)
-            st.dataframe(styled, use_container_width=True, hide_index=True)
-            st.caption(f"Showing {len(_pages_df)} pages | Top 3 highlighted in green")
+            styled_pages = _pages_df.style.apply(_highlight_top3, axis=1).format(
+                {
+                    "organic_sessions": "{:,}",
+                    "avg_time_s": "{:.1f}s",
+                    "bounce_rate_pct": "{:.1f}%",
+                    "word_count": "{:,}",
+                    "load_time_ms": "{:.0f} ms",
+                },
+                na_rep="—",
+            )
+            st.dataframe(styled_pages, use_container_width=True, hide_index=True)
+            st.download_button(
+                "Download as CSV",
+                data=_pages_df.to_csv(index=False).encode("utf-8"),
+                file_name="organic_landing_pages.csv",
+                mime="text/csv",
+                key="dl_organic_pages_csv",
+            )
+            st.caption(
+                f"{len(_pages_df)} pages · Organic sessions: {start_date} → {end_date} · "
+                "Top 3 highlighted in green · load_time_ms from raw_scrape_pages"
+            )
     except Exception as exc:
         st.error(f"Could not load organic pages: {exc}")
+        if st.button("Retry", key="retry_organic_pages"):
+            st.cache_data.clear()
+            st.rerun()
 
 st.divider()
 
