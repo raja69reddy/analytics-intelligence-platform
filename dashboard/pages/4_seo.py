@@ -132,20 +132,31 @@ st.subheader("Word Count vs Engagement")
 
 
 @st.cache_data(ttl=300)
-def _load_wc_scatter():
+def _load_wc_scatter(start: str, end: str):
+    """Word count vs engagement — raw_scrape_pages as base, joined with vw_seo + session data."""
     return query_df(
-        "SELECT s.url, s.word_count, s.organic_sessions, "
-        "s.organic_pageviews AS pageviews, "
-        "s.avg_session_duration_s, "
-        "ROUND(s.organic_bounces::NUMERIC / NULLIF(s.organic_sessions, 0) * 100, 2) AS bounce_rate_pct "
-        "FROM vw_seo s "
-        "WHERE s.word_count IS NOT NULL AND s.word_count > 0"
+        """SELECT DISTINCT ON (sp.url)
+                  sp.url,
+                  sp.word_count,
+                  sp.load_time_ms,
+                  COALESCE(v.organic_sessions, 0)        AS organic_sessions,
+                  COALESCE(v.organic_pageviews, 0)       AS pageviews,
+                  COALESCE(v.avg_session_duration_s, 0)  AS avg_session_duration_s,
+                  ROUND(
+                      COALESCE(v.organic_bounces, 0)::NUMERIC
+                      / NULLIF(COALESCE(v.organic_sessions, 0), 0) * 100,
+                  2) AS bounce_rate_pct
+           FROM raw_scrape_pages sp
+           LEFT JOIN vw_seo v ON v.url = sp.url
+           WHERE sp.http_status = 200
+             AND sp.word_count IS NOT NULL AND sp.word_count > 0
+           ORDER BY sp.url, sp.scraped_at DESC""",
     )
 
 
 with st.spinner("Loading scatter data..."):
     try:
-        _wc_df = _load_wc_scatter()
+        _wc_df = _load_wc_scatter(start_str, end_str)
         if _wc_df.empty:
             st.info("No data available for scatter plot.")
         else:
@@ -161,22 +172,23 @@ with st.spinner("Loading scatter data..."):
                 hover_data={
                     "word_count": True,
                     "organic_sessions": True,
+                    "load_time_ms": True,
                     "bubble_size": False,
                 },
                 labels={
                     "word_count": "Word Count",
                     "avg_session_duration_s": "Avg Session Duration (s)",
                     "bounce_rate_pct": "Bounce Rate %",
+                    "load_time_ms": "Load Time (ms)",
                 },
-                title="Word Count vs Engagement (bubble = pageviews, color = bounce rate)",
                 color_continuous_scale="RdYlGn_r",
                 trendline="ols",
             )
             fig_scatter.update_layout(
-                title="Word Count vs Engagement — bubble size = pageviews, color = bounce rate",
+                title="Word Count vs Engagement — bubble = pageviews, color = bounce rate, source: raw_scrape_pages ⋈ vw_seo",
                 xaxis_title="Word Count",
                 yaxis_title="Avg Session Duration (s)",
-                height=450,
+                height=480,
                 template=_plotly_tpl,
                 font=_FONT,
             )
@@ -193,10 +205,15 @@ with st.spinner("Loading scatter data..."):
             except Exception:
                 st.caption("Install kaleido to enable PNG export.")
             st.caption(
-                "Trend line shows relationship between content length and user engagement."
+                f"{len(_wc_df)} pages · "
+                "Trend line = OLS fit · Bubble size = organic pageviews · "
+                "Color: red = high bounce rate, green = low"
             )
     except Exception as exc:
         st.error(f"Could not render scatter plot: {exc}")
+        if st.button("Retry", key="retry_scatter"):
+            st.cache_data.clear()
+            st.rerun()
 
 st.divider()
 
