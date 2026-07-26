@@ -313,17 +313,27 @@ def _load_health():
     )
 
 
-def _health_score(row) -> str:
-    issues = []
+def _health_issues(row) -> str:
+    """Return comma-separated list of all detected problems, or empty string if healthy."""
+    found = []
     if not row.get("meta_description"):
-        issues.append("missing meta")
+        found.append("missing meta description")
     if (row.get("word_count") or 0) < 300:
-        issues.append("low word count")
+        found.append(f"low word count ({row.get('word_count', 0)})")
     if (row.get("load_time_ms") or 0) > 2000:
-        issues.append("slow load")
-    if not issues:
+        found.append(f"slow load ({row.get('load_time_ms', 0)} ms)")
+    if row.get("http_status") not in (200, None) and row.get("http_status"):
+        found.append(f"HTTP {row['http_status']}")
+    if (row.get("internal_links") or 0) == 0:
+        found.append("no internal links (orphan page)")
+    return "; ".join(found)
+
+
+def _health_score(issues_str: str) -> str:
+    count = issues_str.count(";") + 1 if issues_str else 0
+    if count == 0:
         return "healthy"
-    if len(issues) >= 2:
+    if count >= 2:
         return "issues"
     return "needs work"
 
@@ -336,15 +346,32 @@ with st.spinner("Loading content health..."):
                 "No scrape data available. Run gen_scrape.py --mode full to populate."
             )
         else:
-            _health_df["health"] = _health_df.apply(_health_score, axis=1)
-            _health_df = add_rank_column(_health_df)
+            _health_df["Issues"] = _health_df.apply(_health_issues, axis=1)
+            _health_df["health"] = _health_df["Issues"].apply(_health_score)
+
+            _display_cols = ["url", "title", "word_count", "load_time_ms",
+                             "internal_links", "external_links", "Issues", "health"]
+            _disp = _health_df[[c for c in _display_cols if c in _health_df.columns]].copy()
+            _disp = add_rank_column(_disp)
 
             def _color_health(row):
                 c = {"healthy": "#d4edda", "needs work": "#fff3cd", "issues": "#f8d7da"}
-                bg = c.get(row["health"], "")
+                bg = c.get(row.get("health", ""), "")
                 return [f"background-color: {bg}"] * len(row)
 
-            styled = _health_df.style.apply(_color_health, axis=1)
+            styled = (
+                _disp.style
+                .apply(_color_health, axis=1)
+                .format(
+                    {
+                        "word_count": "{:,}",
+                        "load_time_ms": lambda v: f"{v:,.0f} ms" if v == v else "—",
+                        "internal_links": "{:.0f}",
+                        "external_links": "{:.0f}",
+                    },
+                    na_rep="—",
+                )
+            )
             st.dataframe(styled, use_container_width=True, hide_index=True)
 
             csv_bytes = _health_df.to_csv(index=False).encode("utf-8")
@@ -353,16 +380,21 @@ with st.spinner("Loading content health..."):
                 data=csv_bytes,
                 file_name="content_health.csv",
                 mime="text/csv",
+                key="dl_health_csv",
             )
-            healthy = (_health_df["health"] == "healthy").sum()
-            needs_work = (_health_df["health"] == "needs work").sum()
-            issues = (_health_df["health"] == "issues").sum()
+            _healthy_n = (_health_df["health"] == "healthy").sum()
+            _needs_work_n = (_health_df["health"] == "needs work").sum()
+            _issues_n = (_health_df["health"] == "issues").sum()
             st.caption(
-                f"Healthy: {healthy} | Needs work: {needs_work} | Issues: {issues} "
-                f"(green = healthy, yellow = needs work, red = issues)"
+                f"{len(_health_df)} pages audited — "
+                f"Healthy: {_healthy_n} | Needs work: {_needs_work_n} | Issues: {_issues_n} · "
+                "Issues column lists all detected problems per page"
             )
     except Exception as exc:
         st.error(f"Could not load content health: {exc}")
+        if st.button("Retry", key="retry_health"):
+            st.cache_data.clear()
+            st.rerun()
 
 st.divider()
 
