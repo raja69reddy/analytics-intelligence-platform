@@ -405,9 +405,31 @@ st.subheader("Page Load Time Distribution")
 @st.cache_data(ttl=300)
 def _load_times():
     return query_df(
-        "SELECT load_time_ms FROM raw_scrape_pages WHERE http_status = 200 AND load_time_ms IS NOT NULL"
+        """SELECT DISTINCT ON (url)
+                  url, load_time_ms
+           FROM raw_scrape_pages
+           WHERE http_status = 200 AND load_time_ms IS NOT NULL
+           ORDER BY url, scraped_at DESC"""
     )
 
+
+def _lt_bucket(ms: float) -> str:
+    if ms <= 500:
+        return "Fast (≤500ms)"
+    if ms <= 1000:
+        return "OK (501–1000ms)"
+    if ms <= 2000:
+        return "Slow (1001–2000ms)"
+    return "Very Slow (>2000ms)"
+
+
+_BUCKET_ORDER = ["Fast (≤500ms)", "OK (501–1000ms)", "Slow (1001–2000ms)", "Very Slow (>2000ms)"]
+_BUCKET_COLORS = {
+    "Fast (≤500ms)": "#28a745",
+    "OK (501–1000ms)": "#ffc107",
+    "Slow (1001–2000ms)": "#fd7e14",
+    "Very Slow (>2000ms)": "#dc3545",
+}
 
 with st.spinner("Loading load time data..."):
     try:
@@ -415,82 +437,101 @@ with st.spinner("Loading load time data..."):
         if _lt_df.empty:
             st.info("No load time data available.")
         else:
+            _lt_df["bucket"] = _lt_df["load_time_ms"].apply(_lt_bucket)
+            _counts = _lt_df["bucket"].value_counts().reindex(_BUCKET_ORDER, fill_value=0)
 
-            def _bucket(ms):
-                if ms <= 500:
-                    return "Fast (≤500ms)"
-                if ms <= 1000:
-                    return "OK (501–1000ms)"
-                if ms <= 2000:
-                    return "Slow (1001–2000ms)"
-                return "Very Slow (>2000ms)"
+            _col_bar, _col_hist = st.columns(2)
 
-            _lt_df["bucket"] = _lt_df["load_time_ms"].apply(_bucket)
-            _bucket_order = [
-                "Fast (≤500ms)",
-                "OK (501–1000ms)",
-                "Slow (1001–2000ms)",
-                "Very Slow (>2000ms)",
-            ]
-            _bucket_colors = {
-                "Fast (≤500ms)": "#28a745",
-                "OK (501–1000ms)": "#ffc107",
-                "Slow (1001–2000ms)": "#fd7e14",
-                "Very Slow (>2000ms)": "#dc3545",
-            }
-            _counts = (
-                _lt_df["bucket"].value_counts().reindex(_bucket_order, fill_value=0)
-            )
-
-            fig_load = go.Figure(
-                go.Bar(
-                    x=_counts.index.tolist(),
-                    y=_counts.values.tolist(),
-                    marker_color=[_bucket_colors[b] for b in _counts.index],
+            with _col_bar:
+                fig_load = go.Figure(
+                    go.Bar(
+                        x=_counts.index.tolist(),
+                        y=_counts.values.tolist(),
+                        marker_color=[_BUCKET_COLORS[b] for b in _counts.index],
+                        text=_counts.values.tolist(),
+                        textposition="outside",
+                    )
                 )
+                _fast_pct = round(_counts.get("Fast (≤500ms)", 0) / max(len(_lt_df), 1) * 100, 1)
+                _slow_pct = round(
+                    (_counts.get("Slow (1001–2000ms)", 0) + _counts.get("Very Slow (>2000ms)", 0))
+                    / max(len(_lt_df), 1) * 100,
+                    1,
+                )
+                fig_load.add_annotation(
+                    xref="paper", yref="paper",
+                    x=0.02, y=0.97,
+                    text=f"Fast: {_fast_pct}% · Slow: {_slow_pct}%",
+                    showarrow=False,
+                    font=dict(size=12, color="#28a745"),
+                    bgcolor="rgba(40,167,69,0.12)",
+                    bordercolor="#28a745",
+                    borderwidth=1,
+                    borderpad=4,
+                    align="left",
+                )
+                fig_load.update_layout(
+                    title="Load Time Buckets",
+                    xaxis_title="Bucket",
+                    yaxis_title="Pages",
+                    height=400,
+                    showlegend=False,
+                    template=_plotly_tpl,
+                    font=_FONT,
+                )
+                st.plotly_chart(fig_load, use_container_width=True)
+
+            with _col_hist:
+                _median_ms = _lt_df["load_time_ms"].median()
+                _mean_ms = _lt_df["load_time_ms"].mean()
+                fig_hist = go.Figure(
+                    go.Histogram(
+                        x=_lt_df["load_time_ms"],
+                        nbinsx=30,
+                        marker_color="#636EFA",
+                        opacity=0.8,
+                    )
+                )
+                fig_hist.add_vline(
+                    x=_median_ms,
+                    line_dash="dash",
+                    line_color="#ffd700",
+                    annotation_text=f"Median: {int(_median_ms)}ms",
+                    annotation_position="top right",
+                )
+                fig_hist.add_vline(
+                    x=2000,
+                    line_dash="dot",
+                    line_color="#dc3545",
+                    annotation_text="2000ms threshold",
+                    annotation_position="top left",
+                )
+                fig_hist.update_layout(
+                    title="Load Time Histogram (per page)",
+                    xaxis_title="Load Time (ms)",
+                    yaxis_title="Pages",
+                    height=400,
+                    template=_plotly_tpl,
+                    font=_FONT,
+                )
+                st.plotly_chart(fig_hist, use_container_width=True)
+
+            _worst_df = (
+                _lt_df.nlargest(5, "load_time_ms")[["url", "load_time_ms"]]
+                .rename(columns={"load_time_ms": "Load Time (ms)"})
+                .reset_index(drop=True)
             )
-            fig_load.update_layout(
-                title="Page Load Time Distribution — green = fast (<500ms), red = very slow (>2s)",
-                xaxis_title="Load Time Bucket",
-                yaxis_title="Number of Pages",
-                height=400,
-                showlegend=False,
-                template=_plotly_tpl,
-                font=_FONT,
-            )
-            # Reference lines at 1000ms and 2000ms
-            fig_load.add_vline(
-                x=1.5,
-                line_dash="dash",
-                line_color="orange",
-                annotation_text="1000ms (good threshold)",
-            )
-            fig_load.add_vline(
-                x=2.5,
-                line_dash="dash",
-                line_color="red",
-                annotation_text="2000ms (poor threshold)",
-            )
-            _fast_pct = round(_counts.get("Fast (≤500ms)", 0) / len(_lt_df) * 100, 1)
-            fig_load.add_annotation(
-                xref="paper", yref="paper",
-                x=0.02, y=0.95,
-                text=f"{_fast_pct}% of pages load in <500ms",
-                showarrow=False,
-                font=dict(size=12, color="#28a745"),
-                bgcolor="rgba(40,167,69,0.12)",
-                bordercolor="#28a745",
-                borderwidth=1,
-                borderpad=4,
-                align="left",
-            )
-            st.plotly_chart(fig_load, use_container_width=True)
+            st.caption("Slowest pages")
+            st.dataframe(_worst_df, use_container_width=True, hide_index=True)
             st.caption(
-                f"Total pages: {len(_lt_df)} | Avg: {int(_lt_df['load_time_ms'].mean())}ms | "
-                f"Max: {int(_lt_df['load_time_ms'].max())}ms"
+                f"{len(_lt_df)} pages · Avg: {int(_mean_ms)}ms · "
+                f"Median: {int(_median_ms)}ms · Max: {int(_lt_df['load_time_ms'].max())}ms"
             )
     except Exception as exc:
         st.error(f"Could not render load time chart: {exc}")
+        if st.button("Retry", key="retry_loadtime"):
+            st.cache_data.clear()
+            st.rerun()
 
 st.divider()
 
