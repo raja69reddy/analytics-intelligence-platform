@@ -1,5 +1,14 @@
 # Changelog
 
+## Day 46 - SEO Page Enhanced
+- Added date-filtered organic landing pages table: `_load_organic_pages_dated(start, end, page_filter)` joins `raw_clickstream_events` session counts with `vw_seo`, adds `load_time_ms` via `raw_scrape_pages` join, formatted columns, CSV download, Retry button
+- Updated word count vs engagement scatter: loader changed to `raw_scrape_pages LEFT JOIN vw_seo` as base table, adds `load_time_ms` to hover, trendline, count caption, Retry button
+- Improved content health table: replaced single `_health_score()` with `_health_issues()` listing all problems (missing meta, low word count, slow load, HTTP errors, orphan pages) and `_health_score()` derived from issue count; explicit "Issues" column; formatted columns; Retry button
+- Enhanced page load time distribution: added deduplication (`DISTINCT ON url`), split into side-by-side bucket bar chart and histogram with median/threshold vlines, slowest-pages table, Retry button
+- Enhanced links analysis: loader extended with `vw_seo` JOIN for organic sessions; KPI metrics row (total, orphan %, heavy-ext count); orphan pages table always visible with `OrRd` gradient and CSV download; Retry button
+- Added content score chart: composite score (word count 0–40 + meta 20 + internal links 0–20 + load speed 0–20 = 100), horizontal bar chart top 10 with `RdYlGn` colorscale, score breakdown table, avg/high-quality caption
+- Added caching and error handling: Retry button added to KPI section; all 8 loaders verified with `@st.cache_data(ttl=300)` and `try/except`
+
 ## Day 45 - Conversions Page Enhanced
 - Added CVR over time line chart with dedicated `_load_cvr_trend()` cached loader, 7-day rolling average, dashed target reference line, range selector 7D/30D/90D, and best-day annotation
 - Added A/B test results section: mock variant data, Wilson 95% confidence intervals, two-proportion Z-test significance badges, CI bar chart with green winner highlight
