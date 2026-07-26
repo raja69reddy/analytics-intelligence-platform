@@ -542,8 +542,13 @@ st.subheader("Internal & External Links Analysis")
 @st.cache_data(ttl=300)
 def _load_links():
     return query_df(
-        "SELECT DISTINCT ON (url) url, internal_links, external_links "
-        "FROM raw_scrape_pages WHERE http_status = 200 ORDER BY url, scraped_at DESC"
+        """SELECT DISTINCT ON (sp.url)
+                  sp.url, sp.title, sp.internal_links, sp.external_links,
+                  COALESCE(v.organic_sessions, 0) AS organic_sessions
+           FROM raw_scrape_pages sp
+           LEFT JOIN vw_seo v ON v.url = sp.url
+           WHERE sp.http_status = 200
+           ORDER BY sp.url, sp.scraped_at DESC"""
     )
 
 
@@ -579,17 +584,7 @@ with st.spinner("Loading links data..."):
             )
             col_a.plotly_chart(fig_avg, use_container_width=True)
 
-            # Orphan pages (zero internal links)
-            _orphans = _links_df[_links_df["internal_links"] == 0]
-            col_a.metric("Orphan Pages (0 internal links)", len(_orphans))
-            if not _orphans.empty:
-                with col_a.expander(f"View {len(_orphans)} orphan page(s)"):
-                    st.dataframe(
-                        _orphans[["url", "internal_links", "external_links"]],
-                        hide_index=True,
-                    )
-
-            # Pages with many external links (>10)
+            # External links histogram
             _heavy_ext = _links_df[_links_df["external_links"] > 10]
             fig_ext = px.histogram(
                 _links_df,
@@ -599,7 +594,7 @@ with st.spinner("Loading links data..."):
                 template=_plotly_tpl,
             )
             fig_ext.update_layout(
-                title="External Links Distribution — pages with >10 external links flagged",
+                title="External Links Distribution",
                 xaxis_title="Number of External Links",
                 yaxis_title="Pages",
                 height=350,
@@ -607,16 +602,66 @@ with st.spinner("Loading links data..."):
                 font=_FONT,
             )
             col_b.plotly_chart(fig_ext, use_container_width=True)
-            col_b.metric("Pages with >10 External Links", len(_heavy_ext))
+
+            # KPI metrics row
+            _orphans = _links_df[_links_df["internal_links"] == 0]
+            _m1, _m2, _m3 = st.columns(3)
+            _m1.metric("Total Pages", len(_links_df))
+            _m2.metric(
+                "Orphan Pages",
+                len(_orphans),
+                delta=f"{round(len(_orphans)/max(len(_links_df),1)*100,1)}% of total",
+                delta_color="inverse",
+            )
+            _m3.metric("Pages with >10 External Links", len(_heavy_ext))
+
+            # Orphan pages table — prominent, always visible
+            st.markdown("#### Orphan Pages (zero internal links)")
+            if _orphans.empty:
+                st.success("No orphan pages detected.")
+            else:
+                _orphan_display = (
+                    _orphans[["url", "title", "external_links", "organic_sessions"]]
+                    .sort_values("organic_sessions", ascending=False)
+                    .reset_index(drop=True)
+                    .rename(columns={
+                        "url": "URL",
+                        "title": "Title",
+                        "external_links": "External Links",
+                        "organic_sessions": "Organic Sessions",
+                    })
+                )
+                st.dataframe(
+                    _orphan_display.style.background_gradient(
+                        subset=["Organic Sessions"], cmap="OrRd"
+                    ),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+                st.caption(
+                    f"{len(_orphans)} orphan page(s) — these pages have no internal links pointing to them. "
+                    "Add internal links to improve crawlability and PageRank distribution."
+                )
+                _csv_orphans = _orphan_display.to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "Download Orphan Pages CSV",
+                    data=_csv_orphans,
+                    file_name="seo_orphan_pages.csv",
+                    mime="text/csv",
+                    key="dl_orphans_csv",
+                )
+
+            # Heavy external links table
             if not _heavy_ext.empty:
-                with col_b.expander(
-                    f"View {len(_heavy_ext)} page(s) with many external links"
-                ):
+                with st.expander(f"Pages with >10 external links ({len(_heavy_ext)})"):
                     st.dataframe(
-                        _heavy_ext[
-                            ["url", "internal_links", "external_links"]
-                        ].sort_values("external_links", ascending=False),
+                        _heavy_ext[["url", "internal_links", "external_links"]]
+                        .sort_values("external_links", ascending=False)
+                        .reset_index(drop=True),
                         hide_index=True,
                     )
     except Exception as exc:
         st.error(f"Could not load links analysis: {exc}")
+        if st.button("Retry", key="retry_links"):
+            st.cache_data.clear()
+            st.rerun()
