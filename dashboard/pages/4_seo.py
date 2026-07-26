@@ -124,6 +124,9 @@ with st.spinner("Loading KPIs..."):
         )
     except Exception as exc:
         st.error(f"Could not load KPIs: {exc}")
+        if st.button("Retry", key="retry_kpis"):
+            st.cache_data.clear()
+            st.rerun()
 
 st.divider()
 
