@@ -665,3 +665,125 @@ with st.spinner("Loading links data..."):
         if st.button("Retry", key="retry_links"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Content score chart ───────────────────────────────────────────────────────
+st.subheader("Content Score — Top 10 Pages")
+st.caption(
+    "Score = word_count (0–40 pts) + meta description (20 pts) + "
+    "internal links (0–20 pts) + load speed (0–20 pts)"
+)
+
+
+@st.cache_data(ttl=300)
+def _load_content_scores():
+    return query_df(
+        """SELECT DISTINCT ON (sp.url)
+                  sp.url,
+                  sp.title,
+                  sp.word_count,
+                  sp.meta_description,
+                  sp.internal_links,
+                  sp.load_time_ms
+           FROM raw_scrape_pages sp
+           WHERE sp.http_status = 200
+           ORDER BY sp.url, sp.scraped_at DESC"""
+    )
+
+
+def _compute_score(row) -> float:
+    """Composite content score out of 100."""
+    # Word count component: 40 pts max — 300 words = 0, 2000+ words = 40
+    wc = row.get("word_count") or 0
+    wc_score = min(40.0, max(0.0, (wc - 300) / (2000 - 300) * 40))
+
+    # Meta description: 20 pts if present
+    meta_score = 20.0 if row.get("meta_description") else 0.0
+
+    # Internal links: 20 pts — 0 = 0pts, 10+ = 20pts
+    il = row.get("internal_links") or 0
+    link_score = min(20.0, il / 10.0 * 20.0)
+
+    # Load speed: 20 pts — ≤500ms = 20, ≥3000ms = 0, linear between
+    lt = row.get("load_time_ms") or 3000
+    speed_score = max(0.0, min(20.0, (3000 - lt) / (3000 - 500) * 20.0))
+
+    return round(wc_score + meta_score + link_score + speed_score, 1)
+
+
+with st.spinner("Loading content scores..."):
+    try:
+        _score_df = _load_content_scores()
+        if _score_df.empty:
+            st.info("No scrape data available for content scoring.")
+        else:
+            _score_df["content_score"] = _score_df.apply(_compute_score, axis=1)
+            _top10 = _score_df.nlargest(10, "content_score").reset_index(drop=True)
+
+            _short_labels = _top10["url"].str.replace(r"https?://[^/]+", "", regex=True)
+            _short_labels = _short_labels.where(_short_labels != "", _top10["url"])
+
+            fig_score = go.Figure(
+                go.Bar(
+                    x=_top10["content_score"],
+                    y=_short_labels,
+                    orientation="h",
+                    marker=dict(
+                        color=_top10["content_score"],
+                        colorscale="RdYlGn",
+                        cmin=0,
+                        cmax=100,
+                        showscale=True,
+                        colorbar=dict(title="Score"),
+                    ),
+                    text=_top10["content_score"].apply(lambda v: f"{v:.0f}"),
+                    textposition="outside",
+                    hovertemplate=(
+                        "<b>%{y}</b><br>"
+                        "Score: %{x:.1f}/100<extra></extra>"
+                    ),
+                )
+            )
+            fig_score.update_layout(
+                title="Top 10 Pages by Content Score (out of 100)",
+                xaxis_title="Content Score",
+                yaxis_title="Page URL",
+                yaxis=dict(autorange="reversed"),
+                height=420,
+                template=_plotly_tpl,
+                font=_FONT,
+                margin=dict(l=20, r=80),
+            )
+            st.plotly_chart(fig_score, use_container_width=True)
+
+            # Score breakdown table for top 10
+            _breakdown = _top10[["url", "word_count", "meta_description", "internal_links",
+                                   "load_time_ms", "content_score"]].copy()
+            _breakdown["has_meta"] = _breakdown["meta_description"].notna().map({True: "Yes", False: "No"})
+            _breakdown = _breakdown.drop(columns=["meta_description"]).rename(columns={
+                "url": "URL",
+                "word_count": "Words",
+                "has_meta": "Has Meta",
+                "internal_links": "Int. Links",
+                "load_time_ms": "Load (ms)",
+                "content_score": "Score",
+            })
+            st.dataframe(
+                _breakdown.style.background_gradient(subset=["Score"], cmap="RdYlGn"),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            _avg_score = round(float(_score_df["content_score"].mean()), 1)
+            _above80 = (_score_df["content_score"] >= 80).sum()
+            st.caption(
+                f"{len(_score_df)} pages scored · "
+                f"Avg score: {_avg_score}/100 · "
+                f"High quality (≥80): {_above80} pages"
+            )
+    except Exception as exc:
+        st.error(f"Could not render content score chart: {exc}")
+        if st.button("Retry", key="retry_score"):
+            st.cache_data.clear()
+            st.rerun()
