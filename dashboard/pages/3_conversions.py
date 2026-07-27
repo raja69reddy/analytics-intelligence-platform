@@ -1283,3 +1283,132 @@ with st.spinner("Loading micro conversion data…"):
         if st.button("Retry", key="retry_micro"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Conversion attribution comparison ─────────────────────────────────────────
+st.subheader("Conversion Attribution — First / Last / Linear Touch")
+st.caption(
+    "Compares how many goal completions each channel gets credit for under "
+    "three attribution models: first-touch (credit to earliest-session channel), "
+    "last-touch (direct from vw_conversions), and linear (equal split)."
+)
+
+
+@st.cache_data(ttl=300)
+def _load_channel_sessions_attr(start_date=None, end_date=None):
+    """Channel session share — used to compute first-touch attribution proxy."""
+    _conds: list = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("session_date BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = ("WHERE " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"SELECT channel_grouping, SUM(sessions) AS sessions FROM raw_ga4_sessions {_where} GROUP BY channel_grouping",
+        params=_params or None,
+    )
+
+
+@st.cache_data(ttl=300)
+def _load_last_touch_attr(start_date=None, end_date=None, channels: tuple = ()):
+    """Last-touch attribution — directly from vw_conversions."""
+    where, params = build_where_clause(start_date, end_date, channels=list(channels) or None)
+    return query_df(
+        f"""SELECT channel_grouping,
+                   SUM(goal_completions) AS last_touch_conversions
+            FROM vw_conversions {where}
+            GROUP BY channel_grouping
+            ORDER BY last_touch_conversions DESC""",
+        params=params or None,
+    )
+
+
+with st.spinner("Loading attribution data…"):
+    try:
+        df_last = _load_last_touch_attr(start_date, end_date, tuple(channels))
+        df_sess_attr = _load_channel_sessions_attr(start_date, end_date)
+
+        if df_last.empty:
+            st.info("No attribution data available for the selected filters.")
+        else:
+            _total_conv_attr = int(df_last["last_touch_conversions"].sum())
+
+            # First-touch: redistribute total conversions by session share
+            _total_sess_attr = df_sess_attr["sessions"].sum() if not df_sess_attr.empty else 1
+            df_sess_attr["first_touch_conversions"] = (
+                df_sess_attr["sessions"] / max(_total_sess_attr, 1) * _total_conv_attr
+            ).round(0).astype(int)
+
+            # Merge into one frame
+            df_attr = df_last.merge(
+                df_sess_attr[["channel_grouping", "first_touch_conversions"]],
+                on="channel_grouping", how="outer",
+            ).fillna(0)
+            df_attr["first_touch_conversions"] = df_attr["first_touch_conversions"].astype(int)
+            df_attr["last_touch_conversions"] = df_attr["last_touch_conversions"].astype(int)
+
+            # Linear: equal share of total conversions per channel
+            _n_channels = max(len(df_attr), 1)
+            df_attr["linear_conversions"] = round(_total_conv_attr / _n_channels)
+
+            df_attr = df_attr.sort_values("last_touch_conversions", ascending=True)
+
+            _CH_COLORS = ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#19D3F3", "#FF6692", "#B6E880"]
+            fig_attr = go.Figure()
+            _models = [
+                ("first_touch_conversions", "First Touch", "#00CC96"),
+                ("last_touch_conversions", "Last Touch", "#636EFA"),
+                ("linear_conversions", "Linear", "#FFA15A"),
+            ]
+            for col, label, color in _models:
+                fig_attr.add_trace(
+                    go.Bar(
+                        name=label,
+                        x=df_attr[col],
+                        y=df_attr["channel_grouping"],
+                        orientation="h",
+                        marker_color=color,
+                        hovertemplate=(
+                            f"<b>%{{y}}</b><br>{label}: %{{x:,}}<extra></extra>"
+                        ),
+                    )
+                )
+            fig_attr.update_layout(
+                title=(
+                    f"Attribution Comparison — {_total_conv_attr:,} total conversions · "
+                    "Green = first touch · Blue = last touch · Orange = linear"
+                ),
+                xaxis_title="Attributed Conversions",
+                yaxis_title="Channel",
+                barmode="group",
+                template=_plotly_tpl,
+                legend=dict(orientation="h", y=1.1),
+                height=max(380, len(df_attr) * 60 + 120),
+                font=_FONT,
+            )
+            st.plotly_chart(fig_attr, use_container_width=True)
+
+            # Attribution table
+            _attr_tbl = df_attr[["channel_grouping", "first_touch_conversions",
+                                   "last_touch_conversions", "linear_conversions"]].copy()
+            _attr_tbl.columns = ["Channel", "First Touch", "Last Touch", "Linear"]
+            _attr_tbl = _attr_tbl.sort_values("Last Touch", ascending=False).reset_index(drop=True)
+            st.dataframe(_attr_tbl, use_container_width=True, hide_index=True)
+            st.caption(
+                "First touch: credit to channel with highest session share (proxy) · "
+                "Last touch: credit to channel that drove direct conversion · "
+                "Linear: equal credit per channel"
+            )
+            st.download_button(
+                "Download attribution table CSV",
+                data=_attr_tbl.to_csv(index=False).encode("utf-8"),
+                file_name="conversion_attribution.csv",
+                mime="text/csv",
+                key="dl_attr_csv",
+            )
+    except Exception as _exc:
+        st.error(f"Could not load attribution data: {_exc}")
+        if st.button("Retry", key="retry_attr"):
+            st.cache_data.clear()
+            st.rerun()
