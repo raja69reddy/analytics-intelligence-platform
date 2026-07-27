@@ -1731,3 +1731,127 @@ with st.spinner("Loading page flow data…"):
         if st.button("Retry", key="retry_sankey"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Goal completion trend by channel ──────────────────────────────────────────
+st.subheader("Goal Completion Trend by Channel")
+st.caption(
+    "Daily goal completions over time with a separate line per acquisition channel. "
+    "Apply the sidebar date and channel filters to zoom in."
+)
+
+_CHANNEL_COLORS_LINE = [
+    "#636EFA", "#EF553B", "#00CC96", "#AB63FA",
+    "#FFA15A", "#19D3F3", "#FF6692", "#B6E880",
+]
+
+
+@st.cache_data(ttl=300)
+def _load_goal_trend_by_channel(start_date=None, end_date=None, channels: tuple = ()):
+    where, params = build_where_clause(start_date, end_date, channels=list(channels) or None)
+    return query_df(
+        f"""SELECT session_date,
+                   channel_grouping,
+                   SUM(goal_completions) AS goal_completions
+            FROM vw_conversions {where}
+            GROUP BY session_date, channel_grouping
+            ORDER BY session_date, channel_grouping""",
+        params=params or None,
+    )
+
+
+with st.spinner("Loading goal trend by channel…"):
+    try:
+        df_goal_ch = _load_goal_trend_by_channel(start_date, end_date, tuple(channels))
+
+        if df_goal_ch.empty:
+            st.info("No goal completion trend data available for the selected filters.")
+        else:
+            df_goal_ch["session_date"] = pd.to_datetime(df_goal_ch["session_date"])
+            _ch_list = sorted(df_goal_ch["channel_grouping"].dropna().unique())
+
+            fig_goal_ch = go.Figure()
+            for _i, _ch in enumerate(_ch_list):
+                _ch_data = df_goal_ch[df_goal_ch["channel_grouping"] == _ch].sort_values("session_date")
+                _color = _CHANNEL_COLORS_LINE[_i % len(_CHANNEL_COLORS_LINE)]
+                fig_goal_ch.add_trace(
+                    go.Scatter(
+                        x=_ch_data["session_date"],
+                        y=_ch_data["goal_completions"],
+                        name=_ch,
+                        mode="lines+markers",
+                        marker=dict(size=5, color=_color),
+                        line=dict(color=_color, width=2),
+                        hovertemplate=(
+                            f"<b>{_ch}</b><br>"
+                            "%{x|%Y-%m-%d}<br>"
+                            "Completions: %{y:,}"
+                            "<extra></extra>"
+                        ),
+                    )
+                )
+
+            # Range selector
+            fig_goal_ch.update_xaxes(
+                rangeselector=dict(
+                    buttons=[
+                        dict(count=7, label="7D", step="day", stepmode="backward"),
+                        dict(count=30, label="30D", step="day", stepmode="backward"),
+                        dict(count=90, label="90D", step="day", stepmode="backward"),
+                        dict(step="all", label="All"),
+                    ]
+                ),
+                rangeslider=dict(visible=False),
+            )
+            fig_goal_ch.update_layout(
+                title=f"Daily Goal Completions by Channel — {len(_ch_list)} channels",
+                xaxis_title="Date",
+                yaxis_title="Goal Completions",
+                template=_plotly_tpl,
+                legend=dict(orientation="h", y=1.12),
+                hovermode="x unified",
+                height=450,
+                font=_FONT,
+            )
+            st.plotly_chart(fig_goal_ch, use_container_width=True)
+
+            # Channel summary table
+            _ch_summary = (
+                df_goal_ch.groupby("channel_grouping")["goal_completions"]
+                .agg(["sum", "mean", "max"])
+                .round(1)
+                .reset_index()
+                .rename(columns={
+                    "channel_grouping": "Channel",
+                    "sum": "Total",
+                    "mean": "Daily Avg",
+                    "max": "Peak Day",
+                })
+                .sort_values("Total", ascending=False)
+                .reset_index(drop=True)
+            )
+            st.dataframe(
+                _ch_summary.style.background_gradient(subset=["Total"], cmap="Blues"),
+                use_container_width=True,
+                hide_index=True,
+            )
+            _top_channel = str(_ch_summary.iloc[0]["Channel"])
+            _top_total = int(_ch_summary.iloc[0]["Total"])
+            st.caption(
+                f"{len(_ch_list)} channels · "
+                f"Top channel: {_top_channel} ({_top_total:,} total completions) · "
+                f"Date range: {start_date} → {end_date}"
+            )
+            st.download_button(
+                "Download channel trend CSV",
+                data=df_goal_ch.to_csv(index=False).encode("utf-8"),
+                file_name="goal_completions_by_channel.csv",
+                mime="text/csv",
+                key="dl_goal_ch_csv",
+            )
+    except Exception as _exc:
+        st.error(f"Could not load goal completion trend by channel: {_exc}")
+        if st.button("Retry", key="retry_goal_ch"):
+            st.cache_data.clear()
+            st.rerun()
