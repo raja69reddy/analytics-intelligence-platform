@@ -1602,3 +1602,132 @@ with st.spinner("Loading conversion time data…"):
         if st.button("Retry", key="retry_time_analysis"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Conversion page flow sankey ────────────────────────────────────────────────
+st.subheader("Conversion Page Flow")
+st.caption(
+    "Sankey diagram showing user paths that lead to a conversion (form_submit). "
+    "Source node = entry page, target node = conversion page, "
+    "link width = number of converting sessions."
+)
+
+
+@st.cache_data(ttl=300)
+def _load_conv_page_flow(start_date=None, end_date=None):
+    """Entry page → conversion page flows from raw_clickstream_events."""
+    _conds: list = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(ce.timestamp) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _date_where = ("AND " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"""WITH entry_pages AS (
+                SELECT session_id,
+                       page AS entry_page,
+                       ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY timestamp ASC) AS rn
+                FROM raw_clickstream_events
+            ),
+            conv_pages AS (
+                SELECT session_id,
+                       page AS conv_page
+                FROM raw_clickstream_events ce
+                WHERE event_type = 'form_submit' {_date_where}
+            )
+            SELECT ep.entry_page AS source_page,
+                   cp.conv_page  AS target_page,
+                   COUNT(*)      AS conversions
+            FROM entry_pages ep
+            JOIN conv_pages cp ON cp.session_id = ep.session_id
+            WHERE ep.rn = 1
+              AND ep.entry_page != cp.conv_page
+            GROUP BY ep.entry_page, cp.conv_page
+            ORDER BY conversions DESC
+            LIMIT 25""",
+        params=_params or None,
+    )
+
+
+with st.spinner("Loading page flow data…"):
+    try:
+        df_flow = _load_conv_page_flow(start_date, end_date)
+
+        if df_flow.empty:
+            st.info("No page flow data found — no form_submit events for the selected period.")
+        else:
+            # Build Sankey node list
+            _all_pages = pd.unique(df_flow[["source_page", "target_page"]].values.ravel())
+            _page_idx = {p: i for i, p in enumerate(_all_pages)}
+
+            def _short(url: str, max_len: int = 40) -> str:
+                return url if len(url) <= max_len else "…" + url[-max_len + 1:]
+
+            _node_labels = [_short(p) for p in _all_pages]
+
+            _source_idx = df_flow["source_page"].map(_page_idx).tolist()
+            _target_idx = df_flow["target_page"].map(_page_idx).tolist()
+            _values = df_flow["conversions"].tolist()
+
+            # Color: entry pages green, conversion pages blue
+            _entry_set = set(df_flow["source_page"])
+            _conv_set = set(df_flow["target_page"])
+            _node_colors = [
+                "rgba(44,160,44,0.7)" if p in _entry_set and p not in _conv_set
+                else "rgba(99,110,250,0.7)" if p in _conv_set and p not in _entry_set
+                else "rgba(255,127,14,0.7)"
+                for p in _all_pages
+            ]
+
+            fig_sankey = go.Figure(
+                go.Sankey(
+                    arrangement="snap",
+                    node=dict(
+                        pad=20,
+                        thickness=18,
+                        line=dict(color="rgba(0,0,0,0.3)", width=0.5),
+                        label=_node_labels,
+                        color=_node_colors,
+                        hovertemplate="<b>%{label}</b><br>Flow: %{value}<extra></extra>",
+                    ),
+                    link=dict(
+                        source=_source_idx,
+                        target=_target_idx,
+                        value=_values,
+                        color="rgba(150,150,150,0.35)",
+                        hovertemplate=(
+                            "From: %{source.label}<br>"
+                            "To: %{target.label}<br>"
+                            "Converting sessions: %{value:,}"
+                            "<extra></extra>"
+                        ),
+                    ),
+                )
+            )
+            fig_sankey.update_layout(
+                title="Conversion Page Flow — entry pages (green) → conversion pages (blue)",
+                template=_plotly_tpl,
+                height=max(450, len(df_flow) * 18 + 100),
+                font=_FONT,
+            )
+            st.plotly_chart(fig_sankey, use_container_width=True)
+            _total_conv_flow = int(df_flow["conversions"].sum())
+            _top_path = df_flow.iloc[0]
+            st.caption(
+                f"{len(df_flow)} unique paths · {_total_conv_flow:,} total converting sessions · "
+                f"Top path: {_short(_top_path['source_page'], 30)} → "
+                f"{_short(_top_path['target_page'], 30)} ({int(_top_path['conversions']):,} sessions)"
+            )
+            st.download_button(
+                "Download page flow CSV",
+                data=df_flow.to_csv(index=False).encode("utf-8"),
+                file_name="conversion_page_flow.csv",
+                mime="text/csv",
+                key="dl_flow_csv",
+            )
+    except Exception as _exc:
+        st.error(f"Could not load page flow data: {_exc}")
+        if st.button("Retry", key="retry_sankey"):
+            st.cache_data.clear()
+            st.rerun()
