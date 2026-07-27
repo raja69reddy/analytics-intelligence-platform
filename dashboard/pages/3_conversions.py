@@ -1134,3 +1134,152 @@ if not df_cohort.empty:
     )
 else:
     st.info("No cohort data available for the selected filters.")
+
+st.divider()
+
+# ── Micro conversion tracking ──────────────────────────────────────────────────
+st.subheader("Micro Conversion Tracking")
+st.caption(
+    "Counts of smaller conversion goals (newsletter signups, downloads, video plays, "
+    "contact form submits) derived from raw_clickstream_events event types."
+)
+
+_MICRO_LABELS = {
+    "newsletter_signup": "Newsletter Signup",
+    "pdf_download": "PDF Download",
+    "video_play": "Video Play",
+    "contact_form": "Contact Form Submit",
+    "form_submit": "Form Submit",
+    "button_click": "Button Click",
+    "scroll": "Scroll",
+    "page_view": "Page View",
+}
+
+
+@st.cache_data(ttl=300)
+def _load_micro_conversions(start_date=None, end_date=None):
+    _conds: list = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(timestamp) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = ("WHERE " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"""SELECT event_type,
+                   COUNT(*)                     AS event_count,
+                   COUNT(DISTINCT session_id)   AS unique_sessions
+            FROM raw_clickstream_events {_where}
+            GROUP BY event_type
+            ORDER BY event_count DESC""",
+        params=_params or None,
+    )
+
+
+@st.cache_data(ttl=300)
+def _load_total_sessions_micro(start_date=None, end_date=None):
+    _conds: list = []
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(timestamp) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = ("WHERE " + " AND ".join(_conds)) if _conds else ""
+    return query_df(
+        f"SELECT COUNT(DISTINCT session_id) AS total_sessions FROM raw_clickstream_events {_where}",
+        params=_params or None,
+    )
+
+
+with st.spinner("Loading micro conversion data…"):
+    try:
+        df_micro = _load_micro_conversions(start_date, end_date)
+        df_micro_total = _load_total_sessions_micro(start_date, end_date)
+        _total_sess_micro = int(df_micro_total["total_sessions"].iloc[0]) if not df_micro_total.empty else 1
+
+        if df_micro.empty:
+            st.info("No event data found in raw_clickstream_events for the selected period.")
+        else:
+            df_micro["display_label"] = df_micro["event_type"].map(_MICRO_LABELS).fillna(
+                df_micro["event_type"].str.replace("_", " ").str.title()
+            )
+            df_micro["micro_cvr_pct"] = (
+                df_micro["unique_sessions"] / max(_total_sess_micro, 1) * 100
+            ).round(2)
+
+            _col_micro_bar, _col_micro_tbl = st.columns([2, 1])
+
+            with _col_micro_bar:
+                fig_micro = go.Figure()
+                fig_micro.add_trace(
+                    go.Bar(
+                        name="Event Count",
+                        x=df_micro["display_label"],
+                        y=df_micro["event_count"],
+                        marker_color="#636EFA",
+                        text=df_micro["event_count"],
+                        textposition="outside",
+                        hovertemplate=(
+                            "<b>%{x}</b><br>Events: %{y:,}<extra></extra>"
+                        ),
+                        yaxis="y",
+                    )
+                )
+                fig_micro.add_trace(
+                    go.Scatter(
+                        name="Micro CVR %",
+                        x=df_micro["display_label"],
+                        y=df_micro["micro_cvr_pct"],
+                        mode="lines+markers",
+                        marker=dict(color="#EF553B", size=8),
+                        line=dict(color="#EF553B", width=2),
+                        hovertemplate=(
+                            "<b>%{x}</b><br>CVR: %{y:.2f}%<extra></extra>"
+                        ),
+                        yaxis="y2",
+                    )
+                )
+                fig_micro.update_layout(
+                    title="Micro Conversion Event Counts with CVR % (sessions that triggered each event)",
+                    xaxis_title="Event Type",
+                    yaxis=dict(title="Event Count", showgrid=False),
+                    yaxis2=dict(
+                        title="Micro CVR (%)",
+                        overlaying="y",
+                        side="right",
+                        showgrid=False,
+                        tickformat=".1f",
+                    ),
+                    template=_plotly_tpl,
+                    legend=dict(orientation="h", y=1.1),
+                    hovermode="x unified",
+                    height=420,
+                    font=_FONT,
+                )
+                st.plotly_chart(fig_micro, use_container_width=True)
+
+            with _col_micro_tbl:
+                _micro_display = df_micro[["display_label", "event_count", "unique_sessions", "micro_cvr_pct"]].copy()
+                _micro_display.columns = ["Event Type", "Count", "Unique Sessions", "CVR (%)"]
+                st.dataframe(
+                    _micro_display.style.background_gradient(subset=["CVR (%)"], cmap="Blues"),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+
+            _top_micro = df_micro.loc[df_micro["event_count"].idxmax(), "display_label"]
+            st.caption(
+                f"{len(df_micro)} event types · {_total_sess_micro:,} total sessions · "
+                f"Top micro-conversion: {_top_micro} · "
+                "CVR = unique sessions with event / total sessions"
+            )
+            st.download_button(
+                "Download micro conversions CSV",
+                data=df_micro[["display_label", "event_count", "unique_sessions", "micro_cvr_pct"]].to_csv(index=False).encode("utf-8"),
+                file_name="micro_conversions.csv",
+                mime="text/csv",
+                key="dl_micro_csv",
+            )
+    except Exception as _exc:
+        st.error(f"Could not load micro conversion data: {_exc}")
+        if st.button("Retry", key="retry_micro"):
+            st.cache_data.clear()
+            st.rerun()
