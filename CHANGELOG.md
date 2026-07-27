@@ -1,5 +1,13 @@
 # Changelog
 
+## Day 47 - Conversion Analysis Complete
+- Added drop off waterfall chart: fixed y-array bug, per-stage interleaved measure (absolute/relative), green entry bars, red drop bars, drop count + % labels, stage detail table with RdYlGn gradient, try/except + Retry
+- Added micro conversion tracking chart: queries all event types from raw_clickstream_events with date filter, dual-axis bar+line chart (event count + micro CVR %), event type table, CSV download
+- Added conversion attribution comparison chart: first-touch (session-share proxy via raw_ga4_sessions), last-touch (direct from vw_conversions), linear (equal split) — grouped horizontal bar chart + summary table + CSV download
+- Added conversion time analysis charts: form_submit events by hour of day, by day of week (best/worst highlighted), daily goal completions distribution histogram with avg/median vlines
+- Added conversion page flow sankey diagram: entry_page → conversion_page flows via raw_clickstream_events CTE, node colors (green=entry, blue=conversion), link width = converting sessions, CSV download
+- Added goal completion trend by channel: one line per channel_grouping from vw_conversions, range selector (7D/30D/90D/All), hovermode=x unified, channel summary table + CSV download
+
 ## Day 46 - SEO Page Enhanced
 - Added date-filtered organic landing pages table: `_load_organic_pages_dated(start, end, page_filter)` joins `raw_clickstream_events` session counts with `vw_seo`, adds `load_time_ms` via `raw_scrape_pages` join, formatted columns, CSV download, Retry button
 - Updated word count vs engagement scatter: loader changed to `raw_scrape_pages LEFT JOIN vw_seo` as base table, adds `load_time_ms` to hover, trendline, count caption, Retry button
