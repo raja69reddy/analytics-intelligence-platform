@@ -375,57 +375,98 @@ st.divider()
 # ── Drop-off waterfall chart ───────────────────────────────────────────────────
 st.subheader("Funnel Drop-off Analysis")
 with st.spinner("Loading drop-off waterfall…"):
-    if not df_funnel.empty:
-        stages = df_funnel["stage_name"].tolist()
-        reached = df_funnel["users_reached"].tolist()
-        dropoffs = df_funnel["drop_off_count"].tolist()
+    try:
+        if not df_funnel.empty:
+            stages = df_funnel["stage_name"].tolist()
+            reached = df_funnel["users_reached"].tolist()
+            dropoffs = df_funnel["drop_off_count"].tolist()
+            n = len(stages)
 
-        # Build drop-off % labels: pct of previous stage that dropped
-        def _dropoff_label(idx):
-            if idx == 0:
-                return f"{reached[0]:,} entered"
-            d = dropoffs[idx - 1]
-            prev = reached[idx - 1]
-            pct = (d / prev * 100) if prev else 0
-            return f"-{d:,} ({pct:.1f}% dropped)"
+            # Build interleaved x/measure/y: Stage bar (green) → Drop bar (red) → …
+            wf_x, wf_measure, wf_y, wf_text = [], [], [], []
+            for i in range(n):
+                # Stage bar — how many users are at this stage
+                wf_x.append(stages[i])
+                if i == 0:
+                    wf_measure.append("absolute")
+                    wf_y.append(reached[i])
+                    wf_text.append(f"{reached[i]:,} entered")
+                else:
+                    # relative negative delta from previous stage to this one
+                    drop = reached[i - 1] - reached[i]
+                    drop_pct = (drop / reached[i - 1] * 100) if reached[i - 1] else 0
+                    wf_measure.append("relative")
+                    wf_y.append(-drop)
+                    wf_text.append(f"−{drop:,} ({drop_pct:.1f}% dropped)")
 
-        wf_x = [stages[0]] + stages[1:]
-        wf_measure = ["absolute"] + ["relative"] * (len(stages) - 1)
-        wf_y = [reached[0]] + [-d for d in dropoffs[:-1]] + [0]
-        wf_text = [_dropoff_label(i) for i in range(len(wf_x))]
-
-        fig_wf = go.Figure(
-            go.Waterfall(
-                name="Funnel",
-                orientation="v",
-                measure=wf_measure,
-                x=wf_x,
-                y=wf_y,
-                text=wf_text,
-                textposition="outside",
-                connector={"line": {"color": "rgba(63,63,63,0.3)"}},
-                increasing={"marker": {"color": "#2ca02c"}},
-                decreasing={"marker": {"color": "#d62728"}},
-                totals={"marker": {"color": "#636EFA"}},
+            fig_wf = go.Figure(
+                go.Waterfall(
+                    name="Funnel",
+                    orientation="v",
+                    measure=wf_measure,
+                    x=wf_x,
+                    y=wf_y,
+                    text=wf_text,
+                    textposition="outside",
+                    connector={"line": {"color": "rgba(100,100,100,0.4)", "width": 1.5}},
+                    increasing={"marker": {"color": "#2ca02c"}},
+                    decreasing={"marker": {"color": "#d62728"}},
+                    totals={"marker": {"color": "#2ca02c"}},
+                )
             )
-        )
-        fig_wf.update_layout(
-            title="Funnel Drop-off Waterfall — green = users continuing, red = users lost",
-            xaxis_title="Funnel Stage",
-            yaxis_title="Users",
-            template=_plotly_tpl,
-            waterfallgap=0.3,
-            font=_FONT,
-        )
-        st.plotly_chart(fig_wf, use_container_width=True)
-        _total_drop = reached[0] - reached[-1]
-        _total_drop_pct = (_total_drop / reached[0] * 100) if reached[0] else 0
-        st.caption(
-            f"Total drop-off: {_total_drop:,} users ({_total_drop_pct:.1f}%) · "
-            f"Green bars = users continuing · Red bars = drop-offs"
-        )
-    else:
-        st.info("No funnel data available.")
+            _total_drop = reached[0] - reached[-1]
+            _total_drop_pct = (_total_drop / reached[0] * 100) if reached[0] else 0
+            _best_drop_idx = int(df_funnel.iloc[:-1]["drop_off_count"].idxmax()) if n > 1 else 0
+            _worst_stage = stages[_best_drop_idx + 1] if _best_drop_idx + 1 < n else stages[-1]
+            fig_wf.update_layout(
+                title=(
+                    f"Funnel Drop-off Waterfall — "
+                    f"green = users at stage, red = users lost · "
+                    f"Biggest drop: → {_worst_stage}"
+                ),
+                xaxis_title="Funnel Stage",
+                yaxis_title="Users",
+                template=_plotly_tpl,
+                waterfallgap=0.3,
+                height=460,
+                font=_FONT,
+            )
+            st.plotly_chart(fig_wf, use_container_width=True)
+
+            # Stage detail table
+            _wf_detail = df_funnel.copy()
+            _wf_detail["drop_pct"] = (
+                _wf_detail["drop_off_count"]
+                / _wf_detail["users_reached"].replace(0, None)
+                * 100
+            ).round(1)
+            _wf_detail["overall_cvr_pct"] = (
+                _wf_detail["users_reached"] / (reached[0] or 1) * 100
+            ).round(1)
+            _wf_detail.rename(columns={
+                "stage_name": "Stage",
+                "users_reached": "Users Reached",
+                "drop_off_count": "Dropped Off",
+                "drop_pct": "Drop Rate (%)",
+                "overall_cvr_pct": "vs Entry (%)",
+            }, inplace=True)
+            st.dataframe(
+                _wf_detail.style.background_gradient(subset=["Drop Rate (%)"], cmap="RdYlGn_r"),
+                use_container_width=True,
+                hide_index=True,
+            )
+            st.caption(
+                f"Total funnel drop-off: {_total_drop:,} users ({_total_drop_pct:.1f}%) · "
+                f"Green bar = stage entry · Red bar = users lost at that transition · "
+                f"Biggest leak: → {_worst_stage}"
+            )
+        else:
+            st.info("No funnel data available.")
+    except Exception as _exc:
+        st.error(f"Could not render drop-off waterfall: {_exc}")
+        if st.button("Retry", key="retry_waterfall"):
+            st.cache_data.clear()
+            st.rerun()
 
 st.divider()
 
