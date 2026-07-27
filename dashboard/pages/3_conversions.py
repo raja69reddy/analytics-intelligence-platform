@@ -1412,3 +1412,193 @@ with st.spinner("Loading attribution data…"):
         if st.button("Retry", key="retry_attr"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Conversion time analysis ───────────────────────────────────────────────────
+st.subheader("Conversion Time Analysis")
+st.caption(
+    "When do users convert? Best hour of day, day of week, "
+    "and daily conversion distribution from raw_clickstream_events form_submit events."
+)
+
+
+@st.cache_data(ttl=300)
+def _load_conv_by_hour(start_date=None, end_date=None):
+    _conds = ["event_type = 'form_submit'"]
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(timestamp) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = "WHERE " + " AND ".join(_conds)
+    return query_df(
+        f"""SELECT EXTRACT(HOUR FROM timestamp)::INT AS hour_of_day,
+                   COUNT(*)                          AS conversions,
+                   COUNT(DISTINCT session_id)        AS unique_sessions
+            FROM raw_clickstream_events {_where}
+            GROUP BY hour_of_day
+            ORDER BY hour_of_day""",
+        params=_params or None,
+    )
+
+
+@st.cache_data(ttl=300)
+def _load_conv_by_dow(start_date=None, end_date=None):
+    _conds = ["event_type = 'form_submit'"]
+    _params: dict = {}
+    if start_date and end_date:
+        _conds.append("DATE(timestamp) BETWEEN :s AND :e")
+        _params.update({"s": str(start_date), "e": str(end_date)})
+    _where = "WHERE " + " AND ".join(_conds)
+    return query_df(
+        f"""SELECT EXTRACT(DOW FROM timestamp)::INT AS dow,
+                   TO_CHAR(timestamp, 'Day')        AS day_name,
+                   COUNT(*)                          AS conversions
+            FROM raw_clickstream_events {_where}
+            GROUP BY dow, day_name
+            ORDER BY dow""",
+        params=_params or None,
+    )
+
+
+@st.cache_data(ttl=300)
+def _load_daily_conv_dist(start_date=None, end_date=None, channels: tuple = ()):
+    """Daily goal completions from vw_conversions — for day-to-convert histogram."""
+    where, params = build_where_clause(start_date, end_date, channels=list(channels) or None)
+    return query_df(
+        f"""SELECT session_date,
+                   SUM(goal_completions) AS goal_completions
+            FROM vw_conversions {where}
+            GROUP BY session_date
+            ORDER BY session_date""",
+        params=params or None,
+    )
+
+
+with st.spinner("Loading conversion time data…"):
+    try:
+        df_by_hour = _load_conv_by_hour(start_date, end_date)
+        df_by_dow = _load_conv_by_dow(start_date, end_date)
+        df_daily_dist = _load_daily_conv_dist(start_date, end_date, tuple(channels))
+
+        _col_h, _col_d = st.columns(2)
+
+        # ── Best time of day ──
+        with _col_h:
+            if not df_by_hour.empty:
+                _best_hour = int(df_by_hour.loc[df_by_hour["conversions"].idxmax(), "hour_of_day"])
+                _hour_colors = [
+                    "#2ca02c" if h == _best_hour else "#636EFA"
+                    for h in df_by_hour["hour_of_day"]
+                ]
+                fig_hour = go.Figure(
+                    go.Bar(
+                        x=df_by_hour["hour_of_day"],
+                        y=df_by_hour["conversions"],
+                        marker_color=_hour_colors,
+                        text=df_by_hour["conversions"],
+                        textposition="outside",
+                        hovertemplate="<b>%{x}:00</b><br>Conversions: %{y:,}<extra></extra>",
+                    )
+                )
+                _best_hour_label = f"{_best_hour:02d}:00–{_best_hour:02d}:59"
+                fig_hour.update_layout(
+                    title=f"Conversions by Hour of Day — peak: {_best_hour_label}",
+                    xaxis_title="Hour (24h)",
+                    yaxis_title="Form Submits",
+                    template=_plotly_tpl,
+                    showlegend=False,
+                    height=350,
+                    font=_FONT,
+                )
+                fig_hour.update_xaxes(dtick=2)
+                st.plotly_chart(fig_hour, use_container_width=True)
+                st.caption(f"Green = peak conversion hour ({_best_hour_label}) · Based on form_submit events")
+            else:
+                st.info("No hourly conversion data available.")
+
+        # ── Best day of week ──
+        with _col_d:
+            if not df_by_dow.empty:
+                df_by_dow["day_name"] = df_by_dow["day_name"].str.strip()
+                _best_dow = int(df_by_dow.loc[df_by_dow["conversions"].idxmax(), "dow"])
+                _worst_dow = int(df_by_dow.loc[df_by_dow["conversions"].idxmin(), "dow"])
+                _dow_colors = [
+                    "#2ca02c" if d == _best_dow
+                    else "#d62728" if d == _worst_dow
+                    else "#636EFA"
+                    for d in df_by_dow["dow"]
+                ]
+                fig_dow2 = go.Figure(
+                    go.Bar(
+                        x=df_by_dow["day_name"],
+                        y=df_by_dow["conversions"],
+                        marker_color=_dow_colors,
+                        text=df_by_dow["conversions"],
+                        textposition="outside",
+                        hovertemplate="<b>%{x}</b><br>Conversions: %{y:,}<extra></extra>",
+                    )
+                )
+                _best_day_nm = df_by_dow.loc[df_by_dow["dow"] == _best_dow, "day_name"].iloc[0]
+                _worst_day_nm = df_by_dow.loc[df_by_dow["dow"] == _worst_dow, "day_name"].iloc[0]
+                fig_dow2.update_layout(
+                    title=f"Conversions by Day of Week — best: {_best_day_nm}, worst: {_worst_day_nm}",
+                    xaxis_title="Day",
+                    yaxis_title="Form Submits",
+                    template=_plotly_tpl,
+                    showlegend=False,
+                    height=350,
+                    font=_FONT,
+                )
+                st.plotly_chart(fig_dow2, use_container_width=True)
+                st.caption(f"Green = best ({_best_day_nm}) · Red = worst ({_worst_day_nm}) · Form submits by day")
+            else:
+                st.info("No day-of-week conversion data available.")
+
+        # ── Daily goal completions distribution histogram ──
+        if not df_daily_dist.empty:
+            _avg_daily = float(df_daily_dist["goal_completions"].mean())
+            _median_daily = float(df_daily_dist["goal_completions"].median())
+            fig_dist = go.Figure(
+                go.Histogram(
+                    x=df_daily_dist["goal_completions"],
+                    nbinsx=20,
+                    marker_color="#636EFA",
+                    opacity=0.8,
+                    hovertemplate="Completions: %{x}<br>Days: %{y}<extra></extra>",
+                )
+            )
+            fig_dist.add_vline(
+                x=_avg_daily,
+                line_dash="dash",
+                line_color="#EF553B",
+                annotation_text=f"Avg: {_avg_daily:.1f}",
+                annotation_position="top right",
+            )
+            fig_dist.add_vline(
+                x=_median_daily,
+                line_dash="dot",
+                line_color="#ffd700",
+                annotation_text=f"Median: {_median_daily:.1f}",
+                annotation_position="top left",
+            )
+            fig_dist.update_layout(
+                title="Daily Goal Completions Distribution — how many days hit each conversion count",
+                xaxis_title="Goal Completions per Day",
+                yaxis_title="Number of Days",
+                template=_plotly_tpl,
+                height=340,
+                font=_FONT,
+            )
+            st.plotly_chart(fig_dist, use_container_width=True)
+            st.caption(
+                f"{len(df_daily_dist)} days in period · "
+                f"Avg: {_avg_daily:.1f} conversions/day · "
+                f"Median: {_median_daily:.1f} · "
+                f"Max: {int(df_daily_dist['goal_completions'].max())}"
+            )
+    except Exception as _exc:
+        st.error(f"Could not load conversion time analysis: {_exc}")
+        if st.button("Retry", key="retry_time_analysis"):
+            st.cache_data.clear()
+            st.rerun()
