@@ -1177,3 +1177,158 @@ with st.spinner("Scanning for duplicate content…"):
         if st.button("Retry", key="retry_dup"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Content gap analysis ───────────────────────────────────────────────────────
+st.subheader("Content Gap Analysis")
+st.caption(
+    "Scatter plot: word count (content depth) vs organic sessions (traffic). "
+    "Quadrant labels identify opportunities and underperforming pages."
+)
+
+
+@st.cache_data(ttl=300)
+def _load_gap_data():
+    return query_df(
+        """SELECT DISTINCT ON (sp.url)
+                  sp.url,
+                  sp.word_count,
+                  sp.load_time_ms,
+                  sp.meta_description,
+                  sp.internal_links,
+                  COALESCE(v.organic_sessions, 0) AS organic_sessions,
+                  COALESCE(v.organic_pageviews, 0) AS organic_pageviews
+           FROM raw_scrape_pages sp
+           LEFT JOIN vw_seo v ON v.url = sp.url
+           WHERE sp.http_status = 200 AND sp.word_count > 0
+           ORDER BY sp.url, sp.scraped_at DESC"""
+    )
+
+
+def _gap_score(row) -> float:
+    """Same composite score as content score section: 0–100."""
+    wc = row.get("word_count") or 0
+    meta = row.get("meta_description")
+    il = row.get("internal_links") or 0
+    lt = row.get("load_time_ms") or 3000
+    return round(
+        min(40.0, max(0.0, (wc - 300) / max(2000 - 300, 1) * 40))
+        + (20.0 if meta else 0.0)
+        + min(20.0, il / 10.0 * 20.0)
+        + max(0.0, min(20.0, (3000 - lt) / max(3000 - 500, 1) * 20.0)),
+        1,
+    )
+
+
+with st.spinner("Loading content gap data…"):
+    try:
+        _gap_df = _load_gap_data()
+        if _gap_df.empty:
+            st.info("No data available for content gap analysis.")
+        else:
+            _gap_df["content_score"] = _gap_df.apply(_gap_score, axis=1)
+
+            _wc_median = float(_gap_df["word_count"].median())
+            _sess_median = float(_gap_df["organic_sessions"].median())
+
+            def _quadrant(row) -> str:
+                hi_wc = row["word_count"] > _wc_median
+                hi_sess = row["organic_sessions"] > _sess_median
+                if hi_sess and not hi_wc:
+                    return "Opportunity (high traffic, low content)"
+                if not hi_sess and hi_wc:
+                    return "Underperforming (low traffic, high content)"
+                if hi_sess and hi_wc:
+                    return "Star (high traffic, high content)"
+                return "Low priority (low traffic, low content)"
+
+            _gap_df["Quadrant"] = _gap_df.apply(_quadrant, axis=1)
+            _gap_df["url_short"] = _gap_df["url"].str.replace(r"https?://[^/]+", "", regex=True).where(
+                lambda s: s != "", other=_gap_df["url"]
+            )
+
+            _quad_colors = {
+                "Opportunity (high traffic, low content)": "#EF553B",
+                "Underperforming (low traffic, high content)": "#FFA15A",
+                "Star (high traffic, high content)": "#00CC96",
+                "Low priority (low traffic, low content)": "#aaaaaa",
+            }
+
+            fig_gap = go.Figure()
+            for _quad, _color in _quad_colors.items():
+                _sub = _gap_df[_gap_df["Quadrant"] == _quad]
+                if not _sub.empty:
+                    fig_gap.add_trace(
+                        go.Scatter(
+                            x=_sub["word_count"],
+                            y=_sub["organic_sessions"],
+                            mode="markers+text",
+                            name=_quad,
+                            marker=dict(
+                                size=_sub["content_score"].clip(lower=8) * 0.6 + 8,
+                                color=_color,
+                                opacity=0.8,
+                                line=dict(color="white", width=1),
+                            ),
+                            text=_sub["url_short"],
+                            textposition="top center",
+                            hovertemplate=(
+                                "<b>%{text}</b><br>"
+                                "Word count: %{x:,}<br>"
+                                "Organic sessions: %{y:,}<br>"
+                                "<extra>" + _quad + "</extra>"
+                            ),
+                        )
+                    )
+
+            # Quadrant divider lines
+            fig_gap.add_vline(x=_wc_median, line_dash="dot", line_color="gray",
+                               annotation_text=f"Median words ({int(_wc_median):,})",
+                               annotation_position="top right")
+            fig_gap.add_hline(y=_sess_median, line_dash="dot", line_color="gray",
+                               annotation_text=f"Median sessions ({int(_sess_median):,})",
+                               annotation_position="top right")
+
+            # Quadrant annotations
+            _x_max = float(_gap_df["word_count"].max()) * 1.05
+            _y_max = max(float(_gap_df["organic_sessions"].max()) * 1.1, 1)
+            for _annot_txt, _ax, _ay in [
+                ("Opportunity", _wc_median * 0.3, _y_max * 0.85),
+                ("Underperforming", _x_max * 0.75, _sess_median * 0.3),
+                ("Star", _x_max * 0.75, _y_max * 0.85),
+                ("Low Priority", _wc_median * 0.3, _sess_median * 0.3),
+            ]:
+                fig_gap.add_annotation(
+                    x=_ax, y=_ay, text=f"<b>{_annot_txt}</b>",
+                    showarrow=False,
+                    font=dict(size=11, color="rgba(180,180,180,0.7)"),
+                )
+
+            fig_gap.update_layout(
+                title="Content Gap: Word Count vs Organic Sessions — bubble size = content score",
+                xaxis_title="Word Count (content depth)",
+                yaxis_title="Organic Sessions (traffic)",
+                template=_plotly_tpl,
+                legend=dict(orientation="h", y=-0.25),
+                height=500,
+                font=_FONT,
+            )
+            st.plotly_chart(fig_gap, use_container_width=True)
+
+            # Quadrant summary table
+            _quad_counts = _gap_df["Quadrant"].value_counts().reset_index()
+            _quad_counts.columns = ["Quadrant", "Pages"]
+            _opp = int(_gap_df[_gap_df["Quadrant"].str.startswith("Opportunity")].shape[0])
+            _under = int(_gap_df[_gap_df["Quadrant"].str.startswith("Underperforming")].shape[0])
+            st.dataframe(_quad_counts, use_container_width=True, hide_index=True)
+            st.caption(
+                f"{len(_gap_df)} pages plotted · "
+                f"Opportunities (high traffic, low content): {_opp} — expand these pages · "
+                f"Underperforming (low traffic, high content): {_under} — promote or re-optimise"
+            )
+    except Exception as exc:
+        st.error(f"Could not load content gap analysis: {exc}")
+        if st.button("Retry", key="retry_gap"):
+            st.cache_data.clear()
+            st.rerun()
