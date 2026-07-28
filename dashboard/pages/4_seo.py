@@ -940,3 +940,127 @@ with st.spinner("Loading keyword data…"):
         if st.button("Retry", key="retry_kw"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Content freshness analysis ─────────────────────────────────────────────────
+st.subheader("Content Freshness Analysis")
+st.caption(
+    "How recently was each page scraped? "
+    "Green = fresh (<7 days), Yellow = stale (7–30 days), Red = very stale (>30 days)."
+)
+
+
+@st.cache_data(ttl=300)
+def _load_freshness():
+    return query_df(
+        """SELECT DISTINCT ON (url)
+                  url, title, word_count, load_time_ms,
+                  scraped_at,
+                  EXTRACT(EPOCH FROM (NOW() - scraped_at)) / 86400.0 AS days_since_scraped
+           FROM raw_scrape_pages
+           WHERE http_status = 200
+           ORDER BY url, scraped_at DESC"""
+    )
+
+
+with st.spinner("Loading freshness data…"):
+    try:
+        _fresh_df = _load_freshness()
+        if _fresh_df.empty:
+            st.info("No freshness data available.")
+        else:
+            _fresh_df["days_since_scraped"] = _fresh_df["days_since_scraped"].astype(float).round(1)
+            _fresh_df["scraped_at_str"] = _fresh_df["scraped_at"].astype(str).str[:19]
+
+            def _freshness_label(days: float) -> str:
+                if days < 7:
+                    return "Fresh"
+                if days <= 30:
+                    return "Stale"
+                return "Very Stale"
+
+            def _freshness_badge(days: float) -> str:
+                if days > 30:
+                    return "Needs Update"
+                if days > 7:
+                    return "Monitor"
+                return "OK"
+
+            _fresh_df["Status"] = _fresh_df["days_since_scraped"].apply(_freshness_label)
+            _fresh_df["Action"] = _fresh_df["days_since_scraped"].apply(_freshness_badge)
+
+            # KPI summary
+            _fc1, _fc2, _fc3 = st.columns(3)
+            _fc1.metric("Fresh (<7 days)", int((_fresh_df["Status"] == "Fresh").sum()))
+            _fc2.metric("Stale (7–30 days)", int((_fresh_df["Status"] == "Stale").sum()))
+            _fc3.metric("Very Stale (>30 days)", int((_fresh_df["Status"] == "Very Stale").sum()))
+
+            # Freshness bar chart (days since scraped)
+            _fresh_sorted = _fresh_df.sort_values("days_since_scraped", ascending=False).reset_index(drop=True)
+            _bar_colors = [
+                "#d62728" if d > 30 else "#ff7f0e" if d > 7 else "#2ca02c"
+                for d in _fresh_sorted["days_since_scraped"]
+            ]
+            _short_urls = _fresh_sorted["url"].str.replace(r"https?://[^/]+", "", regex=True).where(
+                lambda s: s != "", other=_fresh_sorted["url"]
+            )
+            fig_fresh = go.Figure(
+                go.Bar(
+                    x=_fresh_sorted["days_since_scraped"],
+                    y=_short_urls,
+                    orientation="h",
+                    marker_color=_bar_colors,
+                    text=_fresh_sorted["days_since_scraped"].apply(lambda d: f"{d:.0f}d"),
+                    textposition="outside",
+                    hovertemplate=(
+                        "<b>%{y}</b><br>Days since scraped: %{x:.1f}<extra></extra>"
+                    ),
+                )
+            )
+            fig_fresh.add_vline(x=7, line_dash="dash", line_color="#ff7f0e",
+                                annotation_text="7-day threshold", annotation_position="top right")
+            fig_fresh.add_vline(x=30, line_dash="dash", line_color="#d62728",
+                                annotation_text="30-day threshold", annotation_position="top right")
+            fig_fresh.update_layout(
+                title="Days Since Last Scraped — green < 7d, orange 7–30d, red > 30d",
+                xaxis_title="Days Since Scraped",
+                yaxis=dict(autorange="reversed"),
+                height=max(300, len(_fresh_sorted) * 45 + 100),
+                template=_plotly_tpl, font=_FONT,
+            )
+            st.plotly_chart(fig_fresh, use_container_width=True)
+
+            # Freshness table with color coding
+            _disp_fresh = _fresh_sorted[["url", "title", "days_since_scraped",
+                                          "scraped_at_str", "Status", "Action"]].copy()
+            _disp_fresh.columns = ["URL", "Title", "Days Since Scraped", "Last Scraped", "Status", "Action"]
+
+            def _color_fresh_row(row):
+                s = row["Status"]
+                bg = "#d4edda" if s == "Fresh" else "#fff3cd" if s == "Stale" else "#f8d7da"
+                return [f"background-color: {bg}"] * len(row)
+
+            st.dataframe(
+                _disp_fresh.style.apply(_color_fresh_row, axis=1),
+                use_container_width=True,
+                hide_index=True,
+            )
+            _needs_update = int((_fresh_df["Action"] == "Needs Update").sum())
+            st.caption(
+                f"{len(_fresh_df)} pages · "
+                f"{_needs_update} page(s) need immediate re-scrape (>30 days) · "
+                "Red = Needs Update, Yellow = Monitor, Green = OK"
+            )
+            st.download_button(
+                "Download freshness report CSV",
+                data=_disp_fresh.to_csv(index=False).encode("utf-8"),
+                file_name="content_freshness.csv",
+                mime="text/csv",
+                key="dl_fresh_csv",
+            )
+    except Exception as exc:
+        st.error(f"Could not load freshness data: {exc}")
+        if st.button("Retry", key="retry_fresh"):
+            st.cache_data.clear()
+            st.rerun()
