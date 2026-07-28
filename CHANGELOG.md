@@ -1,5 +1,13 @@
 # Changelog
 
+## Day 48 - SEO Page Advanced Features
+- Added keyword analysis section: title word frequency bar chart + meta word frequency bar chart (top 15 words, stopwords filtered), title length distribution histogram (ideal 50–60 chars band), meta length distribution histogram (ideal 150–160 chars band), 4-panel layout
+- Added content freshness analysis: days_since_scraped via EXTRACT(EPOCH), color-coded status (green <7d, orange 7–30d, red >30d), freshness distribution bar chart, "Needs Update" badge for stale pages, sortable freshness table
+- Added duplicate content detector: groups by title and meta_description to find shared content across URLs, red-highlighted duplicate rows, Recommended Action column, separate Title Duplicates and Meta Description Duplicates panels
+- Added content gap analysis scatter plot: word_count vs organic_sessions with quadrant labels (Star / Opportunity / Underperforming / Low Priority) based on median splits, bubble size = content score, per-quadrant summary table
+- Added page type performance breakdown: inferred page type from URL regex patterns (blog/product/pricing/contact/about/landing), 3 charts — avg organic sessions, avg bounce rate, avg load time by page type
+- Added SEO recommendations section: 5 automated recommendations (missing meta descriptions, low word count <300, slow pages >2000ms, duplicate content, orphan pages 0 internal links), priority badges (High=red, Medium=orange), affected URLs in expander, High/Medium count summary
+
 ## Day 47 - Conversion Analysis Complete
 - Added drop off waterfall chart: fixed y-array bug, per-stage interleaved measure (absolute/relative), green entry bars, red drop bars, drop count + % labels, stage detail table with RdYlGn gradient, try/except + Retry
 - Added micro conversion tracking chart: queries all event types from raw_clickstream_events with date filter, dual-axis bar+line chart (event count + micro CVR %), event type table, CSV download
