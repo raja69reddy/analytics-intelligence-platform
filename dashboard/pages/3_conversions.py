@@ -1855,3 +1855,113 @@ with st.spinner("Loading goal trend by channel…"):
         if st.button("Retry", key="retry_goal_ch"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Conversion benchmarks ──────────────────────────────────────────────────────
+st.subheader("Conversion Rate vs Industry Benchmarks")
+st.caption(
+    "Industry average e-commerce CVR: 2–3%. SaaS / lead gen: 3–5%. "
+    "Your CVR compared against these benchmarks."
+)
+
+# Benchmark thresholds (%)
+_BENCH_LOW = 2.0    # low end of typical e-commerce CVR
+_BENCH_HIGH = 3.0   # high end of typical e-commerce CVR
+_BENCH_SAAS_LOW = 3.0
+_BENCH_SAAS_HIGH = 5.0
+
+try:
+    # Reuse already-loaded overall_cvr from KPI section (computed near top of file)
+    _your_cvr = overall_cvr  # set during the KPI block, float
+
+    _col_bench, _col_bench_info = st.columns([2, 1])
+    with _col_bench:
+        _bench_categories = [
+            "Your CVR",
+            "E-commerce Low (2%)",
+            "E-commerce High (3%)",
+            "SaaS / Lead Gen Low (3%)",
+            "SaaS / Lead Gen High (5%)",
+        ]
+        _bench_values = [
+            _your_cvr,
+            _BENCH_LOW,
+            _BENCH_HIGH,
+            _BENCH_SAAS_LOW,
+            _BENCH_SAAS_HIGH,
+        ]
+        _bench_colors = [
+            "#2ca02c" if _your_cvr >= _BENCH_LOW else "#d62728",
+            "#aaaaaa", "#888888", "#cccc44", "#999900",
+        ]
+        fig_bench = go.Figure(
+            go.Bar(
+                x=_bench_categories,
+                y=_bench_values,
+                marker_color=_bench_colors,
+                text=[f"{v:.2f}%" for v in _bench_values],
+                textposition="outside",
+                hovertemplate="<b>%{x}</b><br>CVR: %{y:.2f}%<extra></extra>",
+            )
+        )
+        fig_bench.add_hrect(
+            y0=_BENCH_LOW, y1=_BENCH_HIGH,
+            fillcolor="rgba(44,160,44,0.10)",
+            line_width=0,
+            annotation_text="E-commerce benchmark range",
+            annotation_position="top left",
+        )
+        fig_bench.add_hline(
+            y=_BENCH_LOW,
+            line_dash="dash",
+            line_color="#888888",
+            annotation_text=f"Min benchmark {_BENCH_LOW}%",
+            annotation_position="bottom right",
+        )
+        _above_bench = _your_cvr >= _BENCH_LOW
+        fig_bench.update_layout(
+            title=(
+                f"Your CVR ({_your_cvr:.2f}%) vs Industry Benchmarks — "
+                + ("above benchmark" if _above_bench else "below benchmark")
+            ),
+            xaxis_title="",
+            yaxis_title="CVR (%)",
+            template=_plotly_tpl,
+            showlegend=False,
+            height=380,
+            font=_FONT,
+        )
+        st.plotly_chart(fig_bench, use_container_width=True)
+
+    with _col_bench_info:
+        if _your_cvr >= _BENCH_HIGH:
+            st.success(
+                f"Excellent! Your CVR of **{_your_cvr:.2f}%** is above the "
+                f"high end of the e-commerce benchmark ({_BENCH_HIGH}%)."
+            )
+        elif _your_cvr >= _BENCH_LOW:
+            st.success(
+                f"Good! Your CVR of **{_your_cvr:.2f}%** is within the "
+                f"industry benchmark range ({_BENCH_LOW}%–{_BENCH_HIGH}%)."
+            )
+        else:
+            st.error(
+                f"Your CVR of **{_your_cvr:.2f}%** is below the "
+                f"industry minimum benchmark of {_BENCH_LOW}%. "
+                "Review funnel drop-off stages to identify improvement areas."
+            )
+        st.markdown("**Reference benchmarks:**")
+        st.markdown(
+            f"- E-commerce avg: **{_BENCH_LOW}%–{_BENCH_HIGH}%**\n"
+            f"- SaaS / lead gen: **{_BENCH_SAAS_LOW}%–{_BENCH_SAAS_HIGH}%**\n"
+            f"- Your CVR: **{_your_cvr:.2f}%**\n"
+            f"- Gap to low benchmark: **{_your_cvr - _BENCH_LOW:+.2f}pp**"
+        )
+        st.caption(
+            "Sources: Wordstream 2023, HubSpot 2023, "
+            "Google Ads Benchmarks 2024. "
+            "Benchmarks vary by industry, region, and traffic mix."
+        )
+except Exception as _bench_exc:
+    st.warning(f"Could not render benchmarks: {_bench_exc}")
