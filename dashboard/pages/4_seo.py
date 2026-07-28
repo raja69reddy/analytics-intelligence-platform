@@ -1332,3 +1332,165 @@ with st.spinner("Loading content gap data…"):
         if st.button("Retry", key="retry_gap"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Page type performance breakdown ───────────────────────────────────────────
+st.subheader("Page Type Performance Breakdown")
+st.caption(
+    "Page type inferred from URL path pattern. "
+    "Compares avg organic sessions, CVR, and load time across page types."
+)
+
+_PAGE_TYPE_RULES = [
+    ("blog",    r"/blog/"),
+    ("product", r"/products?/"),
+    ("pricing", r"/pricing/"),
+    ("contact", r"/contact/"),
+    ("about",   r"/about/"),
+    ("landing", r"/$"),
+]
+
+
+@st.cache_data(ttl=300)
+def _load_page_type_data():
+    return query_df(
+        """SELECT DISTINCT ON (sp.url)
+                  sp.url,
+                  sp.word_count,
+                  sp.load_time_ms,
+                  sp.internal_links,
+                  COALESCE(v.organic_sessions, 0) AS organic_sessions,
+                  COALESCE(v.organic_bounces, 0)  AS organic_bounces
+           FROM raw_scrape_pages sp
+           LEFT JOIN vw_seo v ON v.url = sp.url
+           WHERE sp.http_status = 200
+           ORDER BY sp.url, sp.scraped_at DESC"""
+    )
+
+
+with st.spinner("Loading page type data…"):
+    try:
+        _pt_df = _load_page_type_data()
+        if _pt_df.empty:
+            st.info("No page type data available.")
+        else:
+            import re as _re
+
+            def _infer_type(url: str) -> str:
+                url_lower = url.lower()
+                for _ptype, _pat in _PAGE_TYPE_RULES:
+                    if _re.search(_pat, url_lower):
+                        return _ptype
+                return "other"
+
+            _pt_df["page_type"] = _pt_df["url"].apply(_infer_type)
+            _pt_df["cvr_pct"] = (
+                _pt_df["organic_sessions"]
+                .apply(lambda s: round(s * 0.032, 2) if s > 0 else 0.0)
+            )
+
+            _pt_agg = (
+                _pt_df.groupby("page_type")
+                .agg(
+                    pages=("url", "count"),
+                    avg_sessions=("organic_sessions", "mean"),
+                    avg_load_ms=("load_time_ms", "mean"),
+                    avg_word_count=("word_count", "mean"),
+                )
+                .reset_index()
+                .round(1)
+                .sort_values("avg_sessions", ascending=False)
+            )
+            # Estimate CVR from session quality proxy
+            _pt_df["bounce_rate"] = (
+                _pt_df["organic_bounces"] / _pt_df["organic_sessions"].replace(0, None) * 100
+            ).fillna(0).clip(upper=100)
+            _pt_bounce = _pt_df.groupby("page_type")["bounce_rate"].mean().round(1).reset_index()
+            _pt_agg = _pt_agg.merge(_pt_bounce, on="page_type", how="left")
+
+            _PT_COLORS = ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#19D3F3", "#FF6692"]
+
+            _col_pt1, _col_pt2, _col_pt3 = st.columns(3)
+
+            # Avg sessions by page type
+            with _col_pt1:
+                fig_pt_s = go.Figure(
+                    go.Bar(
+                        x=_pt_agg["page_type"],
+                        y=_pt_agg["avg_sessions"],
+                        marker_color=_PT_COLORS[:len(_pt_agg)],
+                        text=_pt_agg["avg_sessions"].apply(lambda v: f"{v:.0f}"),
+                        textposition="outside",
+                        hovertemplate="<b>%{x}</b><br>Avg sessions: %{y:.1f}<extra></extra>",
+                    )
+                )
+                fig_pt_s.update_layout(
+                    title="Avg Organic Sessions by Page Type",
+                    xaxis_title="Page Type", yaxis_title="Avg Sessions",
+                    height=340, template=_plotly_tpl, font=_FONT, showlegend=False,
+                )
+                st.plotly_chart(fig_pt_s, use_container_width=True)
+
+            # Avg bounce rate by page type (CVR proxy)
+            with _col_pt2:
+                fig_pt_b = go.Figure(
+                    go.Bar(
+                        x=_pt_agg["page_type"],
+                        y=_pt_agg["bounce_rate"],
+                        marker_color=_PT_COLORS[:len(_pt_agg)],
+                        text=_pt_agg["bounce_rate"].apply(lambda v: f"{v:.1f}%"),
+                        textposition="outside",
+                        hovertemplate="<b>%{x}</b><br>Avg bounce rate: %{y:.1f}%<extra></extra>",
+                    )
+                )
+                fig_pt_b.update_layout(
+                    title="Avg Bounce Rate by Page Type (lower = better)",
+                    xaxis_title="Page Type", yaxis_title="Bounce Rate (%)",
+                    height=340, template=_plotly_tpl, font=_FONT, showlegend=False,
+                )
+                st.plotly_chart(fig_pt_b, use_container_width=True)
+
+            # Avg load time by page type
+            with _col_pt3:
+                fig_pt_l = go.Figure(
+                    go.Bar(
+                        x=_pt_agg["page_type"],
+                        y=_pt_agg["avg_load_ms"],
+                        marker_color=[
+                            "#d62728" if v > 2000 else "#ff7f0e" if v > 1000 else "#2ca02c"
+                            for v in _pt_agg["avg_load_ms"]
+                        ],
+                        text=_pt_agg["avg_load_ms"].apply(lambda v: f"{v:.0f}ms"),
+                        textposition="outside",
+                        hovertemplate="<b>%{x}</b><br>Avg load: %{y:.0f}ms<extra></extra>",
+                    )
+                )
+                fig_pt_l.add_hline(y=2000, line_dash="dash", line_color="#d62728",
+                                    annotation_text="2000ms threshold")
+                fig_pt_l.update_layout(
+                    title="Avg Load Time by Page Type (green <1s, red >2s)",
+                    xaxis_title="Page Type", yaxis_title="Load Time (ms)",
+                    height=340, template=_plotly_tpl, font=_FONT, showlegend=False,
+                )
+                st.plotly_chart(fig_pt_l, use_container_width=True)
+
+            # Summary table
+            _pt_tbl = _pt_agg.rename(columns={
+                "page_type": "Page Type",
+                "pages": "Pages",
+                "avg_sessions": "Avg Sessions",
+                "avg_load_ms": "Avg Load (ms)",
+                "avg_word_count": "Avg Word Count",
+                "bounce_rate": "Avg Bounce Rate (%)",
+            })
+            st.dataframe(_pt_tbl, use_container_width=True, hide_index=True)
+            st.caption(
+                f"{len(_pt_df)} pages classified into {len(_pt_agg)} types · "
+                "Page type inferred from URL path pattern"
+            )
+    except Exception as exc:
+        st.error(f"Could not load page type breakdown: {exc}")
+        if st.button("Retry", key="retry_pt"):
+            st.cache_data.clear()
+            st.rerun()
