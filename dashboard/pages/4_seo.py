@@ -4,6 +4,7 @@ import os
 import sys
 from datetime import timedelta
 
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
@@ -1062,5 +1063,117 @@ with st.spinner("Loading freshness data…"):
     except Exception as exc:
         st.error(f"Could not load freshness data: {exc}")
         if st.button("Retry", key="retry_fresh"):
+            st.cache_data.clear()
+            st.rerun()
+
+st.divider()
+
+# ── Duplicate content detector ─────────────────────────────────────────────────
+st.subheader("Duplicate Content Detector")
+st.caption(
+    "Pages sharing identical titles or meta descriptions — "
+    "duplicate content can harm SEO rankings and dilute PageRank."
+)
+
+
+@st.cache_data(ttl=300)
+def _load_dup_content():
+    return query_df(
+        """SELECT DISTINCT ON (url)
+                  url, title, meta_description, word_count
+           FROM raw_scrape_pages
+           WHERE http_status = 200
+           ORDER BY url, scraped_at DESC"""
+    )
+
+
+with st.spinner("Scanning for duplicate content…"):
+    try:
+        _dup_df = _load_dup_content()
+        if _dup_df.empty:
+            st.info("No page data available for duplicate detection.")
+        else:
+            _col_dup1, _col_dup2 = st.columns(2)
+
+            # ── Duplicate titles ──
+            with _col_dup1:
+                st.markdown("#### Duplicate Titles")
+                _title_counts = _dup_df.groupby("title")["url"].apply(list).reset_index()
+                _title_dups = _title_counts[_title_counts["url"].apply(len) > 1]
+
+                if _title_dups.empty:
+                    st.success("No duplicate titles found.")
+                else:
+                    _dup_title_rows = []
+                    for _, row in _title_dups.iterrows():
+                        for u in row["url"]:
+                            _dup_title_rows.append({
+                                "URL": u,
+                                "Title": row["title"],
+                                "Duplicate Count": len(row["url"]),
+                                "Recommended Action": "Add a unique, descriptive title per page",
+                                "Priority": "High",
+                            })
+                    _dup_title_df = pd.DataFrame(_dup_title_rows)
+
+                    def _red_row(row):
+                        return ["background-color: #f8d7da; color: #721c24"] * len(row)
+
+                    st.dataframe(
+                        _dup_title_df.style.apply(_red_row, axis=1),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+                    st.caption(
+                        f"{len(_title_dups)} duplicate title group(s) · "
+                        f"{len(_dup_title_rows)} affected URLs"
+                    )
+
+            # ── Duplicate meta descriptions ──
+            with _col_dup2:
+                st.markdown("#### Duplicate Meta Descriptions")
+                _meta_valid = _dup_df.dropna(subset=["meta_description"])
+                _meta_counts = _meta_valid.groupby("meta_description")["url"].apply(list).reset_index()
+                _meta_dups = _meta_counts[_meta_counts["url"].apply(len) > 1]
+
+                if _meta_dups.empty:
+                    st.success("No duplicate meta descriptions found.")
+                else:
+                    _dup_meta_rows = []
+                    for _, row in _meta_dups.iterrows():
+                        _preview = str(row["meta_description"])[:60] + "…"
+                        for u in row["url"]:
+                            _dup_meta_rows.append({
+                                "URL": u,
+                                "Meta (preview)": _preview,
+                                "Duplicate Count": len(row["url"]),
+                                "Recommended Action": "Write a unique meta description for each page",
+                                "Priority": "High",
+                            })
+                    _dup_meta_df = pd.DataFrame(_dup_meta_rows)
+                    st.dataframe(
+                        _dup_meta_df.style.apply(_red_row, axis=1),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+                    st.caption(
+                        f"{len(_meta_dups)} duplicate meta group(s) · "
+                        f"{len(_dup_meta_rows)} affected URLs"
+                    )
+
+            # Summary card
+            _n_title_dups = len(_title_dups)
+            _n_meta_dups = len(_meta_dups)
+            if _n_title_dups == 0 and _n_meta_dups == 0:
+                st.success("No duplicate content detected across all pages.")
+            else:
+                st.warning(
+                    f"Found {_n_title_dups} duplicate title group(s) and "
+                    f"{_n_meta_dups} duplicate meta description group(s). "
+                    "Fix these to improve SEO ranking and click-through rates."
+                )
+    except Exception as exc:
+        st.error(f"Could not run duplicate content check: {exc}")
+        if st.button("Retry", key="retry_dup"):
             st.cache_data.clear()
             st.rerun()
