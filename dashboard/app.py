@@ -719,6 +719,97 @@ except Exception as _exc:
 
 st.divider()
 
+# ── Conversion Summary Card ────────────────────────────────────────────────────
+st.subheader("Conversion Summary — This Month")
+
+
+@st.cache_data(ttl=300)
+def _load_conv_summary():
+    """Fetch this month's and last month's conversion KPIs from vw_conversions."""
+    from datetime import date as _date, timedelta as _td
+
+    today = _date.today()
+    # this month
+    this_start = today.replace(day=1)
+    # last month
+    last_end = this_start - _td(days=1)
+    last_start = last_end.replace(day=1)
+    p = {
+        "ts": str(this_start), "te": str(today),
+        "ls": str(last_start), "le": str(last_end),
+    }
+    df = query_df(
+        """SELECT
+               COALESCE(SUM(CASE WHEN session_date BETWEEN :ts AND :te THEN goal_completions END), 0) AS this_conv,
+               COALESCE(SUM(CASE WHEN session_date BETWEEN :ts AND :te THEN sessions END), 0)         AS this_sess,
+               COALESCE(SUM(CASE WHEN session_date BETWEEN :ts AND :te THEN revenue END), 0)          AS this_rev,
+               COALESCE(SUM(CASE WHEN session_date BETWEEN :ls AND :le THEN goal_completions END), 0) AS last_conv,
+               COALESCE(SUM(CASE WHEN session_date BETWEEN :ls AND :le THEN sessions END), 0)         AS last_sess,
+               COALESCE(SUM(CASE WHEN session_date BETWEEN :ls AND :le THEN revenue END), 0)          AS last_rev
+           FROM vw_conversions
+           WHERE session_date BETWEEN :ls AND :te""",
+        params=p,
+    )
+    best_ch_df = query_df(
+        """SELECT channel_grouping,
+                  ROUND(SUM(goal_completions)::NUMERIC / NULLIF(SUM(sessions), 0) * 100, 2) AS cvr_pct
+           FROM vw_conversions
+           WHERE session_date BETWEEN :ts AND :te
+           GROUP BY channel_grouping
+           ORDER BY cvr_pct DESC
+           LIMIT 1""",
+        params={"ts": str(this_start), "te": str(today)},
+    )
+    best_ch = str(best_ch_df["channel_grouping"].iloc[0]) if not best_ch_df.empty else "N/A"
+    best_cvr = float(best_ch_df["cvr_pct"].iloc[0]) if not best_ch_df.empty else 0.0
+    return df.iloc[0], best_ch, best_cvr
+
+
+try:
+    _conv_row, _best_ch, _best_ch_cvr = _load_conv_summary()
+    _this_conv = int(_conv_row["this_conv"] or 0)
+    _last_conv = int(_conv_row["last_conv"] or 0)
+    _this_sess = int(_conv_row["this_sess"] or 0)
+    _last_sess = int(_conv_row["last_sess"] or 0)
+    _this_rev = float(_conv_row["this_rev"] or 0.0)
+    _last_rev = float(_conv_row["last_rev"] or 0.0)
+    _this_cvr = (_this_conv / _this_sess * 100) if _this_sess else 0.0
+    _last_cvr = (_last_conv / _last_sess * 100) if _last_sess else 0.0
+
+    _cs1, _cs2, _cs3, _cs4 = st.columns(4)
+    _cs1.metric(
+        "Conversions This Month",
+        f"{_this_conv:,}",
+        delta=calculate_period_change(_this_conv, _last_conv),
+    )
+    _cs2.metric(
+        "CVR vs Last Month",
+        f"{_this_cvr:.2f}%",
+        delta=f"{_this_cvr - _last_cvr:+.2f}pp",
+        delta_color="normal" if _this_cvr >= _last_cvr else "inverse",
+    )
+    _cs3.metric(
+        "Best Converting Channel",
+        _best_ch,
+        delta=f"{_best_ch_cvr:.2f}% CVR",
+        delta_color="off",
+    )
+    _cs4.metric(
+        "Revenue This Month",
+        f"${_this_rev:,.0f}",
+        delta=calculate_period_change(_this_rev, _last_rev),
+    )
+    st.caption(
+        f"This month vs last month · Best channel: {_best_ch} ({_best_ch_cvr:.2f}% CVR) · "
+        "Source: vw_conversions"
+    )
+    if st.button("View Conversions Detail", key="home_conv_link"):
+        st.switch_page("pages/3_conversions.py")
+except Exception as _conv_exc:
+    st.warning(f"Could not load conversion summary: {_conv_exc}")
+
+st.divider()
+
 # ── Quick Stats ───────────────────────────────────────────────────────────────
 st.subheader("Quick Stats")
 
