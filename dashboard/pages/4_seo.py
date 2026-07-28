@@ -790,3 +790,153 @@ with st.spinner("Loading content scores..."):
         if st.button("Retry", key="retry_score"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Keyword analysis ───────────────────────────────────────────────────────────
+st.subheader("Keyword Analysis — Titles & Meta Descriptions")
+st.caption(
+    "Most common words extracted from page titles and meta descriptions "
+    "(stopwords removed). Use to identify keyword patterns and gaps."
+)
+
+_STOPWORDS = {
+    "the","a","an","and","or","but","in","on","at","to","for","of","with",
+    "is","are","was","were","be","been","being","have","has","had","do","does",
+    "did","will","would","shall","should","may","might","can","could","not",
+    "no","nor","so","yet","both","either","neither","each","from","by","as",
+    "it","its","this","that","these","those","i","we","you","he","she","they",
+    "my","our","your","his","her","their","what","which","who","how","when",
+    "where","why","all","any","few","more","most","other","some","such","own",
+    "up","out","if","then","than","into","about","after","before","through",
+}
+
+
+@st.cache_data(ttl=300)
+def _load_kw_data():
+    return query_df(
+        """SELECT DISTINCT ON (url)
+                  url, title, meta_description, word_count
+           FROM raw_scrape_pages
+           WHERE http_status = 200
+           ORDER BY url, scraped_at DESC"""
+    )
+
+
+with st.spinner("Loading keyword data…"):
+    try:
+        _kw_df = _load_kw_data()
+        if _kw_df.empty:
+            st.info("No page data available for keyword analysis.")
+        else:
+            import re
+            from collections import Counter
+
+            def _word_freq(texts, top_n: int = 15):
+                words = []
+                for t in texts:
+                    if t and isinstance(t, str):
+                        words.extend(
+                            w for w in re.findall(r"[a-z]+", t.lower())
+                            if len(w) > 2 and w not in _STOPWORDS
+                        )
+                return Counter(words).most_common(top_n)
+
+            _title_freq = _word_freq(_kw_df["title"].dropna())
+            _meta_freq = _word_freq(_kw_df["meta_description"].dropna(), top_n=15)
+
+            _col_kw1, _col_kw2 = st.columns(2)
+
+            with _col_kw1:
+                if _title_freq:
+                    _tw, _tc = zip(*_title_freq)
+                    fig_tw = go.Figure(
+                        go.Bar(
+                            x=list(_tc), y=list(_tw), orientation="h",
+                            marker_color="#636EFA",
+                            text=list(_tc), textposition="outside",
+                            hovertemplate="<b>%{y}</b><br>Count: %{x}<extra></extra>",
+                        )
+                    )
+                    fig_tw.update_layout(
+                        title="Most Common Words in Page Titles",
+                        xaxis_title="Occurrences",
+                        yaxis=dict(autorange="reversed"),
+                        height=420, template=_plotly_tpl, font=_FONT,
+                    )
+                    st.plotly_chart(fig_tw, use_container_width=True)
+
+            with _col_kw2:
+                if _meta_freq:
+                    _mw, _mc = zip(*_meta_freq)
+                    fig_mw = go.Figure(
+                        go.Bar(
+                            x=list(_mc), y=list(_mw), orientation="h",
+                            marker_color="#00CC96",
+                            text=list(_mc), textposition="outside",
+                            hovertemplate="<b>%{y}</b><br>Count: %{x}<extra></extra>",
+                        )
+                    )
+                    fig_mw.update_layout(
+                        title="Most Common Words in Meta Descriptions",
+                        xaxis_title="Occurrences",
+                        yaxis=dict(autorange="reversed"),
+                        height=420, template=_plotly_tpl, font=_FONT,
+                    )
+                    st.plotly_chart(fig_mw, use_container_width=True)
+
+            # Length distributions
+            _col_len1, _col_len2 = st.columns(2)
+            _kw_df["title_len"] = _kw_df["title"].fillna("").str.len()
+            _kw_df["meta_len"] = _kw_df["meta_description"].fillna("").str.len()
+
+            with _col_len1:
+                fig_tl = go.Figure(
+                    go.Histogram(
+                        x=_kw_df["title_len"], nbinsx=10,
+                        marker_color="#AB63FA", opacity=0.8,
+                        hovertemplate="Length: %{x}<br>Pages: %{y}<extra></extra>",
+                    )
+                )
+                fig_tl.add_vline(x=50, line_dash="dash", line_color="#ffd700",
+                                 annotation_text="Ideal min (50)", annotation_position="top right")
+                fig_tl.add_vline(x=60, line_dash="dash", line_color="#EF553B",
+                                 annotation_text="Ideal max (60)", annotation_position="top left")
+                fig_tl.update_layout(
+                    title="Title Length Distribution (chars) — ideal 50–60",
+                    xaxis_title="Characters", yaxis_title="Pages",
+                    height=300, template=_plotly_tpl, font=_FONT,
+                )
+                st.plotly_chart(fig_tl, use_container_width=True)
+
+            with _col_len2:
+                fig_ml = go.Figure(
+                    go.Histogram(
+                        x=_kw_df["meta_len"], nbinsx=10,
+                        marker_color="#FFA15A", opacity=0.8,
+                        hovertemplate="Length: %{x}<br>Pages: %{y}<extra></extra>",
+                    )
+                )
+                fig_ml.add_vline(x=150, line_dash="dash", line_color="#ffd700",
+                                 annotation_text="Ideal min (150)", annotation_position="top right")
+                fig_ml.add_vline(x=160, line_dash="dash", line_color="#EF553B",
+                                 annotation_text="Ideal max (160)", annotation_position="top left")
+                fig_ml.update_layout(
+                    title="Meta Description Length Distribution — ideal 150–160",
+                    xaxis_title="Characters", yaxis_title="Pages",
+                    height=300, template=_plotly_tpl, font=_FONT,
+                )
+                st.plotly_chart(fig_ml, use_container_width=True)
+
+            _titles_in_range = int((_kw_df["title_len"].between(50, 60)).sum())
+            _metas_in_range = int((_kw_df["meta_len"].between(150, 160)).sum())
+            st.caption(
+                f"{len(_kw_df)} pages analysed · "
+                f"Titles in ideal length (50–60 chars): {_titles_in_range} · "
+                f"Metas in ideal length (150–160 chars): {_metas_in_range}"
+            )
+    except Exception as exc:
+        st.error(f"Could not load keyword analysis: {exc}")
+        if st.button("Retry", key="retry_kw"):
+            st.cache_data.clear()
+            st.rerun()
