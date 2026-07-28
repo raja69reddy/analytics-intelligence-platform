@@ -1494,3 +1494,149 @@ with st.spinner("Loading page type data…"):
         if st.button("Retry", key="retry_pt"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── SEO recommendations ────────────────────────────────────────────────────────
+st.subheader("SEO Recommendations")
+st.caption(
+    "Auto-generated top 5 actionable recommendations based on live data "
+    "from raw_scrape_pages and vw_seo."
+)
+
+
+@st.cache_data(ttl=300)
+def _load_seo_recs_data():
+    return query_df(
+        """SELECT DISTINCT ON (sp.url)
+                  sp.url,
+                  sp.title,
+                  sp.meta_description,
+                  sp.word_count,
+                  sp.load_time_ms,
+                  sp.internal_links,
+                  COALESCE(v.organic_sessions, 0) AS organic_sessions
+           FROM raw_scrape_pages sp
+           LEFT JOIN vw_seo v ON v.url = sp.url
+           WHERE sp.http_status = 200
+           ORDER BY sp.url, sp.scraped_at DESC"""
+    )
+
+
+with st.spinner("Generating SEO recommendations…"):
+    try:
+        _rec_df = _load_seo_recs_data()
+        if _rec_df.empty:
+            st.info("No page data available to generate recommendations.")
+        else:
+            # Build findings for each recommendation category
+            _missing_meta = _rec_df[_rec_df["meta_description"].isna() | (_rec_df["meta_description"] == "")]
+            _low_wc = _rec_df[_rec_df["word_count"] < 300]
+            _slow_pages = _rec_df[(_rec_df["load_time_ms"].notna()) & (_rec_df["load_time_ms"] > 2000)]
+            _orphans = _rec_df[_rec_df["internal_links"] == 0]
+
+            # Duplicate titles detection
+            _title_grp = _rec_df.dropna(subset=["title"]).groupby("title")["url"].count()
+            _dup_titles = _title_grp[_title_grp > 1]
+
+            _recommendations = [
+                {
+                    "priority": "High",
+                    "priority_color": "#d62728",
+                    "title": "Fix Missing Meta Descriptions",
+                    "count": len(_missing_meta),
+                    "description": (
+                        f"{len(_missing_meta)} page(s) have no meta description. "
+                        "Meta descriptions appear in search results and directly impact click-through rate."
+                    ),
+                    "action": "Write a unique 150–160 character meta description for each affected page.",
+                    "affected": _missing_meta["url"].tolist(),
+                },
+                {
+                    "priority": "High",
+                    "priority_color": "#d62728",
+                    "title": "Expand Low Word Count Pages",
+                    "count": len(_low_wc),
+                    "description": (
+                        f"{len(_low_wc)} page(s) have fewer than 300 words. "
+                        "Thin content ranks poorly and provides less value to users."
+                    ),
+                    "action": "Expand content to at least 600–800 words with relevant, informative copy.",
+                    "affected": _low_wc["url"].tolist(),
+                },
+                {
+                    "priority": "High" if len(_slow_pages) > 2 else "Medium",
+                    "priority_color": "#d62728" if len(_slow_pages) > 2 else "#ff7f0e",
+                    "title": "Fix Slow Page Load Times",
+                    "count": len(_slow_pages),
+                    "description": (
+                        f"{len(_slow_pages)} page(s) load in over 2 seconds. "
+                        "Page speed is a direct Google ranking factor and affects user experience."
+                    ),
+                    "action": "Compress images, enable caching, use a CDN, and minify CSS/JS to hit <1s load times.",
+                    "affected": _slow_pages.nlargest(5, "load_time_ms")["url"].tolist(),
+                },
+                {
+                    "priority": "Medium",
+                    "priority_color": "#ff7f0e",
+                    "title": "Resolve Duplicate Content",
+                    "count": int(len(_dup_titles)),
+                    "description": (
+                        f"{len(_dup_titles)} duplicate title group(s) detected. "
+                        "Duplicate content confuses search engines and splits ranking signals."
+                    ),
+                    "action": "Set canonical tags or rewrite each page with unique titles and content.",
+                    "affected": [],
+                },
+                {
+                    "priority": "Medium" if len(_orphans) < 3 else "High",
+                    "priority_color": "#ff7f0e" if len(_orphans) < 3 else "#d62728",
+                    "title": "Link to Orphan Pages",
+                    "count": len(_orphans),
+                    "description": (
+                        f"{len(_orphans)} page(s) have zero internal links pointing to them. "
+                        "Orphan pages are hard for search crawlers to discover and receive no PageRank."
+                    ),
+                    "action": "Add internal links from related pages, the navigation menu, or a site map.",
+                    "affected": _orphans["url"].tolist(),
+                },
+            ]
+
+            # Display each recommendation as a card
+            for _i, _rec in enumerate(_recommendations):
+                _pri = _rec["priority"]
+                _pri_icon = "🔴" if _pri == "High" else "🟡"
+                with st.container(border=True):
+                    _rc1, _rc2 = st.columns([5, 1])
+                    with _rc1:
+                        st.markdown(
+                            f"**{_pri_icon} [{_pri}] {_rec['title']}** "
+                            f"— **{_rec['count']}** page(s) affected"
+                        )
+                        st.markdown(_rec["description"])
+                        st.markdown(f"**Action:** {_rec['action']}")
+                        if _rec["affected"]:
+                            with st.expander(f"View {min(len(_rec['affected']), 5)} affected URL(s)"):
+                                for _url in _rec["affected"][:5]:
+                                    st.markdown(f"- `{_url}`")
+                    with _rc2:
+                        _badge_color = _rec["priority_color"]
+                        st.markdown(
+                            f"<div style='background:{_badge_color};color:white;"
+                            f"text-align:center;padding:8px 4px;border-radius:6px;"
+                            f"font-weight:bold;font-size:13px'>{_pri}</div>",
+                            unsafe_allow_html=True,
+                        )
+
+            _n_high = sum(1 for r in _recommendations if r["priority"] == "High")
+            _n_med = sum(1 for r in _recommendations if r["priority"] == "Medium")
+            st.caption(
+                f"{len(_recommendations)} recommendations generated · "
+                f"High priority: {_n_high} · Medium priority: {_n_med} · "
+                "Fix High priority items first for maximum SEO impact"
+            )
+    except Exception as exc:
+        st.error(f"Could not generate SEO recommendations: {exc}")
+        if st.button("Retry", key="retry_recs"):
+            st.cache_data.clear()
+            st.rerun()
