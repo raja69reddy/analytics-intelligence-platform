@@ -3,6 +3,15 @@
 ## Day 47 - Conversion Analysis Complete
 - Added drop off waterfall chart: fixed y-array bug, per-stage interleaved measure (absolute/relative), green entry bars, red drop bars, drop count + % labels, stage detail table with RdYlGn gradient, try/except + Retry
 - Added micro conversion tracking chart: queries all event types from raw_clickstream_events with date filter, dual-axis bar+line chart (event count + micro CVR %), event type table, CSV download
+- Added conversion attribution comparison chart: first-touch (session-share proxy), last-touch (direct vw_conversions), linear (equal split) — grouped horizontal bar + summary table + CSV
+- Added conversion time analysis: form_submit events by hour of day, day of week (best/worst colored), daily goal completions distribution histogram with avg/median vlines
+- Added conversion page flow sankey: entry_page → conversion_page paths via raw_clickstream_events CTE, node colors (green=entry, blue=conversion), link widths = converting sessions
+- Added goal completion trend by channel: one Scatter line per channel_grouping, range selector (7D/30D/90D/All), hovermode=x unified, channel summary table + CSV
+- Created sql/queries/conversion_deep_dive.sql: 5 queries — CVR by landing page (raw_ga4_sessions), CVR by traffic source (vw_conversions), CVR by device × channel combined, time between sessions proxy (channel date span), avg pages before converting (raw_clickstream_events CTE); all verified against PostgreSQL
+- Added conversion summary card to home page (app.py): this-month vs last-month conversions, CVR delta (pp), best converting channel, revenue; loaded from vw_conversions with separate monthly date params
+- Created utils/conversion_calculator.py: calculate_cvr (fraction 0–1), calculate_revenue_per_session, calculate_goal_value, calculate_roas, format_conversion_metrics with formatted_* string keys; all pure Python
+- Added conversion benchmarks section to conversions page: hrect shading for 2–3% e-commerce range, your CVR bar colored green/red vs benchmark, gap-to-benchmark metric, source attribution note
+- Created tests/test_conversions.py: 38 tests across TestVwConversionsData (8 DB tests), TestVwFunnelStages (5 DB tests), and calculator unit tests (25 tests); all 38 pass in 1.33s
 - Added conversion attribution comparison chart: first-touch (session-share proxy via raw_ga4_sessions), last-touch (direct from vw_conversions), linear (equal split) — grouped horizontal bar chart + summary table + CSV download
 - Added conversion time analysis charts: form_submit events by hour of day, by day of week (best/worst highlighted), daily goal completions distribution histogram with avg/median vlines
 - Added conversion page flow sankey diagram: entry_page → conversion_page flows via raw_clickstream_events CTE, node colors (green=entry, blue=conversion), link width = converting sessions, CSV download
