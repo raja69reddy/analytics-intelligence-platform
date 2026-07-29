@@ -2012,3 +2012,95 @@ with st.spinner("Loading device performance data..."):
         if st.button("Retry", key="retry_dev"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Content Calendar ──────────────────────────────────────────────────────────
+st.subheader("Content Calendar")
+st.caption(
+    "Pages scheduled for content updates based on freshness and organic traffic signals. "
+    "Priority: High = stale (>30 days) + above-median traffic; Medium = stale only; Low = fresh."
+)
+
+
+@st.cache_data(ttl=300)
+def _load_content_calendar():
+    return query_df(
+        """SELECT DISTINCT ON (sp.url)
+               sp.url,
+               sp.scraped_at                                                      AS last_updated,
+               EXTRACT(EPOCH FROM (NOW() - sp.scraped_at)) / 86400.0             AS days_old,
+               COALESCE(v.organic_sessions, 0)                                   AS sessions
+           FROM raw_scrape_pages sp
+           LEFT JOIN vw_seo v ON v.url = sp.url
+           WHERE sp.http_status = 200
+           ORDER BY sp.url, sp.scraped_at DESC"""
+    )
+
+
+with st.spinner("Loading content calendar..."):
+    try:
+        _cal_df = _load_content_calendar()
+        if _cal_df.empty:
+            st.info("No pages found for the content calendar.")
+        else:
+            _sess_med = _cal_df["sessions"].median()
+
+            def _cal_priority(row):
+                stale = row["days_old"] > 30
+                high_traffic = row["sessions"] >= _sess_med
+                if stale and high_traffic:
+                    return "High"
+                if stale:
+                    return "Medium"
+                return "Low"
+
+            _cal_df["priority"] = _cal_df.apply(_cal_priority, axis=1)
+            _cal_df["assigned_to"] = "Content Team"
+            _cal_df["last_updated_str"] = pd.to_datetime(
+                _cal_df["last_updated"]
+            ).dt.strftime("%Y-%m-%d")
+
+            _disp_cal = _cal_df[
+                ["url", "last_updated_str", "priority", "assigned_to"]
+            ].copy()
+            _disp_cal.columns = ["URL", "Last Updated", "Priority", "Assigned To"]
+
+            _pri_order = {"High": 0, "Medium": 1, "Low": 2}
+            _disp_cal["_sort"] = _disp_cal["Priority"].map(_pri_order)
+            _disp_cal = _disp_cal.sort_values("_sort").drop(columns=["_sort"]).reset_index(drop=True)
+
+            def _style_cal_row(row):
+                pri = row.get("Priority", "")
+                if pri == "High":
+                    return ["", "", "background-color:#d62728;color:white;font-weight:bold", ""]
+                if pri == "Medium":
+                    return ["", "", "background-color:#ff7f0e;color:white;font-weight:bold", ""]
+                return [""] * 4
+
+            st.dataframe(
+                _disp_cal.style.apply(_style_cal_row, axis=1),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            _n_high_cal = (_disp_cal["Priority"] == "High").sum()
+            _n_med_cal = (_disp_cal["Priority"] == "Medium").sum()
+            st.caption(
+                f"{len(_disp_cal)} page(s) · High priority: {_n_high_cal} · "
+                f"Medium priority: {_n_med_cal} · "
+                "Refresh High priority pages first for maximum SEO impact"
+            )
+
+            st.download_button(
+                "⬇️ Download Content Calendar CSV",
+                _disp_cal.to_csv(index=False),
+                file_name="content_calendar.csv",
+                mime="text/csv",
+                key="dl_cal",
+            )
+    except Exception as exc:
+        st.error(f"Could not load content calendar: {exc}")
+        if st.button("Retry", key="retry_cal"):
+            st.cache_data.clear()
+            st.rerun()
