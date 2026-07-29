@@ -1,5 +1,13 @@
 # Changelog
 
+## Day 49 - Content Performance Deep Dive
+- Added content performance summary table: full metrics per page (sessions, bounce rate, avg time, word count, load time, content score, CVR), ProgressColumn color coding on content score, search/filter box, CSV download, column sorting
+- Added top vs bottom content comparison: top 25% vs bottom 25% by organic sessions, grouped bar chart across 4 metrics (word count, load time, bounce rate, CVR), key difference insights below chart
+- Added content ROI analysis section: revenue per page visit from raw_ga4_sessions.landing_page, horizontal bar chart with RdYlGn gradient, highest/lowest/avg revenue-per-visit metrics, CSV download
+- Added mobile vs desktop comparison table: desktop vs mobile sessions and CVR per landing page, CVR gap column, red highlight for pages where desktop-to-mobile gap > 0.2 pp
+- Added content calendar placeholder: priority assignment (High = stale >30d + high traffic, Medium = stale only, Low = fresh), Last Updated from raw_scrape_pages.scraped_at, Assigned To column, CSV download
+- Added SEO score trend chart: avg composite content score by scrape date, line+markers chart, peak and low annotations, trend direction caption (improving/declining/stable)
+
 ## Day 48 - SEO Page Advanced Features
 - Added keyword analysis section: title word frequency bar chart + meta word frequency bar chart (top 15 words, stopwords filtered), title length distribution histogram (ideal 50–60 chars band), meta length distribution histogram (ideal 150–160 chars band), 4-panel layout
 - Added content freshness analysis: days_since_scraped via EXTRACT(EPOCH), color-coded status (green <7d, orange 7–30d, red >30d), freshness distribution bar chart, "Needs Update" badge for stale pages, sortable freshness table
