@@ -1640,3 +1640,99 @@ with st.spinner("Generating SEO recommendations…"):
         if st.button("Retry", key="retry_recs"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Content Performance Summary ───────────────────────────────────────────────
+st.subheader("Content Performance Summary")
+
+
+@st.cache_data(ttl=300)
+def _load_content_performance():
+    return query_df(
+        """SELECT
+               sp.url,
+               sp.word_count,
+               sp.load_time_ms,
+               sp.meta_description,
+               sp.internal_links,
+               COALESCE(v.organic_sessions, 0)                                  AS sessions,
+               ROUND(COALESCE(v.avg_session_duration_s, 0))                     AS avg_time_s,
+               ROUND(
+                   COALESCE(v.organic_bounces, 0)::NUMERIC
+                   / NULLIF(COALESCE(v.organic_sessions, 0), 0) * 100, 1
+               )                                                                 AS bounce_rate_pct,
+               COALESCE(
+                   ROUND(
+                       SUM(g.conversions)::NUMERIC
+                       / NULLIF(SUM(g.sessions), 0) * 100, 2
+                   ), 0
+               )                                                                 AS cvr_pct
+           FROM (
+               SELECT DISTINCT ON (url)
+                   url, word_count, load_time_ms, meta_description, internal_links
+               FROM raw_scrape_pages
+               WHERE http_status = 200
+               ORDER BY url, scraped_at DESC
+           ) sp
+           LEFT JOIN vw_seo v ON v.url = sp.url
+           LEFT JOIN raw_ga4_sessions g ON g.landing_page = sp.url
+           GROUP BY sp.url, sp.word_count, sp.load_time_ms, sp.meta_description,
+                    sp.internal_links, v.organic_sessions, v.avg_session_duration_s,
+                    v.organic_bounces
+           ORDER BY sessions DESC"""
+    )
+
+
+with st.spinner("Loading content performance data..."):
+    try:
+        _perf_df = _load_content_performance()
+        if _perf_df.empty:
+            st.info("No content performance data available.")
+        else:
+            _perf_df["content_score"] = _perf_df.apply(_compute_score, axis=1)
+
+            _search = st.text_input(
+                "🔍 Filter by URL", key="perf_search", placeholder="Type to filter..."
+            )
+            _perf_filt = (
+                _perf_df[_perf_df["url"].str.contains(_search, case=False, na=False)]
+                if _search
+                else _perf_df
+            )
+
+            _disp_cols = [
+                "url", "sessions", "bounce_rate_pct", "avg_time_s",
+                "word_count", "load_time_ms", "content_score", "cvr_pct",
+            ]
+            st.dataframe(
+                _perf_filt[_disp_cols],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "url": st.column_config.TextColumn("URL"),
+                    "sessions": st.column_config.NumberColumn("Sessions", format="%d"),
+                    "bounce_rate_pct": st.column_config.NumberColumn("Bounce Rate %", format="%.1f%%"),
+                    "avg_time_s": st.column_config.NumberColumn("Avg Time (s)", format="%d s"),
+                    "word_count": st.column_config.NumberColumn("Word Count", format="%d"),
+                    "load_time_ms": st.column_config.NumberColumn("Load Time (ms)", format="%d ms"),
+                    "content_score": st.column_config.ProgressColumn(
+                        "Content Score", min_value=0, max_value=100, format="%.0f"
+                    ),
+                    "cvr_pct": st.column_config.NumberColumn("CVR %", format="%.2f%%"),
+                },
+            )
+            st.caption(f"{len(_perf_filt)} page(s) shown · Click any column header to sort")
+
+            st.download_button(
+                "⬇️ Download CSV",
+                _perf_filt[_disp_cols].to_csv(index=False),
+                file_name="content_performance.csv",
+                mime="text/csv",
+                key="dl_content_perf",
+            )
+    except Exception as exc:
+        st.error(f"Could not load content performance: {exc}")
+        if st.button("Retry", key="retry_content_perf"):
+            st.cache_data.clear()
+            st.rerun()
