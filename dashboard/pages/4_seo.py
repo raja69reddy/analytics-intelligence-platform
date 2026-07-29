@@ -2104,3 +2104,119 @@ with st.spinner("Loading content calendar..."):
         if st.button("Retry", key="retry_cal"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── SEO Score Trend ───────────────────────────────────────────────────────────
+st.subheader("SEO Score Trend")
+st.caption(
+    "Average composite content score (0–100) across all pages grouped by scrape date. "
+    "Shows whether content quality is improving or declining over time."
+)
+
+
+@st.cache_data(ttl=300)
+def _load_score_trend():
+    return query_df(
+        """SELECT
+               DATE(scraped_at)                                                   AS scrape_date,
+               ROUND(AVG(word_count))                                             AS avg_word_count,
+               ROUND(AVG(internal_links), 2)                                      AS avg_internal_links,
+               ROUND(AVG(load_time_ms))                                           AS avg_load_time_ms,
+               COUNT(
+                   CASE WHEN meta_description IS NOT NULL
+                             AND meta_description <> '' THEN 1 END
+               )::NUMERIC / NULLIF(COUNT(*), 0)                                   AS meta_pct
+           FROM raw_scrape_pages
+           WHERE http_status = 200
+           GROUP BY DATE(scraped_at)
+           ORDER BY scrape_date"""
+    )
+
+
+with st.spinner("Loading SEO score trend..."):
+    try:
+        _trend_df = _load_score_trend()
+        if _trend_df.empty:
+            st.info("No scrape history available for trend analysis.")
+        else:
+            def _score_from_agg(row) -> float:
+                wc = float(row.get("avg_word_count") or 0)
+                wc_score = min(40.0, max(0.0, (wc - 300) / (2000 - 300) * 40))
+                meta_score = float(row.get("meta_pct") or 0) * 20.0
+                il = float(row.get("avg_internal_links") or 0)
+                link_score = min(20.0, il / 10.0 * 20.0)
+                lt = float(row.get("avg_load_time_ms") or 3000)
+                speed_score = max(0.0, min(20.0, (3000 - lt) / (3000 - 500) * 20.0))
+                return round(wc_score + meta_score + link_score + speed_score, 1)
+
+            _trend_df["avg_content_score"] = _trend_df.apply(_score_from_agg, axis=1)
+            _trend_df["scrape_date"] = pd.to_datetime(_trend_df["scrape_date"])
+
+            fig_trend = go.Figure()
+            fig_trend.add_trace(
+                go.Scatter(
+                    x=_trend_df["scrape_date"],
+                    y=_trend_df["avg_content_score"],
+                    mode="lines+markers",
+                    name="Avg Content Score",
+                    line=dict(color="#1f77b4", width=2),
+                    marker=dict(size=8),
+                    hovertemplate="%{x|%Y-%m-%d}<br>Score: %{y:.1f}<extra></extra>",
+                )
+            )
+
+            if len(_trend_df) > 1:
+                _peak_idx = _trend_df["avg_content_score"].idxmax()
+                _trough_idx = _trend_df["avg_content_score"].idxmin()
+                _peak_row = _trend_df.loc[_peak_idx]
+                _trough_row = _trend_df.loc[_trough_idx]
+
+                fig_trend.add_annotation(
+                    x=_peak_row["scrape_date"],
+                    y=_peak_row["avg_content_score"],
+                    text=f"Peak: {_peak_row['avg_content_score']:.1f}",
+                    showarrow=True,
+                    arrowhead=2,
+                    yshift=14,
+                    font=dict(color="#2ca02c", size=12),
+                )
+                if _trough_idx != _peak_idx:
+                    fig_trend.add_annotation(
+                        x=_trough_row["scrape_date"],
+                        y=_trough_row["avg_content_score"],
+                        text=f"Low: {_trough_row['avg_content_score']:.1f}",
+                        showarrow=True,
+                        arrowhead=2,
+                        yshift=-18,
+                        font=dict(color="#d62728", size=12),
+                    )
+
+            fig_trend.update_layout(
+                template=_plotly_tpl,
+                height=380,
+                font=_FONT,
+                xaxis_title="Scrape Date",
+                yaxis_title="Avg Content Score (0–100)",
+                yaxis=dict(range=[0, 110]),
+                margin=dict(l=10, r=10, t=20, b=10),
+            )
+            st.plotly_chart(fig_trend, use_container_width=True)
+
+            _latest_score = float(_trend_df["avg_content_score"].iloc[-1])
+            _first_score = float(_trend_df["avg_content_score"].iloc[0])
+            _trend_dir = (
+                "↑ improving" if _latest_score > _first_score
+                else ("↓ declining" if _latest_score < _first_score else "→ stable")
+            )
+            st.caption(
+                f"Latest score: **{_latest_score:.1f}** · "
+                f"First recorded: **{_first_score:.1f}** · "
+                f"Trend: {_trend_dir} · "
+                f"{len(_trend_df)} scrape date(s) in history"
+            )
+    except Exception as exc:
+        st.error(f"Could not load SEO score trend: {exc}")
+        if st.button("Retry", key="retry_trend"):
+            st.cache_data.clear()
+            st.rerun()
