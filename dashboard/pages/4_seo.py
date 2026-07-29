@@ -1736,3 +1736,102 @@ with st.spinner("Loading content performance data..."):
         if st.button("Retry", key="retry_content_perf"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Top vs Bottom Content Comparison ─────────────────────────────────────────
+st.subheader("Top vs Bottom Content Comparison")
+st.caption("Comparing pages in the top 25% vs bottom 25% by organic sessions across 4 key metrics.")
+
+with st.spinner("Loading comparison data..."):
+    try:
+        _cmp_df = _load_content_performance()
+        if len(_cmp_df) < 4:
+            st.info("Not enough pages for quartile comparison (need at least 4 pages).")
+        else:
+            _cmp_df["content_score"] = _cmp_df.apply(_compute_score, axis=1)
+            _q75 = _cmp_df["sessions"].quantile(0.75)
+            _q25 = _cmp_df["sessions"].quantile(0.25)
+            _top_pages = _cmp_df[_cmp_df["sessions"] >= _q75]
+            _bot_pages = _cmp_df[_cmp_df["sessions"] <= _q25]
+
+            _metrics_labels = [
+                "Avg Word Count",
+                "Avg Load Time (ms)",
+                "Avg Bounce Rate %",
+                "Avg CVR %",
+            ]
+            _top_vals = [
+                float(_top_pages["word_count"].mean()),
+                float(_top_pages["load_time_ms"].mean()),
+                float(_top_pages["bounce_rate_pct"].fillna(0).mean()),
+                float(_top_pages["cvr_pct"].mean()),
+            ]
+            _bot_vals = [
+                float(_bot_pages["word_count"].mean()),
+                float(_bot_pages["load_time_ms"].mean()),
+                float(_bot_pages["bounce_rate_pct"].fillna(0).mean()),
+                float(_bot_pages["cvr_pct"].mean()),
+            ]
+
+            fig_cmp = go.Figure()
+            fig_cmp.add_trace(
+                go.Bar(
+                    name=f"Top 25% ({len(_top_pages)} pages)",
+                    x=_metrics_labels,
+                    y=_top_vals,
+                    marker_color="#2ca02c",
+                )
+            )
+            fig_cmp.add_trace(
+                go.Bar(
+                    name=f"Bottom 25% ({len(_bot_pages)} pages)",
+                    x=_metrics_labels,
+                    y=_bot_vals,
+                    marker_color="#d62728",
+                )
+            )
+            fig_cmp.update_layout(
+                template=_plotly_tpl,
+                barmode="group",
+                height=420,
+                font=_FONT,
+                legend=dict(
+                    orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
+                ),
+                margin=dict(l=10, r=10, t=40, b=10),
+            )
+            st.plotly_chart(fig_cmp, use_container_width=True)
+
+            _wc_diff = _top_vals[0] - _bot_vals[0]
+            _lt_diff = _top_vals[1] - _bot_vals[1]
+            _br_diff = _top_vals[2] - _bot_vals[2]
+            _cvr_diff = _top_vals[3] - _bot_vals[3]
+
+            _ins1, _ins2 = st.columns(2)
+            with _ins1:
+                st.markdown(
+                    f"**Word Count:** Top pages average **{_top_vals[0]:.0f}** words vs "
+                    f"**{_bot_vals[0]:.0f}** for bottom pages "
+                    f"({'↑' if _wc_diff > 0 else '↓'} {abs(_wc_diff):.0f} word difference)"
+                )
+                st.markdown(
+                    f"**Load Time:** Top pages load in **{_top_vals[1]:.0f} ms** vs "
+                    f"**{_bot_vals[1]:.0f} ms** for bottom pages "
+                    f"({'faster' if _lt_diff < 0 else 'slower'})"
+                )
+            with _ins2:
+                st.markdown(
+                    f"**Bounce Rate:** Top pages bounce at **{_top_vals[2]:.1f}%** vs "
+                    f"**{_bot_vals[2]:.1f}%** for bottom pages"
+                )
+                st.markdown(
+                    f"**CVR:** Top pages convert at **{_top_vals[3]:.2f}%** vs "
+                    f"**{_bot_vals[3]:.2f}%** for bottom pages "
+                    f"({'↑' if _cvr_diff > 0 else '↓'} {abs(_cvr_diff):.2f} pp)"
+                )
+    except Exception as exc:
+        st.error(f"Could not load comparison: {exc}")
+        if st.button("Retry", key="retry_cmp"):
+            st.cache_data.clear()
+            st.rerun()
