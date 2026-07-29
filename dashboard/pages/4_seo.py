@@ -1835,3 +1835,95 @@ with st.spinner("Loading comparison data..."):
         if st.button("Retry", key="retry_cmp"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Content ROI Analysis ──────────────────────────────────────────────────────
+st.subheader("Content ROI Analysis")
+st.caption("Revenue generated per page visit, ranked highest to lowest.")
+
+
+@st.cache_data(ttl=300)
+def _load_content_roi():
+    return query_df(
+        """SELECT
+               landing_page                                                            AS url,
+               SUM(sessions)                                                           AS total_sessions,
+               SUM(conversions)                                                        AS total_conversions,
+               ROUND(SUM(revenue)::NUMERIC, 2)                                         AS total_revenue,
+               ROUND(SUM(revenue)::NUMERIC / NULLIF(SUM(sessions), 0), 4)              AS revenue_per_visit
+           FROM raw_ga4_sessions
+           WHERE landing_page IS NOT NULL
+             AND sessions > 0
+           GROUP BY landing_page
+           HAVING SUM(sessions) >= 5
+           ORDER BY revenue_per_visit DESC"""
+    )
+
+
+with st.spinner("Loading content ROI data..."):
+    try:
+        _roi_df = _load_content_roi()
+        if _roi_df.empty:
+            st.info("No revenue data available for ROI analysis.")
+        else:
+            _short_roi = _roi_df["url"].str.replace(r"https?://[^/]+", "", regex=True)
+            _short_roi = _short_roi.where(_short_roi != "", _roi_df["url"])
+
+            fig_roi = go.Figure(
+                go.Bar(
+                    x=_roi_df["revenue_per_visit"],
+                    y=_short_roi,
+                    orientation="h",
+                    marker=dict(
+                        color=_roi_df["revenue_per_visit"],
+                        colorscale="RdYlGn",
+                        showscale=True,
+                        colorbar=dict(title="$/visit", thickness=14),
+                    ),
+                    text=_roi_df["revenue_per_visit"].apply(lambda v: f"${v:.4f}"),
+                    textposition="outside",
+                    hovertemplate="URL: %{y}<br>Revenue/visit: $%{x:.4f}<extra></extra>",
+                )
+            )
+            fig_roi.update_layout(
+                template=_plotly_tpl,
+                height=max(320, len(_roi_df) * 48),
+                font=_FONT,
+                xaxis_title="Revenue per Visit ($)",
+                margin=dict(l=10, r=90, t=10, b=10),
+                yaxis=dict(autorange="reversed"),
+            )
+            st.plotly_chart(fig_roi, use_container_width=True)
+
+            _roi_c1, _roi_c2, _roi_c3 = st.columns(3)
+            with _roi_c1:
+                _best_roi = _roi_df.iloc[0]
+                st.metric(
+                    "Highest Revenue/Visit",
+                    f"${_best_roi['revenue_per_visit']:.4f}",
+                    help=_best_roi["url"],
+                )
+            with _roi_c2:
+                _worst_roi = _roi_df.iloc[-1]
+                st.metric(
+                    "Lowest Revenue/Visit",
+                    f"${_worst_roi['revenue_per_visit']:.4f}",
+                    help=_worst_roi["url"],
+                )
+            with _roi_c3:
+                _avg_rpv = float(_roi_df["revenue_per_visit"].mean())
+                st.metric("Avg Revenue/Visit", f"${_avg_rpv:.4f}")
+
+            st.download_button(
+                "⬇️ Download CSV",
+                _roi_df.to_csv(index=False),
+                file_name="content_roi.csv",
+                mime="text/csv",
+                key="dl_roi",
+            )
+    except Exception as exc:
+        st.error(f"Could not load content ROI: {exc}")
+        if st.button("Retry", key="retry_roi"):
+            st.cache_data.clear()
+            st.rerun()
