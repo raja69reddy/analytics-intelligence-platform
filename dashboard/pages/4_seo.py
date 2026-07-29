@@ -1927,3 +1927,88 @@ with st.spinner("Loading content ROI data..."):
         if st.button("Retry", key="retry_roi"):
             st.cache_data.clear()
             st.rerun()
+
+st.divider()
+
+# ── Mobile vs Desktop Content Performance ────────────────────────────────────
+st.subheader("Mobile vs Desktop Content Performance")
+st.caption("CVR split by device type per landing page. Red = desktop CVR exceeds mobile CVR by > 0.2 pp (mobile optimization needed).")
+
+
+@st.cache_data(ttl=300)
+def _load_device_perf():
+    return query_df(
+        """SELECT
+               landing_page                                                                   AS url,
+               SUM(CASE WHEN device_category = 'desktop' THEN sessions    ELSE 0 END)        AS desktop_sessions,
+               SUM(CASE WHEN device_category = 'mobile'  THEN sessions    ELSE 0 END)        AS mobile_sessions,
+               ROUND(
+                   SUM(CASE WHEN device_category = 'desktop' THEN conversions ELSE 0 END)::NUMERIC
+                   / NULLIF(SUM(CASE WHEN device_category = 'desktop' THEN sessions ELSE 0 END), 0)
+                   * 100, 2
+               )                                                                              AS desktop_cvr_pct,
+               ROUND(
+                   SUM(CASE WHEN device_category = 'mobile' THEN conversions ELSE 0 END)::NUMERIC
+                   / NULLIF(SUM(CASE WHEN device_category = 'mobile' THEN sessions ELSE 0 END), 0)
+                   * 100, 2
+               )                                                                              AS mobile_cvr_pct
+           FROM raw_ga4_sessions
+           WHERE landing_page IS NOT NULL
+           GROUP BY landing_page
+           HAVING SUM(sessions) > 0
+           ORDER BY desktop_sessions + mobile_sessions DESC"""
+    )
+
+
+with st.spinner("Loading device performance data..."):
+    try:
+        _dev_df = _load_device_perf()
+        if _dev_df.empty:
+            st.info("No device data available.")
+        else:
+            _dev_df["desktop_cvr_pct"] = _dev_df["desktop_cvr_pct"].fillna(0)
+            _dev_df["mobile_cvr_pct"] = _dev_df["mobile_cvr_pct"].fillna(0)
+            _dev_df["device_gap"] = (
+                _dev_df["desktop_cvr_pct"] - _dev_df["mobile_cvr_pct"]
+            ).round(2)
+
+            _disp_dev = _dev_df[
+                ["url", "desktop_sessions", "mobile_sessions",
+                 "desktop_cvr_pct", "mobile_cvr_pct", "device_gap"]
+            ].copy()
+            _disp_dev.columns = [
+                "URL", "Desktop Sessions", "Mobile Sessions",
+                "Desktop CVR %", "Mobile CVR %", "CVR Gap (pp)",
+            ]
+
+            def _style_dev_row(row):
+                gap = row.get("CVR Gap (pp)", 0)
+                highlight = "background-color:#d62728;color:white"
+                if gap > 0.2:
+                    return [""] * 5 + [highlight]
+                return [""] * 6
+
+            st.dataframe(
+                _disp_dev.style.apply(_style_dev_row, axis=1),
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "URL": st.column_config.TextColumn("URL"),
+                    "Desktop Sessions": st.column_config.NumberColumn(format="%d"),
+                    "Mobile Sessions": st.column_config.NumberColumn(format="%d"),
+                    "Desktop CVR %": st.column_config.NumberColumn(format="%.2f%%"),
+                    "Mobile CVR %": st.column_config.NumberColumn(format="%.2f%%"),
+                    "CVR Gap (pp)": st.column_config.NumberColumn(format="%.2f"),
+                },
+            )
+            _large_gap_n = (_dev_df["device_gap"] > 0.2).sum()
+            st.caption(
+                f"{len(_dev_df)} landing page(s) analyzed · "
+                f"{_large_gap_n} page(s) with desktop-to-mobile CVR gap > 0.2 pp (highlighted red) — "
+                "prioritize mobile UX improvements on flagged pages"
+            )
+    except Exception as exc:
+        st.error(f"Could not load device performance: {exc}")
+        if st.button("Retry", key="retry_dev"):
+            st.cache_data.clear()
+            st.rerun()
