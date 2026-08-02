@@ -122,49 +122,58 @@ with st.sidebar:
     # ── Data Freshness ────────────────────────────────────────────────────────
     st.subheader("📡 Data Freshness")
 
+    _SOURCE_TABLES = {
+        "GA4 data": "raw_ga4_sessions",
+        "Server logs": "raw_server_logs",
+        "Clickstream": "raw_clickstream_events",
+        "Scrape data": "raw_scrape_pages",
+    }
+
     @st.cache_data(ttl=60)
     def _sidebar_data_freshness():
         from utils.db import query_df as _qdf
+        from datetime import datetime as _dt
 
-        tables = {
-            "GA4": "raw_ga4_sessions",
-            "Server Logs": "raw_server_logs",
-            "Clickstream": "raw_clickstream_events",
-            "Scraper": "raw_scrape_pages",
-        }
+        source_info: dict = {}
         total_rows = 0
-        last_ingest = None
-        for _label, table in tables.items():
+        for label, table in _SOURCE_TABLES.items():
             try:
                 df = _qdf(f"SELECT COUNT(*) AS n, MAX(ingested_at) AS ts FROM {table}")
-                n = int(df["n"].iloc[0])
+                n = int(df["n"].iloc[0] or 0)
                 ts = df["ts"].iloc[0]
                 total_rows += n
-                if ts and (last_ingest is None or ts > last_ingest):
-                    last_ingest = ts
-            except Exception:
-                pass
-        return total_rows, last_ingest
+                if ts and hasattr(ts, "total_seconds"):
+                    ts_dt = ts
+                elif ts:
+                    ts_dt = _dt.fromisoformat(str(ts))
+                else:
+                    ts_dt = None
+                age_h = (
+                    (_dt.now() - ts_dt).total_seconds() / 3600 if ts_dt else None
+                )
+                source_info[label] = {"rows": n, "age_h": age_h, "ts": ts_dt}
+            except Exception as exc:
+                source_info[label] = {"rows": 0, "age_h": None, "ts": None, "error": str(exc)}
+        return total_rows, source_info
 
-    _total_rows, _last_ingest = _sidebar_data_freshness()
+    _total_rows, _source_info = _sidebar_data_freshness()
     st.metric("Total Rows Ingested", f"{_total_rows:,}")
 
-    if _last_ingest:
-        _last_dt = (
-            _last_ingest
-            if hasattr(_last_ingest, "strftime")
-            else datetime.fromisoformat(str(_last_ingest))
-        )
-        _age_h = (datetime.now() - _last_dt).total_seconds() / 3600
-        st.caption(f"Last ingest: {_last_dt.strftime('%Y-%m-%d %H:%M')}")
-        if _age_h < 24:
-            st.success(f"Data fresh ({_age_h:.0f}h ago)")
-        elif _age_h < 48:
-            st.warning(f"Data aging ({_age_h:.0f}h ago)")
+    for _src_label, _src in _source_info.items():
+        _age = _src.get("age_h")
+        if _age is None:
+            _indicator = "⚫"
+            _detail = "no timestamp"
+        elif _age < 24:
+            _indicator = "🟢"
+            _detail = f"{_age:.0f}h ago"
+        elif _age < 48:
+            _indicator = "🟡"
+            _detail = f"{_age:.0f}h ago"
         else:
-            st.error(f"Data stale ({_age_h:.0f}h ago)")
-    else:
-        st.caption("No ingest timestamp found.")
+            _indicator = "🔴"
+            _detail = f"{_age:.0f}h ago"
+        st.caption(f"{_indicator} **{_src_label}:** updated {_detail} ({_src['rows']:,} rows)")
 
     # ── Refresh controls ──────────────────────────────────────────────────────
     _auto = st.toggle(
