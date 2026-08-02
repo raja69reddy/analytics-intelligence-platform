@@ -485,11 +485,19 @@ with st.sidebar:
             st.caption(f"Devices: {', '.join(devices)}")
     else:
         st.caption("No extra filters — showing all data")
-    if st.button("Clear data cache"):
+    if st.button("Clear data cache", key="behavior_clear_cache"):
         st.cache_data.clear()
+        st.session_state["_behavior_loaded_at"] = datetime.now()
         st.success("Cache cleared — reloading…")
-    st.caption("Cache TTL: 5 min · All queries cached with @st.cache_data(ttl=300)")
-    st.caption(f"Last loaded: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    if "_behavior_loaded_at" not in st.session_state:
+        st.session_state["_behavior_loaded_at"] = datetime.now()
+    _beh_elapsed = int(
+        (datetime.now() - st.session_state["_behavior_loaded_at"]).total_seconds() / 60
+    )
+    st.caption(
+        f"Cache TTL: 5 min · All queries cached with @st.cache_data(ttl=300) · "
+        f"Last updated: {_beh_elapsed} min ago"
+    )
 
 # ── Load data — device filter applied at DB level for session queries ──────────
 _dev = tuple(devices)
