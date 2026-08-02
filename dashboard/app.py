@@ -929,8 +929,8 @@ except Exception as _exc:
 
 st.divider()
 
-# ── System Status ─────────────────────────────────────────────────────────────
-st.subheader("System Status")
+# ── System Health Dashboard ───────────────────────────────────────────────────
+st.subheader("System Health Dashboard")
 
 
 @st.cache_data(ttl=60)
@@ -944,11 +944,14 @@ def _check_db_ok():
 
 @st.cache_data(ttl=60)
 def _check_views_ok():
+    _views = ["vw_traffic", "vw_daily_traffic", "vw_behavior", "vw_top_pages",
+              "vw_funnel", "vw_conversions", "vw_seo"]
     try:
-        query_df("SELECT * FROM vw_traffic LIMIT 1")
-        return True
-    except Exception:
-        return False
+        for v in _views:
+            query_df(f"SELECT * FROM {v} LIMIT 1")
+        return True, len(_views)
+    except Exception as exc:
+        return False, str(exc)
 
 
 @st.cache_data(ttl=60)
@@ -960,39 +963,61 @@ def _check_ai_ok():
 
 
 @st.cache_data(ttl=60)
-def _check_data_ok():
-    try:
-        return int(query_df("SELECT COUNT(*) AS n FROM raw_ga4_sessions")["n"].iloc[0]) > 0
-    except Exception:
-        return False
+def _check_tables_ok():
+    _tables = ["raw_ga4_sessions", "raw_server_logs", "raw_clickstream_events", "raw_scrape_pages"]
+    results = {}
+    last_run_ts = None
+    for tbl in _tables:
+        try:
+            df = query_df(f"SELECT COUNT(*) AS n, MAX(ingested_at) AS ts FROM {tbl}")
+            n = int(df["n"].iloc[0] or 0)
+            ts = df["ts"].iloc[0]
+            results[tbl] = n > 0
+            if ts and (last_run_ts is None or ts > last_run_ts):
+                last_run_ts = ts
+        except Exception:
+            results[tbl] = False
+    all_ok = all(results.values())
+    last_run_str = str(last_run_ts)[:16] if last_run_ts else "N/A"
+    return all_ok, last_run_str
 
 
 _db_ok = _check_db_ok()
-_views_ok = _check_views_ok()
+_views_ok_flag, _views_detail = _check_views_ok()
 _ai_ok = _check_ai_ok()
-_data_ok = _check_data_ok()
+_tables_ok, _last_pipeline_run = _check_tables_ok()
 
-sc1, sc2, sc3, sc4 = st.columns(4)
-with sc1:
-    if _db_ok:
-        st.success("PostgreSQL: Connected")
-    else:
-        st.error("PostgreSQL: Down")
-with sc2:
-    if _views_ok:
-        st.success("SQL Views: Active")
-    else:
-        st.error("SQL Views: Error")
-with sc3:
-    if _ai_ok:
-        st.success("AI Models: Loaded")
-    else:
-        st.warning("AI Models: Not trained")
-with sc4:
-    if _data_ok:
-        st.success("Data: Available")
-    else:
-        st.error("Data: Empty")
+# Overall health score: each component worth 25 points
+_health_pts = sum([_db_ok, _views_ok_flag, _tables_ok]) * 25
+_health_pts += 25 if _ai_ok else 0
+_health_color = "🟢" if _health_pts == 100 else ("🟡" if _health_pts >= 75 else "🔴")
+
+_hcol1, _hcol2 = st.columns([2, 3])
+with _hcol1:
+    st.metric("Overall Health Score", f"{_health_pts}/100")
+    st.caption(f"{_health_color} {'All systems operational' if _health_pts == 100 else 'Degraded — check components below'}")
+    st.caption(f"Last pipeline run: {_last_pipeline_run}")
+
+with _hcol2:
+    sc1, sc2 = st.columns(2)
+    with sc1:
+        if _db_ok:
+            st.success("🟢 PostgreSQL: Connected")
+        else:
+            st.error("🔴 PostgreSQL: Down")
+        if _tables_ok:
+            st.success("🟢 Raw tables: Populated")
+        else:
+            st.error("🔴 Raw tables: Missing data")
+    with sc2:
+        if _views_ok_flag:
+            st.success(f"🟢 SQL Views: All {_views_detail} active")
+        else:
+            st.error(f"🔴 SQL Views: Error — {_views_detail}")
+        if _ai_ok:
+            st.success("🟢 AI Models: Loaded")
+        else:
+            st.warning("🟡 AI Models: Not trained yet")
 
 st.divider()
 
