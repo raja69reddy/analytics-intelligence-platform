@@ -46,6 +46,13 @@ run_query = ask_col.button("🔍 Ask AI", type="primary", use_container_width=Tr
 if "nlq_history" not in st.session_state:
     st.session_state["nlq_history"] = []
 
+@st.cache_data(ttl=60, show_spinner=False)
+def _run_nlq_cached(question: str) -> dict:
+    from ai.nlq.nlq_engine import NLQEngine
+    engine = NLQEngine()
+    return engine.ask(question)
+
+
 # ── Run the query ─────────────────────────────────────────────────────────────
 if run_query and question.strip():
     st.divider()
@@ -53,10 +60,7 @@ if run_query and question.strip():
     with st.spinner("Thinking…"):
         start = time.time()
         try:
-            from ai.nlq.nlq_engine import NLQEngine
-
-            engine = NLQEngine()
-            result = engine.ask(question)
+            result = _run_nlq_cached(question)
         except Exception as exc:
             st.error(f"Engine error: {exc}")
             st.stop()

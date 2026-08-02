@@ -396,7 +396,7 @@ st.divider()
 st.subheader("🤖 AI Anomaly Detection")
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=3600)
 def _load_anomaly_results():
     try:
         model = load_model()

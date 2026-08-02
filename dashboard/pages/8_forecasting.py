@@ -37,7 +37,7 @@ st.divider()
 st.subheader("Forecast KPIs")
 
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=3600)
 def _load_kpi_forecasts(days: int):
     from ai.forecasting.traffic_forecaster import TrafficForecaster
     from ai.forecasting.conversion_forecaster import ConversionForecaster
@@ -96,7 +96,7 @@ st.divider()
 st.subheader("Traffic Forecast")
 
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=3600)
 def _load_traffic_forecast(days: int):
     from ai.forecasting.traffic_forecaster import TrafficForecaster
 
@@ -169,7 +169,7 @@ st.divider()
 st.subheader("Conversion Rate Forecast")
 
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=3600)
 def _load_cvr_forecast(days: int):
     from ai.forecasting.conversion_forecaster import ConversionForecaster
 

@@ -58,7 +58,7 @@ def _load_table_counts() -> dict:
     return counts
 
 
-@st.cache_data(ttl=120)
+@st.cache_data(ttl=300)
 def _load_alert_summary() -> dict:
     from utils.alerts import generate_alert_summary
 

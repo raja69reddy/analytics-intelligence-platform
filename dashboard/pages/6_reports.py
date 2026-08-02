@@ -22,6 +22,7 @@ st.markdown(
 )
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def _list_reports() -> list[Path]:
     """Return saved report files sorted newest-first."""
     if not REPORTS_DIR.exists():
@@ -29,6 +30,7 @@ def _list_reports() -> list[Path]:
     return sorted(REPORTS_DIR.glob("report_*.md"), reverse=True)
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def _load_report(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
