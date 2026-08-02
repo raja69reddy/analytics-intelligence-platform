@@ -660,3 +660,109 @@ for _vt in sorted(_view_times, key=lambda x: -x["duration_ms"]):
 
 if not _suggestions_shown:
     st.success("All SQL views performing within acceptable thresholds (< 1 s).")
+
+st.divider()
+
+# ── Database Statistics ───────────────────────────────────────────────────────
+st.subheader("Database Statistics")
+st.caption("Live statistics from PostgreSQL system tables (pg_stat_user_tables, pg_total_relation_size).")
+
+
+@st.cache_data(ttl=120)
+def _load_db_stats() -> pd.DataFrame:
+    return query_df(
+        """SELECT
+               relname                                                  AS table_name,
+               n_live_tup                                               AS live_rows,
+               n_dead_tup                                               AS dead_rows,
+               pg_size_pretty(pg_total_relation_size(relid))            AS total_size,
+               pg_total_relation_size(relid)                            AS size_bytes,
+               seq_scan                                                 AS seq_scans,
+               idx_scan                                                 AS index_scans,
+               CASE WHEN (seq_scan + COALESCE(idx_scan, 0)) = 0 THEN NULL
+                    ELSE ROUND(COALESCE(idx_scan, 0)::numeric
+                         / (seq_scan + COALESCE(idx_scan, 0)) * 100, 1)
+               END                                                      AS index_usage_pct,
+               last_analyze,
+               last_vacuum
+           FROM pg_stat_user_tables
+           WHERE schemaname = 'public'
+           ORDER BY size_bytes DESC"""
+    )
+
+
+@st.cache_data(ttl=300)
+def _load_index_stats() -> pd.DataFrame:
+    return query_df(
+        """SELECT
+               indexrelname                              AS index_name,
+               relname                                   AS table_name,
+               idx_scan                                  AS index_scans,
+               idx_tup_read                              AS tuples_read,
+               idx_tup_fetch                             AS tuples_fetched,
+               pg_size_pretty(pg_relation_size(indexrelid)) AS index_size
+           FROM pg_stat_user_indexes
+           WHERE schemaname = 'public'
+           ORDER BY idx_scan DESC
+           LIMIT 20"""
+    )
+
+
+@st.cache_data(ttl=300)
+def _load_db_uptime() -> str:
+    try:
+        df = query_df(
+            "SELECT pg_postmaster_start_time() AS start_time, "
+            "NOW() - pg_postmaster_start_time() AS uptime"
+        )
+        start = df["start_time"].iloc[0]
+        uptime = df["uptime"].iloc[0]
+        return f"Started: {str(start)[:16]} · Uptime: {str(uptime)[:10]}"
+    except Exception as exc:
+        return f"Uptime unavailable: {exc}"
+
+
+with st.spinner("Loading database statistics..."):
+    try:
+        _db_stat_df = _load_db_stats()
+        _idx_stat_df = _load_index_stats()
+        _db_uptime_str = _load_db_uptime()
+
+        st.caption(f"PostgreSQL: {_db_uptime_str}")
+
+        _dbs_c1, _dbs_c2, _dbs_c3 = st.columns(3)
+        with _dbs_c1:
+            _total_live = int(_db_stat_df["live_rows"].sum())
+            st.metric("Total Live Rows", f"{_total_live:,}")
+        with _dbs_c2:
+            _total_tables = len(_db_stat_df)
+            st.metric("User Tables", _total_tables)
+        with _dbs_c3:
+            _total_idx_scans = int(_idx_stat_df["index_scans"].sum())
+            st.metric("Total Index Scans", f"{_total_idx_scans:,}")
+
+        st.subheader("Table Sizes & Row Counts")
+        _disp_stats = _db_stat_df[[
+            "table_name", "live_rows", "total_size", "seq_scans",
+            "index_scans", "index_usage_pct",
+        ]].copy()
+        _disp_stats.columns = [
+            "Table", "Live Rows", "Total Size", "Seq Scans",
+            "Index Scans", "Index Usage %",
+        ]
+        st.dataframe(
+            _disp_stats.style.background_gradient(
+                subset=["Index Usage %"], cmap="RdYlGn", vmin=0, vmax=100
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.subheader("Most Used Indexes (Top 20)")
+        st.dataframe(_idx_stat_df, use_container_width=True, hide_index=True)
+
+    except Exception as exc:
+        st.error(f"Could not load database statistics: {exc}")
+        if st.button("Retry", key="retry_db_stats"):
+            st.cache_data.clear()
+            st.rerun()
