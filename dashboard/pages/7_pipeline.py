@@ -567,3 +567,96 @@ else:
         mime="text/csv",
         key="dl_qp_log",
     )
+
+st.divider()
+
+# ── SQL View Execution Times ──────────────────────────────────────────────────
+st.subheader("SQL View Execution Times")
+st.caption(
+    "Live execution time for each key SQL view. "
+    "🟡 Yellow = >1 s · 🔴 Red = >3 s · Suggestions shown for slow views."
+)
+
+_DASHBOARD_VIEWS = {
+    "vw_traffic": "SELECT * FROM vw_traffic",
+    "vw_daily_traffic": "SELECT * FROM vw_daily_traffic",
+    "vw_behavior": "SELECT * FROM vw_behavior",
+    "vw_top_pages": "SELECT * FROM vw_top_pages",
+    "vw_funnel": "SELECT * FROM vw_funnel",
+    "vw_conversions": "SELECT * FROM vw_conversions LIMIT 50",
+    "vw_seo": "SELECT * FROM vw_seo",
+    "vw_new_vs_returning": "SELECT * FROM vw_new_vs_returning LIMIT 30",
+    "vw_scroll_depth": "SELECT * FROM vw_scroll_depth",
+    "vw_engagement_events": "SELECT * FROM vw_engagement_events",
+}
+
+_OPTIMIZE_TIPS = {
+    "vw_traffic": "Add index on raw_server_logs(log_time, url) if >1s.",
+    "vw_daily_traffic": "Materialise with a REFRESH MATERIALIZED VIEW if >1s.",
+    "vw_seo": "Ensure indexes on raw_scrape_pages(url, scraped_at).",
+    "vw_conversions": "Index on vw_conversions.session_date can speed range queries.",
+}
+
+
+@st.cache_data(ttl=120)
+def _measure_view_times() -> list[dict]:
+    import time as _time
+
+    results = []
+    for view_name, sql in _DASHBOARD_VIEWS.items():
+        t0 = _time.perf_counter()
+        try:
+            query_df(sql)
+            ms = round((_time.perf_counter() - t0) * 1000, 1)
+            status = "ok"
+        except Exception as exc:
+            ms = -1.0
+            status = str(exc)[:80]
+        results.append({"view": view_name, "duration_ms": ms, "status": status})
+    return results
+
+
+with st.spinner("Measuring SQL view execution times..."):
+    _view_times = _measure_view_times()
+
+_total_db_ms = sum(r["duration_ms"] for r in _view_times if r["duration_ms"] > 0)
+
+_vt_c1, _vt_c2, _vt_c3 = st.columns(3)
+with _vt_c1:
+    st.metric("Views Measured", len(_view_times))
+with _vt_c2:
+    _slow_views = sum(1 for r in _view_times if r["duration_ms"] > 1000)
+    st.metric("Slow Views (>1s)", _slow_views)
+with _vt_c3:
+    st.metric("Total DB Query Time", f"{_total_db_ms:.0f} ms")
+
+_suggestions_shown = False
+for _vt in sorted(_view_times, key=lambda x: -x["duration_ms"]):
+    _ms = _vt["duration_ms"]
+    _view = _vt["view"]
+
+    if _ms < 0:
+        _badge = "🔴"
+        _badge_html = "<span style='background:#d62728;color:white;padding:2px 8px;border-radius:4px;font-size:12px'>ERROR</span>"
+    elif _ms > 3000:
+        _badge = "🔴"
+        _badge_html = f"<span style='background:#d62728;color:white;padding:2px 8px;border-radius:4px;font-size:12px'>{_ms:.0f} ms — VERY SLOW</span>"
+    elif _ms > 1000:
+        _badge = "🟡"
+        _badge_html = f"<span style='background:#ff7f0e;color:white;padding:2px 8px;border-radius:4px;font-size:12px'>{_ms:.0f} ms — SLOW</span>"
+    else:
+        _badge = "🟢"
+        _badge_html = f"<span style='background:#2ca02c;color:white;padding:2px 8px;border-radius:4px;font-size:12px'>{_ms:.0f} ms</span>"
+
+    _row_c1, _row_c2 = st.columns([3, 2])
+    with _row_c1:
+        st.markdown(f"`{_view}`", unsafe_allow_html=False)
+    with _row_c2:
+        st.markdown(_badge_html, unsafe_allow_html=True)
+
+    if _ms > 1000 and _view in _OPTIMIZE_TIPS:
+        st.caption(f"  💡 Optimize: {_OPTIMIZE_TIPS[_view]}")
+        _suggestions_shown = True
+
+if not _suggestions_shown:
+    st.success("All SQL views performing within acceptable thresholds (< 1 s).")
