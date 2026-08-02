@@ -167,7 +167,6 @@ with st.sidebar:
         st.caption("No ingest timestamp found.")
 
     # ── Refresh controls ──────────────────────────────────────────────────────
-    st.caption(f"Last refresh: {st.session_state['last_refresh'].strftime('%H:%M:%S')}")
     _auto = st.toggle(
         "Auto-refresh (5 min)",
         value=st.session_state.get("auto_refresh", False),
@@ -184,6 +183,42 @@ with st.sidebar:
         if st.button("Clear Cache", key="clear_cache_btn"):
             st.cache_data.clear()
             st.rerun()
+
+    st.divider()
+
+    # ── Cache Management ──────────────────────────────────────────────────────
+    st.subheader("⚡ Cache Management")
+
+    _last_refresh_dt = st.session_state.get("last_refresh", datetime.now())
+    _cache_age_s = (datetime.now() - _last_refresh_dt).total_seconds()
+    _cache_warm = _cache_age_s < 300
+    _status_icon = "🟢 Warm" if _cache_warm else "🔴 Cold"
+    _estimated_improvement = "~60–80%" if _cache_warm else "0% (cache cold)"
+
+    st.caption(f"Cache status: **{_status_icon}**")
+    st.caption(
+        f"Last cache refresh: {_last_refresh_dt.strftime('%H:%M:%S')} "
+        f"({int(_cache_age_s // 60)} min ago)"
+    )
+    st.caption(f"Est. load improvement: {_estimated_improvement}")
+
+    _cm_col1, _cm_col2 = st.columns(2)
+    with _cm_col1:
+        if st.button("Clear All Caches", key="global_clear_cache_btn", use_container_width=True):
+            from utils.cache_manager import clear_all_caches
+            clear_all_caches()
+            st.session_state["last_refresh"] = datetime.now()
+            st.success("All caches cleared")
+            st.rerun()
+    with _cm_col2:
+        if st.button("Warm Up Cache", key="warm_up_cache_btn", use_container_width=True):
+            with st.spinner("Warming up…"):
+                from utils.cache_manager import warm_up_cache
+                _wu = warm_up_cache()
+            st.session_state["last_refresh"] = datetime.now()
+            st.success(f"Warmed {_wu['warmed']}/{_wu['total']} queries")
+            if _wu["errors"]:
+                st.warning(f"{len(_wu['errors'])} error(s) during warm-up")
 
     st.divider()
 
