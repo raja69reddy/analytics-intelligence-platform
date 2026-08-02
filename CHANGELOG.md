@@ -1,5 +1,11 @@
 # Changelog
 
+## Day 51 - End-to-End Review + Data Freshness
+- Reviewed all 4 main dashboard pages end to end: scripts/review_traffic_page.py, review_behavior_page.py, review_conversions_page.py, review_seo_page.py — all queries verified against live PostgreSQL, all 4 reviews PASSED
+- Fixed any broken charts or queries: all SQL views (vw_traffic, vw_daily_traffic, vw_behavior, vw_top_pages, vw_funnel, vw_conversions, vw_seo) verified working; all loader column names confirmed matching actual DB schema
+- Added data freshness indicator to sidebar (app.py): per-source last-ingest timestamp with color coding (🟢 <24h, 🟡 <48h, 🔴 >48h) for GA4 data, Server logs, Clickstream, and Scrape data; row count per source
+- Added system health dashboard to home page: overall health score (0–100, 25 pts per component), PostgreSQL connection check, raw tables populated check (all 4 tables), SQL views check (all 7 views), AI models loaded check, last pipeline run timestamp; 2-column layout with color-coded component cards
+
 ## Day 50 - Caching + Performance Optimization
 - Added st.cache_data to all traffic page queries: all 9 loaders already at TTL=300; added "Last updated: X min ago" display with session_state tracking; added key to Clear Cache button
 - Added caching to all behavior page queries: all 15+ loaders confirmed at TTL=300; replaced static "Last loaded" timestamp with session_state-tracked elapsed minutes
