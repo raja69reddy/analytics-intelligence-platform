@@ -2,7 +2,7 @@
 
 import os
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import plotly.graph_objects as go
 import streamlit as st
@@ -168,6 +168,9 @@ LIMIT 10
 
 
 # ── Sidebar filters ───────────────────────────────────────────────────────────
+if "_traffic_loaded_at" not in st.session_state:
+    st.session_state["_traffic_loaded_at"] = datetime.now()
+
 with st.sidebar:
     st.header("Filters")
     start_date, end_date = get_date_filter()
@@ -175,10 +178,14 @@ with st.sidebar:
     page_search = get_page_filter()
     devices = get_device_filter()
     st.divider()
-    if st.button("Clear data cache"):
+    if st.button("Clear data cache", key="traffic_clear_cache"):
         st.cache_data.clear()
+        st.session_state["_traffic_loaded_at"] = datetime.now()
         st.success("Cache cleared — reloading…")
-    st.caption("Cache TTL: 5 min")
+    _traffic_elapsed = int(
+        (datetime.now() - st.session_state["_traffic_loaded_at"]).total_seconds() / 60
+    )
+    st.caption(f"Cache TTL: 5 min · Last updated: {_traffic_elapsed} min ago")
     active = sum([bool(channels), bool(page_search), bool(devices)])
     if active:
         st.success(f"Filters applied: {active}")
