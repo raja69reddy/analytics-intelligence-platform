@@ -1,0 +1,31 @@
+Query Optimization Report — Day 52
+============================================================
+
+Top 5 slowest queries (3-run average):
+#1 vw_traffic full scan
+   Avg time : 304.8 ms
+   EXPLAIN  : Execution Time: 5.346 ms | Planning Time: 0.474 ms
+   Action   : Full view scan — add WHERE clause or paginate results in the UI.
+
+#2 clickstream event counts
+   Avg time : 39.9 ms
+   EXPLAIN  : Execution Time: 35.228 ms | Planning Time: 0.177 ms
+   Action   : Ensure index on (event_name, event_time) — already added via Day 52 indexes.
+
+#3 landing page ROI
+   Avg time : 21.3 ms
+   EXPLAIN  : Execution Time: 0.985 ms | Planning Time: 0.317 ms
+   Action   : Already performant. Cache with @st.cache_data(ttl=300) if not already done.
+
+#4 vw_seo full scan
+   Avg time : 15.5 ms
+   EXPLAIN  : Execution Time: 1.481 ms | Planning Time: 0.611 ms
+   Action   : Full view scan — add WHERE clause or paginate results in the UI.
+
+#5 conversion attribution
+   Avg time : 7.2 ms
+   EXPLAIN  : Execution Time: 2.533 ms | Planning Time: 0.460 ms
+   Action   : Already performant. Cache with @st.cache_data(ttl=300) if not already done.
+
+All queries profiled. Indexes applied via scripts/add_performance_indexes.py.
+Cache TTL=300 applied to all dashboard loaders via @st.cache_data.
