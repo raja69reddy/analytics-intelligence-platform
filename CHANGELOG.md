@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 52 - Performance Optimization + Stress Test
+- Added PostgreSQL performance indexes: 9 composite indexes via scripts/add_performance_indexes.py using CREATE INDEX IF NOT EXISTS; indexes on raw_ga4_sessions (session_date+channel, landing_page, device_category), raw_server_logs (log_time+url, status_code), raw_clickstream_events (event_name+event_time, session_id), raw_scrape_pages (url+word_count, scraped_at)
+- Profiled slowest dashboard queries: scripts/profile_queries.py measured 10 candidate queries with 3-run averages; top 5 slowest identified with EXPLAIN ANALYZE; report saved to data/processed/query_optimization_report.txt
+- Added SQL View Execution Times section to pipeline page: measures live execution time for all 10 dashboard views, color-coded HTML badges (green <1s, orange >1s, red >3s), shows optimization tips for slow views, displays 3 KPI metrics + total DB query time
+- Added Database Statistics section to pipeline page: table sizes with row counts and index usage via pg_stat_user_tables, top 20 most-used indexes via pg_stat_user_indexes, DB uptime via pg_postmaster_start_time(); background gradient on index_usage_pct column
+- Stress tested with 100k rows: scripts/stress_test.py loaded 99,599 GA4 sessions + 99,726 clickstream events (199,325 total rows); benchmarked 11 dashboard queries; fastest: content performance join (23.8ms), slowest: vw_traffic (252.1ms); all 11 queries under 2000ms; overall result: PASS
+
 ## Day 51 - End-to-End Review + Data Freshness
 - Reviewed all 4 main dashboard pages end to end: scripts/review_traffic_page.py, review_behavior_page.py, review_conversions_page.py, review_seo_page.py — all queries verified against live PostgreSQL, all 4 reviews PASSED
 - Fixed any broken charts or queries: all SQL views (vw_traffic, vw_daily_traffic, vw_behavior, vw_top_pages, vw_funnel, vw_conversions, vw_seo) verified working; all loader column names confirmed matching actual DB schema
