@@ -470,3 +470,100 @@ with col_b:
                 st.error("Pipeline timed out.")
             except Exception as exc:
                 st.error(f"Error: {exc}")
+
+st.divider()
+
+# ── Query Performance Log ─────────────────────────────────────────────────────
+st.subheader("Query Performance Log")
+st.caption("Execution times logged by utils/db.py for every query_df() call.")
+
+_PERF_CSV = (
+    __import__("pathlib").Path(__file__).resolve().parent.parent.parent
+    / "data" / "processed" / "query_performance.csv"
+)
+
+
+@st.cache_data(ttl=300)
+def _load_query_perf() -> pd.DataFrame:
+    if not _PERF_CSV.exists():
+        return pd.DataFrame(columns=["timestamp", "duration_ms", "query_preview"])
+    return pd.read_csv(_PERF_CSV, encoding="utf-8")
+
+
+with st.spinner("Loading query performance data..."):
+    _qp_df = _load_query_perf()
+
+if _qp_df.empty:
+    st.info(
+        "No query performance data yet. Query timings are recorded automatically "
+        "in data/processed/query_performance.csv on each query_df() call."
+    )
+else:
+    _qp_c1, _qp_c2, _qp_c3 = st.columns(3)
+    with _qp_c1:
+        st.metric("Total Queries Logged", f"{len(_qp_df):,}")
+    with _qp_c2:
+        st.metric("Avg Query Time", f"{_qp_df['duration_ms'].mean():.1f} ms")
+    with _qp_c3:
+        _slow = (_qp_df["duration_ms"] > 5000).sum()
+        st.metric("Slow Queries (>5 s)", int(_slow))
+
+    st.subheader("Slowest 5 Queries")
+    _slowest = _qp_df.nlargest(5, "duration_ms")[
+        ["timestamp", "duration_ms", "query_preview"]
+    ].copy()
+    _slowest.columns = ["Timestamp", "Duration (ms)", "Query Preview"]
+
+    def _style_slow(val):
+        if isinstance(val, (int, float)) and val > 5000:
+            return "background-color:#d62728;color:white;font-weight:bold"
+        if isinstance(val, (int, float)) and val > 2000:
+            return "background-color:#ff7f0e;color:white"
+        return ""
+
+    st.dataframe(
+        _slowest.style.applymap(_style_slow, subset=["Duration (ms)"]),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    # Optimization suggestions
+    st.subheader("Query Optimization Suggestions")
+    _avg_ms = float(_qp_df["duration_ms"].mean())
+    _p95_ms = float(_qp_df["duration_ms"].quantile(0.95))
+    _suggestions = []
+    if _slow > 0:
+        _suggestions.append(
+            f"🔴 **{int(_slow)} query(ies) exceed 5 s** — add indexes on frequently filtered "
+            "columns (session_date, channel_grouping, landing_page)."
+        )
+    if _p95_ms > 2000:
+        _suggestions.append(
+            f"🟡 **P95 query time is {_p95_ms:.0f} ms** — consider materialising heavy "
+            "aggregations as scheduled views or summary tables."
+        )
+    if _avg_ms > 500:
+        _suggestions.append(
+            f"🟡 **Avg query time {_avg_ms:.0f} ms** — ensure `@st.cache_data(ttl=300)` "
+            "is applied to every loader function to avoid repeated DB hits."
+        )
+    if not _suggestions:
+        _suggestions.append("🟢 All queries are performing well (avg < 500 ms, no slow queries).")
+
+    for _s in _suggestions:
+        st.markdown(_s)
+
+    _alerts_5s = _qp_df[_qp_df["duration_ms"] > 5000]
+    if not _alerts_5s.empty:
+        st.error(
+            f"⚠️ {len(_alerts_5s)} query(ies) exceeded the 5-second threshold. "
+            "Review the slowest queries above and add database indexes."
+        )
+
+    st.download_button(
+        "⬇️ Download Performance Log CSV",
+        _qp_df.to_csv(index=False),
+        file_name="query_performance.csv",
+        mime="text/csv",
+        key="dl_qp_log",
+    )

@@ -13,12 +13,21 @@ Public API:
   test_connection()    — smoke-test the DB credentials
 """
 
+import logging
 import os
+import time
 from contextlib import contextmanager
+from pathlib import Path
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+
+logger = logging.getLogger(__name__)
+
+_PROCESSED_DIR = Path(__file__).resolve().parent.parent / "data" / "processed"
+_PERF_LOG = _PROCESSED_DIR / "query_performance.csv"
+_PERF_LOG_ENABLED = True
 
 load_dotenv()
 
@@ -106,6 +115,30 @@ def run_sql_file(path: str, params: dict | None = None) -> None:
         conn.execute(text(sql), params or {})
 
 
+def _log_query_perf(sql: str, duration_s: float) -> None:
+    """Append one row to query_performance.csv; alert if > 5 s."""
+    if not _PERF_LOG_ENABLED:
+        return
+    try:
+        _PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+        import csv
+        from datetime import datetime as _dt
+
+        preview = " ".join(sql.split())[:120]
+        duration_ms = round(duration_s * 1000, 1)
+        if duration_s > 5:
+            logger.warning("SLOW QUERY (%.1f s): %s", duration_s, preview)
+
+        write_header = not _PERF_LOG.exists()
+        with open(_PERF_LOG, "a", newline="", encoding="utf-8") as f:
+            w = csv.writer(f)
+            if write_header:
+                w.writerow(["timestamp", "duration_ms", "query_preview"])
+            w.writerow([_dt.now().isoformat(), duration_ms, preview])
+    except Exception:
+        pass
+
+
 def query_df(sql: str, params: dict | None = None):
     """Execute a SQL query and return the results as a pandas DataFrame.
 
@@ -118,8 +151,11 @@ def query_df(sql: str, params: dict | None = None):
     """
     import pandas as pd
 
+    t0 = time.perf_counter()
     with get_engine().connect() as conn:
-        return pd.read_sql(text(sql), conn, params=params or {})
+        result = pd.read_sql(text(sql), conn, params=params or {})
+    _log_query_perf(sql, time.perf_counter() - t0)
+    return result
 
 
 def query_sql_file(path: str, params: dict | None = None):
