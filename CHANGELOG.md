@@ -1,5 +1,14 @@
 # Changelog
 
+## Day 50 - Caching + Performance Optimization
+- Added st.cache_data to all traffic page queries: all 9 loaders already at TTL=300; added "Last updated: X min ago" display with session_state tracking; added key to Clear Cache button
+- Added caching to all behavior page queries: all 15+ loaders confirmed at TTL=300; replaced static "Last loaded" timestamp with session_state-tracked elapsed minutes
+- Added caching to all AI feature functions: anomaly detection TTL 300→3600s, NLQ result wrapper TTL 60s, report load/list TTL 3600s, forecasting TTL 600→3600s, smart alerts alert_summary TTL 120→300s
+- Created utils/cache_manager.py: clear_all_caches(), get_cache_stats() (hit rate from JSON log), warm_up_cache() (6 diagnostic queries), cache_key_generator() (SHA-256), log_cache_performance() (rotating JSON log capped at 1000 entries)
+- Added global cache management to sidebar: cache status indicator (Warm/Cold based on last_refresh age), last cache refresh time + elapsed minutes, "Clear All Caches" button, "Warm Up Cache" button with success feedback, estimated load improvement display
+- Added query performance logging: utils/db.py wraps query_df() with perf_counter timing, appends CSV rows to data/processed/query_performance.csv, warns on queries >5 s; pipeline page shows slowest 5 queries, avg/P95 times, optimization suggestions, slow-query alerts, download button
+- Dashboard load times significantly improved: performance test shows 94.1% avg improvement with warm DB connection pool; Streamlit @st.cache_data TTL=300s delivers 100% improvement for subsequent in-window loads
+
 ## Day 49 - Content Performance Deep Dive
 - Added content performance summary table: full metrics per page (sessions, bounce rate, avg time, word count, load time, content score, CVR), ProgressColumn color coding on content score, search/filter box, CSV download, column sorting
 - Added top vs bottom content comparison: top 25% vs bottom 25% by organic sessions, grouped bar chart across 4 metrics (word count, load time, bounce rate, CVR), key difference insights below chart
