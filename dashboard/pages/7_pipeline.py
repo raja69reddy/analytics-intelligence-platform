@@ -889,3 +889,127 @@ else:
                     )
                 else:
                     st.info("Invalid rows file not found or empty.")
+
+# ── Data Quality Scores ────────────────────────────────────────────────────────
+st.header("📊 Data Quality Scores")
+
+_PROFILE_SOURCES = {
+    "ga4_sessions": "GA4 Sessions",
+    "server_logs": "Server Logs",
+    "scrape_pages": "Scrape Pages",
+    "clickstream_events": "Clickstream Events",
+}
+
+
+@st.cache_data(ttl=300)
+def _load_all_profiles() -> dict:
+    from utils.data_profiler import load_profile
+    return {name: load_profile(name) for name in _PROFILE_SOURCES}
+
+
+def _score_color(score: float) -> str:
+    if score >= 80:
+        return "🟢"
+    if score >= 60:
+        return "🟡"
+    return "🔴"
+
+
+def _score_label(score: float) -> str:
+    if score >= 80:
+        return "Good"
+    if score >= 60:
+        return "Warning"
+    return "Poor"
+
+
+_profiles = _load_all_profiles()
+_any_profile = any(v is not None for v in _profiles.values())
+
+if not _any_profile:
+    st.info("No profile data yet — run `python scripts/run_data_profiler.py` to generate reports.")
+else:
+    # ── Quality score KPI row ─────────────────────────────────────────────────
+    _qcols = st.columns(len(_PROFILE_SOURCES))
+    for i, (src, label) in enumerate(_PROFILE_SOURCES.items()):
+        with _qcols[i]:
+            p = _profiles.get(src)
+            if p:
+                score = p["quality"]["score"]
+                icon = _score_color(score)
+                st.metric(
+                    f"{icon} {label}",
+                    f"{score} / 100",
+                    _score_label(score),
+                )
+            else:
+                st.metric(f"⚫ {label}", "No data", "—")
+
+    # ── Detailed quality breakdown table ──────────────────────────────────────
+    st.subheader("Quality Breakdown by Source")
+    _q_rows = []
+    for src, label in _PROFILE_SOURCES.items():
+        p = _profiles.get(src)
+        if not p:
+            _q_rows.append({"Source": label, "Score": "—", "Rows": "—",
+                            "Null %": "—", "Dup %": "—", "Outlier %": "—",
+                            "Cols w/ Nulls": "—", "Profiled At": "—"})
+            continue
+        q = p["quality"]
+        _q_rows.append({
+            "Source": label,
+            "Score": f"{q['score']}",
+            "Rows": f"{p['row_count']:,}",
+            "Null %": f"{q['avg_null_pct']}%",
+            "Dup %": f"{q['duplicate_pct']}%",
+            "Outlier %": f"{q['avg_outlier_pct']}%",
+            "Cols w/ Nulls": q["cols_with_nulls"],
+            "Profiled At": p.get("profiled_at", "—"),
+        })
+
+    _q_df = pd.DataFrame(_q_rows)
+    st.dataframe(_q_df, use_container_width=True, hide_index=True)
+
+    # ── Per-source expandable detail ─────────────────────────────────────────
+    st.subheader("Column-Level Detail")
+    for src, label in _PROFILE_SOURCES.items():
+        p = _profiles.get(src)
+        if not p:
+            continue
+        score = p["quality"]["score"]
+        icon = _score_color(score)
+        with st.expander(f"{icon} {label} — score {score}/100"):
+            _detail_cols = st.columns(3)
+            with _detail_cols[0]:
+                st.caption("**Null counts (top 5)**")
+                null_items = sorted(
+                    [(c, v["null_count"]) for c, v in p["null_summary"].items() if v["null_count"] > 0],
+                    key=lambda x: -x[1],
+                )[:5]
+                if null_items:
+                    for col, cnt in null_items:
+                        pct = p["null_summary"][col]["null_pct"]
+                        st.write(f"`{col}`: {cnt:,} ({pct}%)")
+                else:
+                    st.write("No nulls found")
+
+            with _detail_cols[1]:
+                st.caption("**Outliers (top 5)**")
+                out_items = sorted(
+                    p["outlier_summary"].items(),
+                    key=lambda x: -x[1]["outlier_pct"],
+                )[:5]
+                if out_items:
+                    for col, v in out_items:
+                        st.write(f"`{col}`: {v['outlier_count']:,} ({v['outlier_pct']}%)")
+                else:
+                    st.write("No outliers found")
+
+            with _detail_cols[2]:
+                st.caption("**Column types**")
+                type_summary: dict[str, int] = {}
+                for v in p["data_types"].values():
+                    dtype_grp = v["dtype"].split("[")[0]
+                    type_summary[dtype_grp] = type_summary.get(dtype_grp, 0) + 1
+                for dtype, cnt in sorted(type_summary.items(), key=lambda x: -x[1]):
+                    st.write(f"`{dtype}`: {cnt} col(s)")
