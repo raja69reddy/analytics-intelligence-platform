@@ -7,6 +7,7 @@ Usage:
 """
 
 import argparse
+import json
 import logging
 import sys
 import time
@@ -29,6 +30,50 @@ log = logging.getLogger("ga4_ingestion")
 
 CSV_PATH = Path(__file__).resolve().parent.parent / "data" / "raw" / "ga4_sessions.csv"
 TABLE = "raw_ga4_sessions"
+_LOG_DIR = Path(__file__).resolve().parent.parent / "data" / "processed" / "logs"
+_VAL_SUMMARY = Path(__file__).resolve().parent.parent / "data" / "processed" / "validation_summary.json"
+
+
+def _update_val_summary(source: str, summary: dict) -> None:
+    data: dict = {}
+    if _VAL_SUMMARY.exists():
+        try:
+            data = json.loads(_VAL_SUMMARY.read_text())
+        except Exception:
+            pass
+    data[source] = summary
+    _VAL_SUMMARY.write_text(json.dumps(data, indent=2))
+
+
+def _validate(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+    """Check row-level constraints before transforms. Returns (valid_df, summary)."""
+    _LOG_DIR.mkdir(parents=True, exist_ok=True)
+    br = pd.to_numeric(df["bounce_rate"], errors="coerce")
+    checks = {
+        "invalid_session_date": pd.to_datetime(df["session_date"], errors="coerce").isna(),
+        "sessions_not_positive": pd.to_numeric(df["sessions"], errors="coerce").fillna(0) < 1,
+        "users_not_positive": pd.to_numeric(df["users"], errors="coerce").fillna(0) < 1,
+        "bounce_rate_out_of_range": br.notna() & ((br < 0) | (br > 1)),
+        "channel_empty": df["channel"].isna() | (df["channel"].astype(str).str.strip() == ""),
+    }
+    flags = pd.DataFrame(checks)
+    fail_mask = flags.any(axis=1)
+    if fail_mask.any():
+        bad = df[fail_mask].copy()
+        bad["_errors"] = flags[fail_mask].apply(
+            lambda r: ", ".join(r.index[r].tolist()), axis=1
+        )
+        ts = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+        bad.to_csv(_LOG_DIR / f"ga4_invalid_{ts}.csv", index=False)
+        log.warning("Saved %d invalid rows → ga4_invalid_%s.csv", fail_mask.sum(), ts)
+    summary = {
+        "passed": int((~fail_mask).sum()),
+        "failed": int(fail_mask.sum()),
+        "error_counts": {k: int(v) for k, v in flags.sum().items() if v > 0},
+        "last_run": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    _update_val_summary("ga4", summary)
+    return df[~fail_mask].copy(), summary
 
 
 def load_csv() -> pd.DataFrame:
@@ -48,6 +93,12 @@ def load_csv() -> pd.DataFrame:
     str_cols = df.select_dtypes(include=["object", "string"]).columns.tolist()
     for col in str_cols:
         df[col] = df[col].astype(str).str.strip().replace("nan", None)
+
+    # Validate raw CSV values before transforms
+    df, _val = _validate(df)
+    log.info("Validation: %d passed, %d failed", _val["passed"], _val["failed"])
+    if _val["error_counts"]:
+        log.warning("Error breakdown: %s", _val["error_counts"])
 
     # Convert session_date to proper DATE
     df["session_date"] = pd.to_datetime(df["session_date"]).dt.date
@@ -71,6 +122,7 @@ def load_csv() -> pd.DataFrame:
     df = df.drop(columns=["bounce_rate", "users"], errors="ignore")
 
     log.info("Loaded %d rows from CSV", len(df))
+    print(f"Validation: {_val['passed']} rows passed, {_val['failed']} failed")
     return df
 
 
