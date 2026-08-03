@@ -7,6 +7,7 @@ Usage:
 """
 
 import argparse
+import json
 import logging
 import sys
 import time
@@ -35,6 +36,8 @@ log = logging.getLogger("server_logs_ingestion")
 
 CSV_PATH = Path(__file__).resolve().parent.parent / "data" / "raw" / "server_logs.csv"
 TABLE = "raw_server_logs"
+_LOG_DIR = Path(__file__).resolve().parent.parent / "data" / "processed" / "logs"
+_VAL_SUMMARY = Path(__file__).resolve().parent.parent / "data" / "processed" / "validation_summary.json"
 REQUIRED_COLUMNS = {
     "log_timestamp",
     "ip_address",
@@ -44,6 +47,48 @@ REQUIRED_COLUMNS = {
     "response_size",
     "user_agent",
 }
+
+
+def _update_val_summary(source: str, summary: dict) -> None:
+    data: dict = {}
+    if _VAL_SUMMARY.exists():
+        try:
+            data = json.loads(_VAL_SUMMARY.read_text())
+        except Exception:
+            pass
+    data[source] = summary
+    _VAL_SUMMARY.write_text(json.dumps(data, indent=2))
+
+
+def _validate(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+    """Check row-level constraints before transforms. Returns (valid_df, summary)."""
+    _LOG_DIR.mkdir(parents=True, exist_ok=True)
+    sc = pd.to_numeric(df["status_code"], errors="coerce")
+    rs = pd.to_numeric(df["response_size"], errors="coerce")
+    checks = {
+        "invalid_log_timestamp": pd.to_datetime(df["log_timestamp"], errors="coerce").isna(),
+        "invalid_status_code": sc.isna() | (sc < 100) | (sc > 599),
+        "url_empty": df["url"].isna() | (df["url"].astype(str).str.strip() == ""),
+        "response_size_not_positive": rs.isna() | (rs < 1),
+    }
+    flags = pd.DataFrame(checks)
+    fail_mask = flags.any(axis=1)
+    if fail_mask.any():
+        bad = df[fail_mask].copy()
+        bad["_errors"] = flags[fail_mask].apply(
+            lambda r: ", ".join(r.index[r].tolist()), axis=1
+        )
+        ts = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+        bad.to_csv(_LOG_DIR / f"server_logs_invalid_{ts}.csv", index=False)
+        log.warning("Saved %d invalid rows → server_logs_invalid_%s.csv", fail_mask.sum(), ts)
+    summary = {
+        "passed": int((~fail_mask).sum()),
+        "failed": int(fail_mask.sum()),
+        "error_counts": {k: int(v) for k, v in flags.sum().items() if v > 0},
+        "last_run": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    _update_val_summary("server_logs", summary)
+    return df[~fail_mask].copy(), summary
 
 
 def load_csv() -> pd.DataFrame:
@@ -70,6 +115,12 @@ def load_csv() -> pd.DataFrame:
     str_cols = df.select_dtypes(include=["object", "string"]).columns.tolist()
     for col in str_cols:
         df[col] = df[col].astype(str).str.strip().replace("nan", None)
+
+    # Validate raw CSV values before transforms
+    df, _val = _validate(df)
+    log.info("Validation: %d passed, %d failed", _val["passed"], _val["failed"])
+    if _val["error_counts"]:
+        log.warning("Error breakdown: %s", _val["error_counts"])
 
     # Use parse_timestamp() for timestamp cleaning
     df["log_timestamp"] = df["log_timestamp"].apply(parse_timestamp)
@@ -121,6 +172,7 @@ def load_csv() -> pd.DataFrame:
     df = df[[c for c in keep if c in df.columns]]
 
     log.info("Loaded %d rows from CSV", len(df))
+    print(f"Validation: {_val['passed']} rows passed, {_val['failed']} failed")
     return df
 
 
