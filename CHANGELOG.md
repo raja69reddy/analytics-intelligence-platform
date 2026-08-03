@@ -1,5 +1,12 @@
 # Changelog
 
+## Day 53 - Data Validation Checks
+- Added validation to all 4 ingestion scripts: ingestion/ga4.py checks session_date, sessions/users positive, bounce_rate 0-1, channel not empty; ingestion/server_logs.py checks log_timestamp, status_code 100-599, url not empty, response_size positive; ingestion/clickstream.py checks event_timestamp, scroll_depth 0-1, event_type valid, page_url not null; ingestion/scraper.py checks url format, word_count positive, title not empty, scraped_at valid
+- Created utils/validator.py with reusable functions: is_valid_date(), is_valid_url(), is_positive_number(), is_valid_percentage(), is_not_empty(), validate_dataframe() for bulk validation with named rules; also load_validation_summary() and latest_invalid_file() for pipeline reporting
+- Added validation report to pipeline monitor page: pass/fail counts per source with color coding (green=all pass, yellow>=90% pass, red<90%), summary table, top 3 most common errors, expandable "View Invalid Rows" section per source with CSV download
+- Invalid rows logged to data/processed/logs/{source}_invalid_{ts}.csv; latest run summary persisted to data/processed/validation_summary.json
+- All ingestion pipelines now validate before inserting into PostgreSQL
+
 ## Day 52 - Performance Optimization + Stress Test
 - Added PostgreSQL performance indexes: 9 composite indexes via scripts/add_performance_indexes.py using CREATE INDEX IF NOT EXISTS; indexes on raw_ga4_sessions (session_date+channel, landing_page, device_category), raw_server_logs (log_time+url, status_code), raw_clickstream_events (event_name+event_time, session_id), raw_scrape_pages (url+word_count, scraped_at)
 - Profiled slowest dashboard queries: scripts/profile_queries.py measured 10 candidate queries with 3-run averages; top 5 slowest identified with EXPLAIN ANALYZE; report saved to data/processed/query_optimization_report.txt
