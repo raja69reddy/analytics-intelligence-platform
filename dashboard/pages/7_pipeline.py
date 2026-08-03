@@ -766,3 +766,126 @@ with st.spinner("Loading database statistics..."):
         if st.button("Retry", key="retry_db_stats"):
             st.cache_data.clear()
             st.rerun()
+
+# ── Validation Report ──────────────────────────────────────────────────────────
+st.header("✅ Data Validation Report")
+
+_SOURCE_LABELS = {
+    "ga4": "GA4 Sessions",
+    "server_logs": "Server Logs",
+    "clickstream": "Clickstream",
+    "scraper": "Scrape Pages",
+}
+
+
+@st.cache_data(ttl=120)
+def _load_val_summary() -> dict:
+    from utils.validator import load_validation_summary
+    return load_validation_summary()
+
+
+@st.cache_data(ttl=120)
+def _load_invalid_rows(source: str) -> pd.DataFrame | None:
+    from utils.validator import latest_invalid_file
+    path = latest_invalid_file(source)
+    if path is None:
+        return None
+    try:
+        return pd.read_csv(path)
+    except Exception:
+        return None
+
+
+def _val_color(passed: int, failed: int) -> str:
+    if failed == 0:
+        return "🟢"
+    pct = passed / max(passed + failed, 1) * 100
+    return "🟡" if pct >= 90 else "🔴"
+
+
+_val_data = _load_val_summary()
+
+if not _val_data:
+    st.info("No validation data yet — run an ingestion pipeline to generate results.")
+else:
+    # ── KPI row ───────────────────────────────────────────────────────────────
+    _val_cols = st.columns(len(_SOURCE_LABELS))
+    for i, (src, label) in enumerate(_SOURCE_LABELS.items()):
+        with _val_cols[i]:
+            if src in _val_data:
+                _s = _val_data[src]
+                _total = _s["passed"] + _s["failed"]
+                _pct = round(_s["passed"] / max(_total, 1) * 100, 1)
+                _icon = _val_color(_s["passed"], _s["failed"])
+                st.metric(
+                    f"{_icon} {label}",
+                    f"{_pct}% pass",
+                    f"{_s['passed']:,} / {_total:,} rows",
+                )
+            else:
+                st.metric(f"⚫ {label}", "No data", "—")
+
+    # ── Summary table ─────────────────────────────────────────────────────────
+    st.subheader("Validation Summary by Source")
+    _rows = []
+    for src, label in _SOURCE_LABELS.items():
+        if src not in _val_data:
+            _rows.append({"Source": label, "Passed": "—", "Failed": "—",
+                          "Pass %": "—", "Last Run": "—", "Status": "⚫ No data"})
+            continue
+        _s = _val_data[src]
+        _total = _s["passed"] + _s["failed"]
+        _pct = round(_s["passed"] / max(_total, 1) * 100, 1)
+        _icon = _val_color(_s["passed"], _s["failed"])
+        _status = (
+            "All pass" if _s["failed"] == 0
+            else f"{_s['failed']} failed"
+        )
+        _rows.append({
+            "Source": label,
+            "Passed": f"{_s['passed']:,}",
+            "Failed": f"{_s['failed']:,}",
+            "Pass %": f"{_pct}%",
+            "Last Run": _s.get("last_run", "—"),
+            "Status": f"{_icon} {_status}",
+        })
+
+    st.dataframe(pd.DataFrame(_rows), use_container_width=True, hide_index=True)
+
+    # ── Top 3 most common errors across all sources ───────────────────────────
+    _all_errors: dict[str, int] = {}
+    for src, _s in _val_data.items():
+        for err, cnt in _s.get("error_counts", {}).items():
+            _all_errors[err] = _all_errors.get(err, 0) + cnt
+
+    if _all_errors:
+        st.subheader("Top Validation Errors")
+        _top3 = sorted(_all_errors.items(), key=lambda x: -x[1])[:3]
+        _e_cols = st.columns(len(_top3))
+        for i, (err_name, count) in enumerate(_top3):
+            with _e_cols[i]:
+                st.metric(f"#{i + 1} {err_name.replace('_', ' ').title()}", f"{count:,} rows")
+    else:
+        st.success("No validation errors found across all sources.")
+
+    # ── Invalid rows expanders ────────────────────────────────────────────────
+    st.subheader("Invalid Rows (Latest Run per Source)")
+    for src, label in _SOURCE_LABELS.items():
+        _has_failed = src in _val_data and _val_data[src]["failed"] > 0
+        _exp_label = f"🔴 {label} — {_val_data[src]['failed']:,} invalid rows" if _has_failed else f"🟢 {label} — no invalid rows"
+        with st.expander(_exp_label, expanded=_has_failed):
+            if not _has_failed:
+                st.success("All rows passed validation.")
+            else:
+                _inv_df = _load_invalid_rows(src)
+                if _inv_df is not None and not _inv_df.empty:
+                    st.dataframe(_inv_df, use_container_width=True, hide_index=True)
+                    st.download_button(
+                        "Download Invalid Rows CSV",
+                        data=_inv_df.to_csv(index=False).encode(),
+                        file_name=f"{src}_invalid_rows.csv",
+                        mime="text/csv",
+                        key=f"dl_invalid_{src}",
+                    )
+                else:
+                    st.info("Invalid rows file not found or empty.")
