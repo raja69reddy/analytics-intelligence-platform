@@ -35,6 +35,13 @@ CSV_PATH = (
 TABLE = "raw_clickstream_events"
 _LOG_DIR = Path(__file__).resolve().parent.parent / "data" / "processed" / "logs"
 _VAL_SUMMARY = Path(__file__).resolve().parent.parent / "data" / "processed" / "validation_summary.json"
+_EXPECTED_SCHEMA: dict[str, str] = {
+    "event_timestamp": "str",
+    "session_id": "str",
+    "user_id": "str",
+    "event_type": "str",
+    "page_url": "str",
+}
 VALID_EVENT_TYPES = {"click", "scroll", "pageview", "form_submit"}
 REQUIRED_COLUMNS = {
     "event_timestamp",
@@ -43,6 +50,30 @@ REQUIRED_COLUMNS = {
     "event_type",
     "page_url",
 }
+
+
+def _validate_schema(df: pd.DataFrame) -> bool:
+    """Check CSV columns match expected schema. Returns True if schema is valid."""
+    missing = [c for c in _EXPECTED_SCHEMA if c not in df.columns]
+    extra = [c for c in df.columns if c not in _EXPECTED_SCHEMA]
+    type_errors = []
+    for col, expected_type in _EXPECTED_SCHEMA.items():
+        if col not in df.columns:
+            continue
+        if expected_type == "numeric" and not pd.api.types.is_numeric_dtype(df[col]):
+            type_errors.append(f"{col} expected numeric, got {df[col].dtype}")
+    ok = not missing and not type_errors
+    if missing:
+        log.error("Schema mismatch — missing columns: %s", missing)
+    if extra:
+        log.warning("Schema mismatch — unexpected columns: %s", extra)
+    if type_errors:
+        log.error("Schema mismatch — type errors: %s", type_errors)
+    if ok:
+        log.info("Schema validation PASSED (%d expected columns present)", len(_EXPECTED_SCHEMA))
+    else:
+        log.error("Schema validation FAILED")
+    return ok
 
 
 def _update_val_summary(source: str, summary: dict) -> None:
@@ -108,6 +139,9 @@ def load_csv() -> pd.DataFrame:
     if missing:
         log.error("CSV is missing required columns: %s", missing)
         raise ValueError(f"Missing columns: {missing}")
+
+    # Schema validation — check columns and types match expected schema
+    _validate_schema(df)
 
     # Strip whitespace from string columns
     str_cols = df.select_dtypes(include="object").columns
