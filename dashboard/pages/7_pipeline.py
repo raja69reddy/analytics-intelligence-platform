@@ -1013,3 +1013,152 @@ else:
                     type_summary[dtype_grp] = type_summary.get(dtype_grp, 0) + 1
                 for dtype, cnt in sorted(type_summary.items(), key=lambda x: -x[1]):
                     st.write(f"`{dtype}`: {cnt} col(s)")
+
+# ── Row Count Monitoring ───────────────────────────────────────────────────────
+st.header("📈 Row Count Monitoring")
+
+_RC_HISTORY_PATH = (
+    Path(__file__).resolve().parent.parent.parent
+    / "data" / "processed" / "row_count_history.json"
+)
+_RC_TABLES = {
+    "GA4 Sessions": "raw_ga4_sessions",
+    "Server Logs": "raw_server_logs",
+    "Scrape Pages": "raw_scrape_pages",
+    "Clickstream Events": "raw_clickstream_events",
+}
+_DROP_THRESHOLD = 0.10  # 10% drop triggers alert
+
+
+@st.cache_data(ttl=60)
+def _load_current_row_counts() -> dict[str, int]:
+    counts = {}
+    for label, table in _RC_TABLES.items():
+        try:
+            df = query_df(f"SELECT COUNT(*) AS n FROM {table}")
+            counts[label] = int(df["n"].iloc[0])
+        except Exception:
+            counts[label] = 0
+    return counts
+
+
+def _load_rc_history() -> dict:
+    if not _RC_HISTORY_PATH.exists():
+        return {}
+    try:
+        import json as _json
+        return _json.loads(_RC_HISTORY_PATH.read_text())
+    except Exception:
+        return {}
+
+
+def _save_rc_history(history: dict) -> None:
+    import json as _json
+    _RC_HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _RC_HISTORY_PATH.write_text(_json.dumps(history, indent=2))
+
+
+# Load + update history
+_rc_current = _load_current_row_counts()
+_rc_history = _load_rc_history()
+_today_str = pd.Timestamp.now().strftime("%Y-%m-%d")
+if _today_str not in _rc_history:
+    _rc_history[_today_str] = _rc_current
+    _save_rc_history(_rc_history)
+
+# Keep last 30 days
+_sorted_dates = sorted(_rc_history.keys())[-30:]
+_rc_history = {d: _rc_history[d] for d in _sorted_dates}
+
+# ── KPI row with alert check ──────────────────────────────────────────────────
+_prev_dates = _sorted_dates[:-1]
+_prev_counts = _rc_history[_prev_dates[-1]] if _prev_dates else {}
+
+_rc_kpi_cols = st.columns(len(_RC_TABLES))
+for i, label in enumerate(list(_RC_TABLES.keys())):
+    with _rc_kpi_cols[i]:
+        current = _rc_current.get(label, 0)
+        prev = _prev_counts.get(label, current)
+        delta = current - prev
+        delta_pct = (delta / max(prev, 1)) * 100
+
+        if prev > 0 and delta < 0 and abs(delta_pct) > _DROP_THRESHOLD * 100:
+            icon = "🔴"
+        elif delta > 0:
+            icon = "🟢"
+        else:
+            icon = "🟡"
+
+        st.metric(
+            f"{icon} {label}",
+            f"{current:,}",
+            f"{delta:+,} ({delta_pct:+.1f}%) vs prev day",
+        )
+
+# ── Alert banner ──────────────────────────────────────────────────────────────
+_alerts = []
+for label in _RC_TABLES:
+    current = _rc_current.get(label, 0)
+    prev = _prev_counts.get(label, current)
+    if prev > 0:
+        drop_pct = (prev - current) / prev
+        if drop_pct > _DROP_THRESHOLD:
+            _alerts.append(
+                f"**{label}**: row count dropped {drop_pct * 100:.1f}% "
+                f"({prev:,} → {current:,})"
+            )
+
+if _alerts:
+    st.error("⚠️ Row Count Anomaly Detected\n\n" + "\n\n".join(_alerts))
+else:
+    st.success(f"All row counts within normal range (threshold: >{_DROP_THRESHOLD * 100:.0f}% drop)")
+
+# ── Trend chart ───────────────────────────────────────────────────────────────
+if len(_rc_history) >= 2:
+    st.subheader("Row Count Trend (Last 30 Days)")
+    _trend_rows = []
+    for date_str, counts in _rc_history.items():
+        for label, count in counts.items():
+            _trend_rows.append({"Date": date_str, "Source": label, "Rows": count})
+    _trend_df = pd.DataFrame(_trend_rows)
+
+    if not _trend_df.empty:
+        import plotly.graph_objects as go
+        _fig_rc = go.Figure()
+        for label in _RC_TABLES:
+            _src_df = _trend_df[_trend_df["Source"] == label].sort_values("Date")
+            if not _src_df.empty:
+                _fig_rc.add_trace(go.Scatter(
+                    x=_src_df["Date"],
+                    y=_src_df["Rows"],
+                    mode="lines+markers",
+                    name=label,
+                ))
+        _fig_rc.update_layout(
+            xaxis_title="Date",
+            yaxis_title="Row Count",
+            height=350,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02),
+        )
+        st.plotly_chart(_fig_rc, use_container_width=True)
+else:
+    st.info("Row count trend will appear after 2+ days of data are collected.")
+
+# ── Investigate button ────────────────────────────────────────────────────────
+if _alerts:
+    with st.expander("🔍 Investigate Anomalous Row Counts"):
+        st.markdown("**Affected tables and recent history:**")
+        for label in _RC_TABLES:
+            current = _rc_current.get(label, 0)
+            prev = _prev_counts.get(label, current)
+            if prev > 0 and (prev - current) / prev > _DROP_THRESHOLD:
+                st.markdown(f"**{label}** ({_RC_TABLES[label]})")
+                _hist_for_label = [
+                    {"Date": d, "Rows": _rc_history[d].get(label, 0)}
+                    for d in _sorted_dates
+                ]
+                st.dataframe(pd.DataFrame(_hist_for_label), use_container_width=True, hide_index=True)
+                st.markdown("**Suggested actions:**")
+                st.markdown("- Check ingestion pipeline logs for errors")
+                st.markdown("- Verify source CSV files are present and not empty")
+                st.markdown("- Re-run `python ingestion/run_all.py --mode full`")
