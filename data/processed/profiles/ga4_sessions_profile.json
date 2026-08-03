@@ -1,0 +1,440 @@
+{
+  "name": "ga4_sessions",
+  "profiled_at": "2026-08-02 22:00:20",
+  "row_count": 99599,
+  "column_count": 23,
+  "columns": [
+    "id",
+    "session_date",
+    "session_id",
+    "user_pseudo_id",
+    "user_id",
+    "country",
+    "city",
+    "device_category",
+    "operating_system",
+    "browser",
+    "channel_grouping",
+    "source",
+    "medium",
+    "campaign",
+    "landing_page",
+    "sessions",
+    "new_users",
+    "pageviews",
+    "bounce",
+    "session_duration_s",
+    "conversions",
+    "revenue",
+    "ingested_at"
+  ],
+  "null_summary": {
+    "id": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "session_date": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "session_id": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "user_pseudo_id": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "user_id": {
+      "null_count": 99599,
+      "null_pct": 100.0
+    },
+    "country": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "city": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "device_category": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "operating_system": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "browser": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "channel_grouping": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "source": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "medium": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "campaign": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "landing_page": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "sessions": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "new_users": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "pageviews": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "bounce": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "session_duration_s": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "conversions": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "revenue": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "ingested_at": {
+      "null_count": 0,
+      "null_pct": 0.0
+    }
+  },
+  "duplicate_summary": {
+    "duplicate_count": 0,
+    "duplicate_pct": 0.0,
+    "unique_count": 99599
+  },
+  "outlier_summary": {
+    "id": {
+      "outlier_count": 0,
+      "outlier_pct": 0.0,
+      "lower_fence": -49798.0,
+      "upper_fence": 149398.0
+    },
+    "new_users": {
+      "outlier_count": 0,
+      "outlier_pct": 0.0,
+      "lower_fence": -1.5,
+      "upper_fence": 2.5
+    },
+    "pageviews": {
+      "outlier_count": 0,
+      "outlier_pct": 0.0,
+      "lower_fence": -6.0,
+      "upper_fence": 18.0
+    },
+    "session_duration_s": {
+      "outlier_count": 6,
+      "outlier_pct": 0.01,
+      "lower_fence": -310.35,
+      "upper_fence": 517.25
+    }
+  },
+  "data_types": {
+    "id": {
+      "dtype": "int64",
+      "unique_count": 99599,
+      "sample_values": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "session_date": {
+      "dtype": "object",
+      "unique_count": 90,
+      "sample_values": [
+        "2026-05-04",
+        "2026-05-04",
+        "2026-05-04"
+      ]
+    },
+    "session_id": {
+      "dtype": "object",
+      "unique_count": 99599,
+      "sample_values": [
+        "3405739e-f63f-40",
+        "b421a3bf-cc67-47",
+        "446d1e46-91fb-4d"
+      ]
+    },
+    "user_pseudo_id": {
+      "dtype": "object",
+      "unique_count": 99599,
+      "sample_values": [
+        "87a86a14-f84b-42",
+        "a5e505ee-31f9-43",
+        "fa644fcf-b68b-40"
+      ]
+    },
+    "user_id": {
+      "dtype": "object",
+      "unique_count": 0,
+      "sample_values": []
+    },
+    "country": {
+      "dtype": "object",
+      "unique_count": 6,
+      "sample_values": [
+        "United States",
+        "United States",
+        "United States"
+      ]
+    },
+    "city": {
+      "dtype": "object",
+      "unique_count": 37835,
+      "sample_values": [
+        "Lake Paige",
+        "Jeffreyburgh",
+        "Port Brianmouth"
+      ]
+    },
+    "device_category": {
+      "dtype": "object",
+      "unique_count": 3,
+      "sample_values": [
+        "mobile",
+        "mobile",
+        "tablet"
+      ]
+    },
+    "operating_system": {
+      "dtype": "object",
+      "unique_count": 5,
+      "sample_values": [
+        "macOS",
+        "Android",
+        "macOS"
+      ]
+    },
+    "browser": {
+      "dtype": "object",
+      "unique_count": 4,
+      "sample_values": [
+        "Chrome",
+        "Chrome",
+        "Safari"
+      ]
+    },
+    "channel_grouping": {
+      "dtype": "object",
+      "unique_count": 6,
+      "sample_values": [
+        "Organic Search",
+        "Referral",
+        "Email"
+      ]
+    },
+    "source": {
+      "dtype": "object",
+      "unique_count": 6,
+      "sample_values": [
+        "bing",
+        "reddit.com",
+        "newsletter"
+      ]
+    },
+    "medium": {
+      "dtype": "object",
+      "unique_count": 6,
+      "sample_values": [
+        "organic",
+        "referral",
+        "email"
+      ]
+    },
+    "campaign": {
+      "dtype": "object",
+      "unique_count": 28136,
+      "sample_values": [
+        "(not set)",
+        "(not set)",
+        "seem-key-alone"
+      ]
+    },
+    "landing_page": {
+      "dtype": "object",
+      "unique_count": 8,
+      "sample_values": [
+        "https://example.com/about/",
+        "https://example.com/contact/",
+        "https://example.com/pricing/"
+      ]
+    },
+    "sessions": {
+      "dtype": "int64",
+      "unique_count": 1,
+      "sample_values": [
+        "1",
+        "1",
+        "1"
+      ]
+    },
+    "new_users": {
+      "dtype": "int64",
+      "unique_count": 2,
+      "sample_values": [
+        "0",
+        "1",
+        "0"
+      ]
+    },
+    "pageviews": {
+      "dtype": "int64",
+      "unique_count": 12,
+      "sample_values": [
+        "4",
+        "6",
+        "1"
+      ]
+    },
+    "bounce": {
+      "dtype": "bool",
+      "unique_count": 2,
+      "sample_values": [
+        "False",
+        "False",
+        "False"
+      ]
+    },
+    "session_duration_s": {
+      "dtype": "float64",
+      "unique_count": 28402,
+      "sample_values": [
+        "0.0",
+        "0.0",
+        "242.5"
+      ]
+    },
+    "conversions": {
+      "dtype": "int64",
+      "unique_count": 2,
+      "sample_values": [
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    "revenue": {
+      "dtype": "float64",
+      "unique_count": 2737,
+      "sample_values": [
+        "0.0",
+        "0.0",
+        "0.0"
+      ]
+    },
+    "ingested_at": {
+      "dtype": "datetime64[ns, UTC]",
+      "unique_count": 1,
+      "sample_values": [
+        "2026-08-02 03:48:16.095323+00:00",
+        "2026-08-02 03:48:16.095323+00:00",
+        "2026-08-02 03:48:16.095323+00:00"
+      ]
+    }
+  },
+  "statistics": {
+    "id": {
+      "count": 99599.0,
+      "mean": 49800.0,
+      "std": 28751.8991,
+      "min": 1.0,
+      "25%": 24900.5,
+      "50%": 49800.0,
+      "75%": 74699.5,
+      "max": 99599.0
+    },
+    "sessions": {
+      "count": 99599.0,
+      "mean": 1.0,
+      "std": 0.0,
+      "min": 1.0,
+      "25%": 1.0,
+      "50%": 1.0,
+      "75%": 1.0,
+      "max": 1.0
+    },
+    "new_users": {
+      "count": 99599.0,
+      "mean": 0.5505,
+      "std": 0.4974,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 1.0,
+      "75%": 1.0,
+      "max": 1.0
+    },
+    "pageviews": {
+      "count": 99599.0,
+      "mean": 6.474,
+      "std": 3.4464,
+      "min": 1.0,
+      "25%": 3.0,
+      "50%": 6.0,
+      "75%": 9.0,
+      "max": 12.0
+    },
+    "session_duration_s": {
+      "count": 99599.0,
+      "mean": 117.4312,
+      "std": 111.843,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 113.43,
+      "75%": 206.9,
+      "max": 580.97
+    },
+    "conversions": {
+      "count": 99599.0,
+      "mean": 0.0293,
+      "std": 0.1687,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 0.0,
+      "max": 1.0
+    },
+    "revenue": {
+      "count": 99599.0,
+      "mean": 3.795,
+      "std": 24.8373,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 0.0,
+      "max": 249.88
+    }
+  },
+  "quality": {
+    "score": 95.6,
+    "avg_null_pct": 4.35,
+    "cols_with_nulls": 1,
+    "duplicate_pct": 0.0,
+    "avg_outlier_pct": 0.0
+  }
+}

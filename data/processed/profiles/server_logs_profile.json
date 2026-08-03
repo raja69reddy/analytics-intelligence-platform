@@ -1,0 +1,250 @@
+{
+  "name": "server_logs",
+  "profiled_at": "2026-08-02 22:00:20",
+  "row_count": 5000,
+  "column_count": 12,
+  "columns": [
+    "id",
+    "log_time",
+    "ip_address",
+    "method",
+    "url",
+    "query_string",
+    "status_code",
+    "response_bytes",
+    "referrer",
+    "user_agent",
+    "response_time_ms",
+    "ingested_at"
+  ],
+  "null_summary": {
+    "id": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "log_time": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "ip_address": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "method": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "url": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "query_string": {
+      "null_count": 5000,
+      "null_pct": 100.0
+    },
+    "status_code": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "response_bytes": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "referrer": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "user_agent": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "response_time_ms": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "ingested_at": {
+      "null_count": 0,
+      "null_pct": 0.0
+    }
+  },
+  "duplicate_summary": {
+    "duplicate_count": 0,
+    "duplicate_pct": 0.0,
+    "unique_count": 5000
+  },
+  "outlier_summary": {
+    "id": {
+      "outlier_count": 0,
+      "outlier_pct": 0.0,
+      "lower_fence": -2498.5,
+      "upper_fence": 7499.5
+    },
+    "response_bytes": {
+      "outlier_count": 0,
+      "outlier_pct": 0.0,
+      "lower_fence": -67062.5,
+      "upper_fence": 127869.5
+    },
+    "response_time_ms": {
+      "outlier_count": 0,
+      "outlier_pct": 0.0,
+      "lower_fence": -957.625,
+      "upper_fence": 3027.375
+    }
+  },
+  "data_types": {
+    "id": {
+      "dtype": "int64",
+      "unique_count": 5000,
+      "sample_values": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "log_time": {
+      "dtype": "datetime64[ns, UTC]",
+      "unique_count": 4999,
+      "sample_values": [
+        "2026-04-13 03:59:17+00:00",
+        "2026-04-13 04:03:27+00:00",
+        "2026-04-13 04:08:43+00:00"
+      ]
+    },
+    "ip_address": {
+      "dtype": "object",
+      "unique_count": 5000,
+      "sample_values": [
+        "46.202.10.212",
+        "140.157.54.3",
+        "112.210.231.203"
+      ]
+    },
+    "method": {
+      "dtype": "object",
+      "unique_count": 2,
+      "sample_values": [
+        "GET",
+        "GET",
+        "GET"
+      ]
+    },
+    "url": {
+      "dtype": "object",
+      "unique_count": 10,
+      "sample_values": [
+        "/login",
+        "/blog/post-1",
+        "/blog"
+      ]
+    },
+    "query_string": {
+      "dtype": "object",
+      "unique_count": 0,
+      "sample_values": []
+    },
+    "status_code": {
+      "dtype": "int64",
+      "unique_count": 4,
+      "sample_values": [
+        "200",
+        "500",
+        "200"
+      ]
+    },
+    "response_bytes": {
+      "dtype": "int64",
+      "unique_count": 4675,
+      "sample_values": [
+        "15022",
+        "1234",
+        "28783"
+      ]
+    },
+    "referrer": {
+      "dtype": "object",
+      "unique_count": 6,
+      "sample_values": [
+        "https://www.google.com/",
+        "<NA>",
+        "<NA>"
+      ]
+    },
+    "user_agent": {
+      "dtype": "object",
+      "unique_count": 8,
+      "sample_values": [
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1"
+      ]
+    },
+    "response_time_ms": {
+      "dtype": "int64",
+      "unique_count": 1799,
+      "sample_values": [
+        "183",
+        "165",
+        "310"
+      ]
+    },
+    "ingested_at": {
+      "dtype": "datetime64[ns, UTC]",
+      "unique_count": 1,
+      "sample_values": [
+        "2026-07-12 00:31:36.040473+00:00",
+        "2026-07-12 00:31:36.040473+00:00",
+        "2026-07-12 00:31:36.040473+00:00"
+      ]
+    }
+  },
+  "statistics": {
+    "id": {
+      "count": 5000.0,
+      "mean": 2500.5,
+      "std": 1443.52,
+      "min": 1.0,
+      "25%": 1250.75,
+      "50%": 2500.5,
+      "75%": 3750.25,
+      "max": 5000.0
+    },
+    "status_code": {
+      "count": 5000.0,
+      "mean": 237.0626,
+      "std": 80.5737,
+      "min": 200.0,
+      "25%": 200.0,
+      "50%": 200.0,
+      "75%": 200.0,
+      "max": 500.0
+    },
+    "response_bytes": {
+      "count": 5000.0,
+      "mean": 32403.0356,
+      "std": 25684.0738,
+      "min": 100.0,
+      "25%": 6037.0,
+      "50%": 29799.0,
+      "75%": 54770.0,
+      "max": 79937.0
+    },
+    "response_time_ms": {
+      "count": 5000.0,
+      "mean": 1030.945,
+      "std": 565.0546,
+      "min": 50.0,
+      "25%": 536.75,
+      "50%": 1027.0,
+      "75%": 1533.0,
+      "max": 2000.0
+    }
+  },
+  "quality": {
+    "score": 91.7,
+    "avg_null_pct": 8.33,
+    "cols_with_nulls": 1,
+    "duplicate_pct": 0.0,
+    "avg_outlier_pct": 0.0
+  }
+}

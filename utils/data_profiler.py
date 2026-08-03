@@ -36,7 +36,14 @@ def get_null_summary(df: pd.DataFrame) -> dict[str, dict]:
 
 def get_duplicate_summary(df: pd.DataFrame) -> dict:
     """Return fully-duplicate row counts for df."""
-    n_dup = int(df.duplicated().sum())
+    # Convert object columns with unhashable values (e.g. dicts) to strings
+    safe = df.copy()
+    for col in safe.select_dtypes(include="object").columns:
+        try:
+            safe[col].apply(hash)
+        except TypeError:
+            safe[col] = safe[col].astype(str)
+    n_dup = int(safe.duplicated().sum())
     total = len(df)
     return {
         "duplicate_count": n_dup,
@@ -69,14 +76,18 @@ def get_outlier_summary(df: pd.DataFrame) -> dict[str, dict]:
 
 def get_data_types(df: pd.DataFrame) -> dict[str, dict]:
     """Return dtype string, unique count, and 3 sample values per column."""
-    return {
-        col: {
+    result: dict[str, dict] = {}
+    for col in df.columns:
+        try:
+            unique_count = int(df[col].nunique())
+        except TypeError:
+            unique_count = int(df[col].astype(str).nunique())
+        result[col] = {
             "dtype": str(df[col].dtype),
-            "unique_count": int(df[col].nunique()),
+            "unique_count": unique_count,
             "sample_values": [str(v) for v in df[col].dropna().head(3).tolist()],
         }
-        for col in df.columns
-    }
+    return result
 
 
 def profile_dataframe(df: pd.DataFrame, name: str = "unnamed") -> dict:

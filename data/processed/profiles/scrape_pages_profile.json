@@ -1,0 +1,356 @@
+{
+  "name": "scrape_pages",
+  "profiled_at": "2026-08-02 22:00:20",
+  "row_count": 198,
+  "column_count": 16,
+  "columns": [
+    "id",
+    "scraped_at",
+    "url",
+    "canonical_url",
+    "title",
+    "meta_description",
+    "h1",
+    "word_count",
+    "internal_links",
+    "external_links",
+    "images_count",
+    "has_schema_org",
+    "page_size_kb",
+    "load_time_ms",
+    "http_status",
+    "ingested_at"
+  ],
+  "null_summary": {
+    "id": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "scraped_at": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "url": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "canonical_url": {
+      "null_count": 190,
+      "null_pct": 95.96
+    },
+    "title": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "meta_description": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "h1": {
+      "null_count": 190,
+      "null_pct": 95.96
+    },
+    "word_count": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "internal_links": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "external_links": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "images_count": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "has_schema_org": {
+      "null_count": 0,
+      "null_pct": 0.0
+    },
+    "page_size_kb": {
+      "null_count": 190,
+      "null_pct": 95.96
+    },
+    "load_time_ms": {
+      "null_count": 190,
+      "null_pct": 95.96
+    },
+    "http_status": {
+      "null_count": 190,
+      "null_pct": 95.96
+    },
+    "ingested_at": {
+      "null_count": 0,
+      "null_pct": 0.0
+    }
+  },
+  "duplicate_summary": {
+    "duplicate_count": 0,
+    "duplicate_pct": 0.0,
+    "unique_count": 198
+  },
+  "outlier_summary": {
+    "id": {
+      "outlier_count": 0,
+      "outlier_pct": 0.0,
+      "lower_fence": -2062.5,
+      "upper_fence": 3571.5
+    },
+    "word_count": {
+      "outlier_count": 0,
+      "outlier_pct": 0.0,
+      "lower_fence": -1190.75,
+      "upper_fence": 4639.25
+    },
+    "page_size_kb": {
+      "outlier_count": 2,
+      "outlier_pct": 25.0,
+      "lower_fence": 155.1138,
+      "upper_fence": 399.9037
+    },
+    "load_time_ms": {
+      "outlier_count": 3,
+      "outlier_pct": 37.5,
+      "lower_fence": 660.25,
+      "upper_fence": 1442.25
+    }
+  },
+  "data_types": {
+    "id": {
+      "dtype": "int64",
+      "unique_count": 198,
+      "sample_values": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "scraped_at": {
+      "dtype": "datetime64[ns, UTC]",
+      "unique_count": 10,
+      "sample_values": [
+        "2026-06-30 23:31:08.479268+00:00",
+        "2026-06-30 23:31:08.479391+00:00",
+        "2026-06-30 23:31:08.479436+00:00"
+      ]
+    },
+    "url": {
+      "dtype": "object",
+      "unique_count": 198,
+      "sample_values": [
+        "https://example.com/",
+        "https://example.com/blog/",
+        "https://example.com/pricing/"
+      ]
+    },
+    "canonical_url": {
+      "dtype": "object",
+      "unique_count": 8,
+      "sample_values": [
+        "https://example.com/",
+        "https://example.com/blog/",
+        "https://example.com/pricing/"
+      ]
+    },
+    "title": {
+      "dtype": "object",
+      "unique_count": 193,
+      "sample_values": [
+        "Home",
+        "Blog Index",
+        "Pricing"
+      ]
+    },
+    "meta_description": {
+      "dtype": "object",
+      "unique_count": 198,
+      "sample_values": [
+        "Stage quite provide camera news history throughout week thought debate strategy operation type north financial plan image since gun.",
+        "Social region purpose tonight particular chance consider soon nation reason by community friend material medical sign.",
+        "Deal inside newspaper dinner from culture expect series new know event way down ahead teacher food north ability commercial city including."
+      ]
+    },
+    "h1": {
+      "dtype": "object",
+      "unique_count": 8,
+      "sample_values": [
+        "Home",
+        "Blog Index",
+        "Pricing"
+      ]
+    },
+    "word_count": {
+      "dtype": "int64",
+      "unique_count": 193,
+      "sample_values": [
+        "594",
+        "1091",
+        "247"
+      ]
+    },
+    "internal_links": {
+      "dtype": "int64",
+      "unique_count": 8,
+      "sample_values": [
+        "18",
+        "11",
+        "18"
+      ]
+    },
+    "external_links": {
+      "dtype": "int64",
+      "unique_count": 7,
+      "sample_values": [
+        "7",
+        "7",
+        "5"
+      ]
+    },
+    "images_count": {
+      "dtype": "int64",
+      "unique_count": 8,
+      "sample_values": [
+        "9",
+        "12",
+        "8"
+      ]
+    },
+    "has_schema_org": {
+      "dtype": "bool",
+      "unique_count": 2,
+      "sample_values": [
+        "True",
+        "True",
+        "True"
+      ]
+    },
+    "page_size_kb": {
+      "dtype": "float64",
+      "unique_count": 8,
+      "sample_values": [
+        "183.7",
+        "295.95",
+        "449.99"
+      ]
+    },
+    "load_time_ms": {
+      "dtype": "float64",
+      "unique_count": 8,
+      "sample_values": [
+        "1176.0",
+        "213.0",
+        "1070.0"
+      ]
+    },
+    "http_status": {
+      "dtype": "float64",
+      "unique_count": 1,
+      "sample_values": [
+        "200.0",
+        "200.0",
+        "200.0"
+      ]
+    },
+    "ingested_at": {
+      "dtype": "datetime64[ns, UTC]",
+      "unique_count": 3,
+      "sample_values": [
+        "2026-06-30 23:31:08.703804+00:00",
+        "2026-06-30 23:31:08.703804+00:00",
+        "2026-06-30 23:31:08.703804+00:00"
+      ]
+    }
+  },
+  "statistics": {
+    "id": {
+      "count": 198.0,
+      "mean": 694.9545,
+      "std": 703.9589,
+      "min": 1.0,
+      "25%": 50.25,
+      "50%": 99.5,
+      "75%": 1458.75,
+      "max": 1508.0
+    },
+    "word_count": {
+      "count": 198.0,
+      "mean": 1679.0101,
+      "std": 828.0536,
+      "min": 247.0,
+      "25%": 995.5,
+      "50%": 1683.0,
+      "75%": 2453.0,
+      "max": 2997.0
+    },
+    "internal_links": {
+      "count": 198.0,
+      "mean": 0.5354,
+      "std": 2.8242,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 0.0,
+      "max": 20.0
+    },
+    "external_links": {
+      "count": 198.0,
+      "mean": 0.1919,
+      "std": 1.044,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 0.0,
+      "max": 8.0
+    },
+    "images_count": {
+      "count": 198.0,
+      "mean": 0.3384,
+      "std": 1.7573,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 0.0,
+      "max": 12.0
+    },
+    "page_size_kb": {
+      "count": 8.0,
+      "mean": 271.7763,
+      "std": 109.024,
+      "min": 77.57,
+      "25%": 246.91,
+      "50%": 277.22,
+      "75%": 308.1075,
+      "max": 449.99
+    },
+    "load_time_ms": {
+      "count": 8.0,
+      "mean": 1133.125,
+      "std": 684.3542,
+      "min": 213.0,
+      "25%": 953.5,
+      "50%": 1132.0,
+      "75%": 1149.0,
+      "max": 2598.0
+    },
+    "http_status": {
+      "count": 8.0,
+      "mean": 200.0,
+      "std": 0.0,
+      "min": 200.0,
+      "25%": 200.0,
+      "50%": 200.0,
+      "75%": 200.0,
+      "max": 200.0
+    }
+  },
+  "quality": {
+    "score": 62.2,
+    "avg_null_pct": 29.99,
+    "cols_with_nulls": 5,
+    "duplicate_pct": 0.0,
+    "avg_outlier_pct": 15.62
+  }
+}
