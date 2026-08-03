@@ -31,9 +31,11 @@ def is_valid_date(value) -> bool:
     """Return True if value can be parsed as a date."""
     if value is None:
         return False
+    if isinstance(value, str) and not value.strip():
+        return False
     try:
-        pd.to_datetime(value)
-        return True
+        result = pd.to_datetime(value)
+        return result is not pd.NaT
     except Exception:
         return False
 
@@ -96,6 +98,16 @@ def validate_dataframe(
     invalid_df : Rows failing at least one check (with "_errors" column).
     summary    : Dict with keys: passed, failed, error_counts, last_run.
     """
+    if not rules:
+        summary: dict = {
+            "passed": len(df),
+            "failed": 0,
+            "error_counts": {},
+            "last_run": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        _save_summary(source, summary)
+        return df.copy(), pd.DataFrame(), summary
+
     flags = pd.DataFrame(rules)
     fail_mask = flags.any(axis=1)
 
