@@ -3,18 +3,18 @@
 ============================================================
 
 -- TRAFFIC --------------------------------------------------
-  GA4 Date Range:        2026-04-13 to 2026-07-11
-  Total Sessions:              50,566
-  Total New Users:             13,244
-  Total Pageviews:            221,894
-  Avg Bounce Rate:              2.03%
-  Avg Session Duration:        311.3s
-  Top Channel:           Social (8,882 sessions)
+  GA4 Date Range:        2026-05-04 to 2026-08-01
+  Total Sessions:              99,599
+  Total New Users:             54,831
+  Total Pageviews:            644,801
+  Avg Bounce Rate:              3.02%
+  Avg Session Duration:        117.4s
+  Top Channel:           Organic Search (28,394 sessions)
 
 -- CONVERSIONS -----------------------------------------------
-  Total Goal Completions:           0
-  Overall CVR:                0.0000%
-  Total Revenue:         $       0.00
+  Total Goal Completions:       2,920
+  Overall CVR:                2.9318%
+  Total Revenue:         $ 377,973.46
 
 -- SEO -------------------------------------------------------
   Total Pages Scraped:              8

@@ -56,3 +56,7 @@
 [2026-07-11T20:31:29.176720] [CRITICAL] Error rate is 14.3% (threshold: 5%)
 [2026-07-11T20:31:29.194059] [WARNING] 1 traffic anomaly(s) detected by AI model (0 high-severity)
 [2026-07-11T20:31:29.200901] [CRITICAL] Error rate is 14.3% (threshold: 5%)
+[2026-08-02T22:06:47.627305] [CRITICAL] Traffic dropped 31.9% day-over-day (threshold: 20%)
+[2026-08-02T22:06:47.690487] [CRITICAL] CVR dropped 16.4% vs 7-day avg (threshold: 15%)
+[2026-08-02T22:06:47.706135] [WARNING] 1 traffic anomaly(s) detected by AI model (0 high-severity)
+[2026-08-02T22:07:23.342817] [WARNING] 1 traffic anomaly(s) detected by AI model (0 high-severity)

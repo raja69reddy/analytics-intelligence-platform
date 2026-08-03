@@ -3,25 +3,25 @@
     "passed": 2000,
     "failed": 0,
     "error_counts": {},
-    "last_run": "2026-08-02 21:52:46"
+    "last_run": "2026-08-02 22:07:14"
   },
   "server_logs": {
     "passed": 5000,
     "failed": 0,
     "error_counts": {},
-    "last_run": "2026-08-02 21:52:46"
+    "last_run": "2026-08-02 22:07:29"
   },
   "clickstream": {
     "passed": 10000,
     "failed": 0,
     "error_counts": {},
-    "last_run": "2026-08-02 21:52:47"
+    "last_run": "2026-08-02 22:06:54"
   },
   "scraper": {
     "passed": 100,
     "failed": 0,
     "error_counts": {},
-    "last_run": "2026-08-02 21:52:47"
+    "last_run": "2026-08-02 22:07:25"
   },
   "test": {
     "passed": 2,
@@ -30,5 +30,13 @@
       "not_positive": 2
     },
     "last_run": "2026-08-02 21:51:43"
+  },
+  "unknown": {
+    "passed": 3,
+    "failed": 2,
+    "error_counts": {
+      "score_not_positive": 2
+    },
+    "last_run": "2026-08-02 22:07:34"
   }
 }
