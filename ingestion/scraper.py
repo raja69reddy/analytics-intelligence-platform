@@ -9,6 +9,7 @@ Usage:
 """
 
 import argparse
+import json
 import logging
 import sys
 import time
@@ -31,7 +32,51 @@ log = logging.getLogger("scraper_ingestion")
 
 CSV_PATH = Path(__file__).resolve().parent.parent / "data" / "raw" / "scrape_pages.csv"
 TABLE = "raw_scrape_pages"
+_LOG_DIR = Path(__file__).resolve().parent.parent / "data" / "processed" / "logs"
+_VAL_SUMMARY = Path(__file__).resolve().parent.parent / "data" / "processed" / "validation_summary.json"
 REQUIRED_COLUMNS = {"url", "title", "meta_description", "word_count", "scraped_at"}
+
+
+def _update_val_summary(source: str, summary: dict) -> None:
+    data: dict = {}
+    if _VAL_SUMMARY.exists():
+        try:
+            data = json.loads(_VAL_SUMMARY.read_text())
+        except Exception:
+            pass
+    data[source] = summary
+    _VAL_SUMMARY.write_text(json.dumps(data, indent=2))
+
+
+def _validate(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+    """Check row-level constraints before transforms. Returns (valid_df, summary)."""
+    _LOG_DIR.mkdir(parents=True, exist_ok=True)
+    parsed_urls = df["url"].fillna("").astype(str).apply(urlparse)
+    title_col = df["title"].fillna("").astype(str).str.strip()
+    checks = {
+        "invalid_url": parsed_urls.apply(lambda p: not p.scheme or not p.netloc),
+        "word_count_not_positive": pd.to_numeric(df["word_count"], errors="coerce").fillna(0) < 1,
+        "title_empty": title_col.isin(["", "nan", "None"]),
+        "invalid_scraped_at": pd.to_datetime(df["scraped_at"], errors="coerce").isna(),
+    }
+    flags = pd.DataFrame(checks)
+    fail_mask = flags.any(axis=1)
+    if fail_mask.any():
+        bad = df[fail_mask].copy()
+        bad["_errors"] = flags[fail_mask].apply(
+            lambda r: ", ".join(r.index[r].tolist()), axis=1
+        )
+        ts = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+        bad.to_csv(_LOG_DIR / f"scraper_invalid_{ts}.csv", index=False)
+        log.warning("Saved %d invalid rows → scraper_invalid_%s.csv", fail_mask.sum(), ts)
+    summary = {
+        "passed": int((~fail_mask).sum()),
+        "failed": int(fail_mask.sum()),
+        "error_counts": {k: int(v) for k, v in flags.sum().items() if v > 0},
+        "last_run": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    _update_val_summary("scraper", summary)
+    return df[~fail_mask].copy(), summary
 
 
 def _normalize_url(url: str) -> str:
@@ -64,6 +109,12 @@ def load_csv() -> pd.DataFrame:
     if missing:
         log.error("CSV is missing required columns: %s", missing)
         raise ValueError(f"Missing columns: {missing}")
+
+    # Validate raw CSV values before transforms
+    df, _val = _validate(df)
+    log.info("Validation: %d passed, %d failed", _val["passed"], _val["failed"])
+    if _val["error_counts"]:
+        log.warning("Error breakdown: %s", _val["error_counts"])
 
     # Normalize URLs — lowercase, strip trailing slash; log and drop invalid entries
     invalid_urls = df["url"].isna() | (df["url"].astype(str).str.strip() == "")
@@ -108,6 +159,7 @@ def load_csv() -> pd.DataFrame:
     df = df[[c for c in keep if c in df.columns]]
 
     log.info("Loaded %d rows from CSV", len(df))
+    print(f"Validation: {_val['passed']} rows passed, {_val['failed']} failed")
     return df
 
 
