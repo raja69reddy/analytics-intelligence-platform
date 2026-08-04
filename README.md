@@ -1661,3 +1661,11 @@ Day 46 - SEO Page Enhanced
 - Added validation report to pipeline monitor page
 - Invalid rows logged separately for review
 - All ingestion pipelines now production grade!
+
+### Day 54 - PostgreSQL Indexes + Query Optimization
+- Added 7 composite indexes to all raw/dim/fact tables via `scripts/add_composite_indexes.py`
+- Ran `EXPLAIN ANALYZE` on all 8 SQL views; top 3 slowest: vw_traffic 331ms, vw_top_pages 25ms, vw_behavior 14ms
+- Optimized top 3 slowest views: `mv_traffic_fast` materialized view -97% (284ms to 8.6ms); vw_top_pages -36%; vw_behavior -13%
+- Created `sql/views/mat_daily_summary.sql`: pre-aggregated daily KPIs across all 4 sources, 22 columns, 90-day coverage
+- Added Step 5 to `ingestion/run_all.py`: `REFRESH MATERIALIZED VIEW` for both materialized views after each full pipeline run
+- Enhanced `utils/db.py`: `pool_timeout=30`, `pool_recycle=3600`, new `pool_status()` function with live metrics
