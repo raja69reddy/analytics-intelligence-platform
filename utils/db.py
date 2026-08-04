@@ -10,6 +10,7 @@ Public API:
   run_sql_file(path)   — execute a .sql file in one transaction
   query_df(sql)        — run a SELECT and return a DataFrame
   query_sql_file(path) — run a .sql file and return a DataFrame
+  pool_status()        — dict of live pool metrics
   test_connection()    — smoke-test the DB credentials
 """
 
@@ -55,8 +56,13 @@ _engine = None
 def get_engine():
     """Return the shared SQLAlchemy engine, creating it on the first call.
 
-    Uses a connection pool (size=5, max_overflow=10) with pool_pre_ping
-    enabled so stale connections are recycled automatically.
+    Pool settings:
+      pool_size=5        — keep 5 persistent connections open
+      max_overflow=10    — allow up to 10 additional burst connections
+      pool_timeout=30    — raise after 30 s waiting for a free slot
+      pool_recycle=3600  — replace connections older than 1 h to avoid
+                           PostgreSQL's idle timeout closing them underneath
+      pool_pre_ping=True — test each connection before use to discard stale ones
 
     Returns:
         A SQLAlchemy Engine connected to the web_analytics database.
@@ -68,9 +74,36 @@ def get_engine():
             pool_pre_ping=True,
             pool_size=5,
             max_overflow=10,
+            pool_timeout=30,
+            pool_recycle=3600,
             echo=False,
         )
+        logger.info(
+            "Connection pool initialised: size=%d max_overflow=%d "
+            "timeout=%ds recycle=%ds",
+            5, 10, 30, 3600,
+        )
     return _engine
+
+
+def pool_status() -> dict:
+    """Return live metrics from the connection pool.
+
+    Returns a dict with keys: size, checkedin, checkedout, overflow, invalid.
+    Returns an empty dict if the engine has not been initialised yet.
+    """
+    if _engine is None:
+        return {}
+    pool = _engine.pool
+    status = {
+        "size": pool.size(),
+        "checkedin": pool.checkedin(),
+        "checkedout": pool.checkedout(),
+        "overflow": pool.overflow(),
+        "invalid": pool.invalidated if hasattr(pool, "invalidated") else 0,
+    }
+    logger.debug("Pool status: %s", status)
+    return status
 
 
 def get_session_factory():
@@ -178,13 +211,16 @@ def query_sql_file(path: str, params: dict | None = None):
 def test_connection() -> None:
     """Verify the database is reachable by executing SELECT 1.
 
-    Prints 'Connection successful!' on success or an error message on failure.
+    Prints connection status and pool metrics.
     Run this module directly (python utils/db.py) to smoke-test credentials.
     """
     try:
         with get_engine().connect() as conn:
             conn.execute(text("SELECT 1"))
         print("Connection successful!")
+        status = pool_status()
+        print(f"Pool status: size={status.get('size')} checkedin={status.get('checkedin')} "
+              f"checkedout={status.get('checkedout')} overflow={status.get('overflow')}")
     except Exception as e:
         print(f"Connection failed: {e}")
 
