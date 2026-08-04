@@ -52,6 +52,27 @@ def _yellow(s: str) -> str:
     return f"\033[33m{s}\033[0m" if _USE_COLOR else s
 
 
+MAT_VIEWS = ["mv_traffic_fast", "mat_daily_summary"]
+
+
+def _refresh_materialized_views() -> None:
+    from utils.db import get_engine
+    from sqlalchemy import text
+
+    engine = get_engine()
+    for mv in MAT_VIEWS:
+        t0 = time.perf_counter()
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(f"REFRESH MATERIALIZED VIEW {mv}"))
+            elapsed = (time.perf_counter() - t0) * 1000
+            print(f"  [OK]  Refreshed {mv:<28}  ({elapsed:.0f} ms)")
+            logger.info("Refreshed materialized view %s in %.0f ms", mv, elapsed)
+        except Exception as exc:
+            print(f"  [ERR] Failed to refresh {mv}: {exc}")
+            logger.error("Failed to refresh materialized view %s: %s", mv, exc)
+
+
 def _row_count(table: str) -> int:
     from utils.db import query_df
 
@@ -242,8 +263,14 @@ def main() -> None:
             print(f"  [ERR] Alert step failed: {exc}")
             logger.error("Alert step failed: %s", exc)
 
+        # ── Step 5: Refresh Materialized Views ───────────────────────────
         print("\n" + "=" * 65)
-        print("  Full pipeline complete: ingest -> transform -> validate -> alerts")
+        print("  Step 5: Refresh Materialized Views")
+        print("=" * 65)
+        _refresh_materialized_views()
+
+        print("\n" + "=" * 65)
+        print("  Full pipeline complete: ingest -> transform -> validate -> alerts -> refresh")
         print("=" * 65 + "\n")
 
 
